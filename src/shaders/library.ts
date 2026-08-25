@@ -12,6 +12,11 @@ uniform float uVolume;
 uniform float uBeat;
 uniform float uBeatPhase;
 uniform float uBPM;
+uniform float speed;
+uniform float intensity;
+uniform float distortion;
+uniform float scale;
+uniform float brightness;
 out vec4 fragColor;
 `
 
