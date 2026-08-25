@@ -291,8 +291,8 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }
     void main() {
       vec2 uv = (gl_FragCoord.xy - 0.5*uResolution) / min(uResolution.x, uResolution.y);
-      float scale = 4.0 + uBeat * 0.5;
-      vec2 v = voronoi(uv * scale);
+      float vScale = 4.0 + uBeat * 0.5;
+      vec2 v = voronoi(uv * vScale);
       float edge = smoothstep(0.0, 0.05, v.y - v.x);
       float glow = exp(-v.x * 10.0) * (0.5 + 0.5*uBeat);
       vec3 col = mix(vec3(0.6, 0.1, 0.8), vec3(0.1, 0.4, 1.0), v.x);
@@ -655,11 +655,11 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
       vec3 col=vec3(0.0);
       for(int i=0;i<12;i++) {
         float fi=float(i);
-        float scale=pow(2.0,fi);
-        vec2 p=uv*scale+vec2(sin(uTime*0.2*speed+fi),cos(uTime*0.15*speed+fi*1.3))*0.3;
-        float tri=abs(p.x)+abs(p.y*0.866)-0.5/scale;
-        float edge=smoothstep(0.01/scale,0.0,abs(tri));
-        float glow=exp(-abs(tri)*scale*5.0)*0.3;
+        float sScale=pow(2.0,fi);
+        vec2 p=uv*sScale+vec2(sin(uTime*0.2*speed+fi),cos(uTime*0.15*speed+fi*1.3))*0.3;
+        float tri=abs(p.x)+abs(p.y*0.866)-0.5/sScale;
+        float edge=smoothstep(0.01/sScale,0.0,abs(tri));
+        float glow=exp(-abs(tri)*sScale*5.0)*0.3;
         vec3 c=mix(vec3(0.3,0.1,0.8),vec3(0.8,0.2,0.5),fi/12.0);
         col+=c*(edge+glow)*(1.0-uBeat*0.3*step(4.0,fi));
       }
@@ -769,8 +769,8 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }
     void main() {
       vec2 uv=(gl_FragCoord.xy-0.5*uResolution)/min(uResolution.x,uResolution.y);
-      float scale=8.0+uBass*2.0;
-      float c=cell(uv*scale);
+      float cScale=8.0+uBass*2.0;
+      float c=cell(uv*cScale);
       float edge=smoothstep(0.05,0.0,abs(c-0.1));
       float fill=smoothstep(0.15,0.05,c);
       vec3 col=vec3(0.0);

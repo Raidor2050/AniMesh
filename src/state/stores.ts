@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { ShaderDefinition, AudioSnapshot, DEFAULT_AUDIO } from '../utils/types'
+import { SHADER_LIBRARY } from '../shaders/library'
 
 function safeGetItem(key: string): string | null {
   try { return localStorage.getItem(key) } catch { return null }
@@ -72,9 +73,11 @@ interface ShaderStore {
 const savedFavorites = JSON.parse(safeGetItem('animesh-favorites') || '[]')
 const savedRecent = JSON.parse(safeGetItem('animesh-recent') || '[]')
 
+const defaultShader = SHADER_LIBRARY.find(s => s.id === 'fractal-sierpinski') ?? SHADER_LIBRARY[0] ?? null
+
 export const useShaderStore = create<ShaderStore>((set) => ({
-  activeShader: null,
-  params: {},
+  activeShader: defaultShader,
+  params: defaultShader ? { ...defaultShader.defaults } : {},
   favorites: savedFavorites,
   recent: savedRecent,
   setActiveShader: (shader) => set((s) => {

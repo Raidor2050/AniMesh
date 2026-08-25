@@ -128,7 +128,12 @@ class ShaderPreviewManagerSingleton {
     const { gl } = this
     if (!gl || !this.vao) return
 
-    let program = createProgram(gl, VERT_SRC, def.fragment)
+    let program: WebGLProgram | null = null
+    try {
+      program = createProgram(gl, VERT_SRC, def.fragment)
+    } catch (e) {
+      console.warn('[Preview] compile failed for', def.id, e)
+    }
     if (!program) program = this.fallbackProgram
     if (!program) return
 
@@ -170,7 +175,14 @@ class ShaderPreviewManagerSingleton {
     gl.drawArrays(gl.TRIANGLES, 0, 6)
     gl.bindVertexArray(null)
 
-    const dataUrl = this.canvas.toDataURL('image/webp', 0.6)
+    let dataUrl: string
+    try {
+      dataUrl = this.canvas.toDataURL('image/webp', 0.6)
+      // WebP not supported returns data:, or empty
+      if (!dataUrl || dataUrl === 'data:,' || dataUrl.length < 100) throw new Error('WebP unsupported')
+    } catch {
+      try { dataUrl = this.canvas.toDataURL('image/png') } catch { return }
+    }
     this.cache.set(def.id, { id: def.id, dataUrl, timestamp: Date.now() })
     this.notify(def.id, dataUrl)
   }

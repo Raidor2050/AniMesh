@@ -51,7 +51,7 @@ export function App() {
       {bootComplete && !immersive && <HUD />}
       {bootComplete && !immersive && <ParameterPanel />}
       {bootComplete && !immersive && <AudioInitBar />}
-      {bootComplete && browserOpen && !immersive && <ShaderBrowser />}
+      {bootComplete && !immersive && <ShaderBrowser />}
       {bootComplete && creatorOpen && !immersive && <ShaderCreator />}
       {commandPaletteOpen && <CommandPalette />}
     </div>
