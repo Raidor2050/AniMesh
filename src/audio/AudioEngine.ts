@@ -71,6 +71,7 @@ export class AudioEngine {
   private demoNodes: OscillatorNode[] = []
   private micStream: MediaStream | null = null
   private systemStream: MediaStream | null = null
+  private debugFrameCount = 0
 
   // Callback for beat events (used by UI tap tempo visual feedback)
   onBeat: (() => void) | null = null
@@ -143,25 +144,18 @@ export class AudioEngine {
     try {
       // Request display media with audio capture enabled.
       // In Chrome, the user MUST check "Share audio" in the picker dialog.
-      // Using a minimal video constraint (1x1 at 1fps) keeps the picker simple.
       stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          width: { ideal: 1 },
-          height: { ideal: 1 },
-          frameRate: { ideal: 1 },
-          cursor: 'never',
-        },
+        video: true,
         audio: {
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
-          channelCount: 1,
           sampleRate: { ideal: 44100 },
         },
-        // Chrome hint: prefer current tab to simplify the picker
-        preferCurrentTab: true as any,
         // Chrome 109+: request system audio inclusion
         systemAudio: 'include' as any,
+        // Allow sharing browser tabs too (for web-based audio sources)
+        selfBrowserSurface: 'include' as any,
       } as any)
     } catch (err: any) {
       // Common cases: user cancelled, or browser doesn't support system audio
@@ -189,11 +183,11 @@ export class AudioEngine {
       return false
     }
 
-    // Stop the video track — we only need audio
+    // Mute the video track instead of stopping it — stopping it can kill
+    // the audio track on some Chrome versions.
     const videoTrack = stream.getVideoTracks()[0]
     if (videoTrack) {
-      videoTrack.stop()
-      stream.removeTrack(videoTrack)
+      videoTrack.enabled = false
     }
 
     // Handle the case where the user stops sharing via browser UI
@@ -208,6 +202,20 @@ export class AudioEngine {
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.analyser)
     this.sourceType = 'system'
+
+    // Ensure the AudioContext is running — getDisplayMedia may return
+    // while the context is still suspended from the picker dialog.
+    if (this.ctx.state === 'suspended') {
+      await this.ctx.resume()
+    }
+
+    console.log(
+      `%c[AudioEngine] System audio connected — context state: ${this.ctx.state}, ` +
+      `audio tracks: ${stream.getAudioTracks().length}, ` +
+      `video tracks: ${stream.getVideoTracks().length}`,
+      'color: #22C55E; font-weight: bold'
+    )
+
     return true
   }
 
@@ -371,10 +379,32 @@ export class AudioEngine {
   tick(timestamp: number): AudioSnapshot {
     if (!this.analyser) return this.snapshot
 
+    // Auto-resume if context got suspended (e.g. tab was backgrounded)
+    if (this.ctx?.state === 'suspended' && this.sourceType !== 'none') {
+      this.ctx.resume()
+    }
+
     const { freqData, timeData, analyser } = this
 
     analyser.getByteFrequencyData(freqData)
     analyser.getFloatTimeDomainData(timeData)
+
+    // Debug: log audio data every 60 frames when system audio is active
+    if (this.sourceType === 'system') {
+      this.debugFrameCount++
+      if (this.debugFrameCount % 60 === 0) {
+        let maxFreq = 0
+        for (let i = 0; i < freqData.length; i++) {
+          if (freqData[i] > maxFreq) maxFreq = freqData[i]
+        }
+        console.log(
+          `%c[AudioEngine] tick #${this.debugFrameCount} — ` +
+          `ctx: ${this.ctx?.state}, maxFreq: ${maxFreq}, ` +
+          `bass: ${this.snapshot.bass.toFixed(3)}, vol: ${this.snapshot.volume.toFixed(3)}`,
+          maxFreq > 0 ? 'color: #22C55E' : 'color: #EF4444'
+        )
+      }
+    }
 
     const sampleRate = this.ctx?.sampleRate ?? 44100
     const binHz = sampleRate / analyser.fftSize

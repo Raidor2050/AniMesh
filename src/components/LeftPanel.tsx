@@ -60,13 +60,13 @@ function CategorySection({ category, shaders, activeShader, favorites, onSelect,
         <span style={{ fontSize: 10, opacity: 0.6, flexShrink: 0 }}>{icon}</span>
         <span style={{
           fontFamily: typography.families.sans,
-          fontSize: 11, fontWeight: 500,
+          fontSize: 13, fontWeight: 500,
           color: colors.text.secondary,
           flex: 1, textAlign: 'left',
         }}>{label}</span>
         <span style={{
           fontFamily: typography.families.mono,
-          fontSize: 9,
+          fontSize: 10,
           color: colors.text.disabled,
           background: colors.surface.primary,
           padding: '1px 5px',
@@ -119,7 +119,7 @@ function CategorySection({ category, shaders, activeShader, favorites, onSelect,
                     }} />
                     <span style={{
                       fontFamily: typography.families.sans,
-                      fontSize: 11,
+                      fontSize: 13,
                       color: isActive ? colors.accent.hover : colors.text.secondary,
                       fontWeight: isActive ? 600 : 400,
                       overflow: 'hidden',
@@ -199,7 +199,40 @@ export function LeftPanel() {
   }, [browserOpen])
 
   return (
-    <AnimatePresence>
+    <>
+      {/* Transparent left-edge arrow toggle when panel is closed */}
+      {!browserOpen && (
+        <button
+          onClick={toggleBrowser}
+          aria-label="Open shader library"
+          style={{
+            position: 'absolute',
+            top: '50%', left: 0,
+            transform: 'translateY(-50%)',
+            width: 20, height: 64,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'transparent',
+            border: 'none',
+            borderLeft: `1px solid rgba(255,255,255,0.06)`,
+            borderRadius: '0 6px 6px 0',
+            color: 'rgba(255,255,255,0.12)',
+            fontSize: 12,
+            cursor: 'pointer',
+            zIndex: 20,
+            transition: 'color 0.15s ease, background 0.15s ease',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = 'rgba(255,255,255,0.45)'
+            e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = 'rgba(255,255,255,0.12)'
+            e.currentTarget.style.background = 'transparent'
+          }}
+        >▸</button>
+      )}
+
+      <AnimatePresence>
       {browserOpen && (
         <motion.div
           initial={{ x: '-100%', opacity: 0 }}
@@ -209,7 +242,7 @@ export function LeftPanel() {
           style={{
             position: 'absolute',
             top: 52, left: 0, bottom: 0,
-            width: 260, maxWidth: '85vw',
+            width: 320, maxWidth: '85vw',
             zIndex: 25,
             background: colors.surface.panel,
             backdropFilter: 'blur(32px) saturate(1.2)',
@@ -228,13 +261,13 @@ export function LeftPanel() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{
                   fontFamily: typography.families.mono,
-                  fontSize: 10, fontWeight: 600,
+                  fontSize: 12, fontWeight: 600,
                   color: colors.text.primary,
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase' as const,
                 }}>Library</span>
                 <span style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   color: colors.text.disabled,
                   fontFamily: typography.families.mono,
                   background: colors.surface.primary,
@@ -280,13 +313,13 @@ export function LeftPanel() {
                 onKeyDown={e => { if (e.key === 'Escape' && search) { e.stopPropagation(); setSearch('') } }}
                 style={{
                   width: '100%',
-                  height: 30,
+                  height: 34,
                   padding: '6px 28px 6px 26px',
                   background: colors.surface.primary,
                   border: `1px solid ${colors.surface.secondary}`,
                   borderRadius: radii.sm,
                   color: colors.text.primary,
-                  fontSize: 11,
+                  fontSize: 13,
                   fontFamily: typography.families.sans,
                   outline: 'none',
                   transition: 'border-color 0.12s ease, box-shadow 0.12s ease',
@@ -366,7 +399,7 @@ export function LeftPanel() {
             background: 'rgba(10,10,14,0.4)',
           }}>
             <span style={{
-              fontSize: 9,
+              fontSize: 10,
               color: colors.text.disabled,
               fontFamily: typography.families.mono,
               display: 'flex', alignItems: 'center', gap: 5,
@@ -379,7 +412,7 @@ export function LeftPanel() {
               {filteredShaders.length}/{SHADER_LIBRARY.length}
             </span>
             <span style={{
-              fontSize: 9,
+              fontSize: 10,
               color: colors.text.disabled,
               fontFamily: typography.families.mono,
             }}>B close · ★ save</span>
@@ -387,5 +420,6 @@ export function LeftPanel() {
         </motion.div>
       )}
     </AnimatePresence>
+    </>
   )
 }

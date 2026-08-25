@@ -23,6 +23,7 @@ interface UIStore {
   browserOpen: boolean
   creatorOpen: boolean
   commandPaletteOpen: boolean
+  panelsVisible: boolean
   panelTab: 'browser' | 'creator' | null
   qualityTier: 'low' | 'medium' | 'high' | 'ultra'
   reducedMotion: boolean
@@ -31,6 +32,7 @@ interface UIStore {
   toggleBrowser: () => void
   toggleCreator: () => void
   toggleCommandPalette: () => void
+  togglePanelsVisible: () => void
   setPanelTab: (tab: 'browser' | 'creator' | null) => void
   setQualityTier: (tier: 'low' | 'medium' | 'high' | 'ultra') => void
   setReducedMotion: (v: boolean) => void
@@ -46,6 +48,7 @@ export const useUIStore = create<UIStore>((set) => ({
   browserOpen: false,
   creatorOpen: false,
   commandPaletteOpen: false,
+  panelsVisible: true,
   panelTab: null,
   qualityTier: 'high',
   reducedMotion: reducedMotionDefault,
@@ -54,6 +57,7 @@ export const useUIStore = create<UIStore>((set) => ({
   toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, creatorOpen: false, panelTab: s.browserOpen ? null : 'browser' })),
   toggleCreator: () => set((s) => ({ creatorOpen: !s.creatorOpen, browserOpen: false, panelTab: s.creatorOpen ? null : 'creator' })),
   toggleCommandPalette: () => set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
+  togglePanelsVisible: () => set((s) => ({ panelsVisible: !s.panelsVisible })),
   setPanelTab: (tab) => set({ panelTab: tab }),
   setQualityTier: (tier) => set({ qualityTier: tier }),
   setReducedMotion: (v) => set({ reducedMotion: v }),

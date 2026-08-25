@@ -12,11 +12,16 @@ uniform float uVolume;
 uniform float uBeat;
 uniform float uBeatPhase;
 uniform float uBPM;
+uniform float uSub;
+uniform float uLowMid;
+uniform float uHighMid;
 uniform float speed;
 uniform float intensity;
 uniform float distortion;
 uniform float scale;
 uniform float brightness;
+uniform float hueShift;
+uniform float saturation;
 out vec4 fragColor;
 `
 
@@ -49,16 +54,29 @@ function createShader(
   tier: ShaderDefinition['performanceTier'] = 'medium',
   extraUniforms: string = ''
 ): ShaderDefinition {
+  const universalParams: ShaderDefinition['params'] = [
+    { id: 'speed', label: 'Speed', min: 0, max: 3, default: 1, step: 0.1 },
+    { id: 'intensity', label: 'Intensity', min: 0, max: 2, default: 1, step: 0.05 },
+    { id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
+    { id: 'scale', label: 'Scale', min: 0.1, max: 3, default: 1, step: 0.1, group: 'audio' },
+    { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' },
+    { id: 'hueShift', label: 'Hue Shift', min: 0, max: 6.28, default: 0, step: 0.05 },
+    { id: 'saturation', label: 'Saturation', min: 0, max: 2, default: 1, step: 0.05 },
+  ]
+
+  // Filter out duplicates: shader-specific params override universal ones
+  const shaderParamIds = new Set(params.map(p => p.id))
+  const filteredUniversal = universalParams.filter(p => !shaderParamIds.has(p.id))
+
   return {
     id, name, category, description, tags,
     fragment: UNIFORM_HEADER + extraUniforms + COMMON_NOISE + body,
     uniforms: [],
     params: [
-      { id: 'speed', label: 'Speed', min: 0, max: 3, default: 1, step: 0.1 },
-      { id: 'intensity', label: 'Intensity', min: 0, max: 2, default: 1, step: 0.05 },
+      ...filteredUniversal,
       ...params,
     ],
-    defaults: { speed: 1, intensity: 1, ...defaults },
+    defaults: { speed: 1, intensity: 1, distortion: 0, scale: 1, brightness: 1, hueShift: 0, saturation: 1, ...defaults },
     audioMappings: [
       { signal: 'bass', param: 'speed', amount: 0.5, curve: 'log' },
       { signal: 'beat', param: 'intensity', amount: 0.3, curve: 'linear' },

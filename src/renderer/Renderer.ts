@@ -295,9 +295,9 @@ export class Renderer {
     set('uBeat', audio.beatIntensity)
     set('uBeatPhase', audio.beatPhase)
     set('uBPM', audio.bpm)
-    set('sub', audio.sub)
-    set('lowMid', audio.lowMid)
-    set('highMid', audio.highMid)
+    set('uSub', audio.sub)
+    set('uLowMid', audio.lowMid)
+    set('uHighMid', audio.highMid)
 
     for (const [key, value] of Object.entries(mapped)) {
       set(key, value)

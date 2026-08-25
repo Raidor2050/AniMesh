@@ -11,6 +11,7 @@ import { CommandPalette } from './CommandPalette'
 import { AudioInitBar } from './AudioInitPanel'
 import { ParameterPanel } from './ParameterPanel'
 import { EQMappingPanel } from './EQMappingPanel'
+import { PanelToggleButton } from './PanelToggleButton'
 import { ImmersiveMode } from './ImmersiveMode'
 
 function randomShader() {
@@ -89,6 +90,7 @@ export function App() {
       {bootComplete && !immersive && <StreamGraph />}
       {bootComplete && !immersive && <ParameterPanel />}
       {bootComplete && !immersive && <EQMappingPanel />}
+      {bootComplete && !immersive && <PanelToggleButton />}
       {bootComplete && <AudioInitBar />}
       {bootComplete && creatorOpen && !immersive && <ShaderCreator />}
       {commandPaletteOpen && <CommandPalette />}

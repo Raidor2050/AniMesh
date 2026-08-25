@@ -2,14 +2,22 @@ import { useShaderStore, useUIStore, audioDataBridge } from '../state/stores'
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { colors, typography, spacing, radii } from '../ui/tokens'
+import { useDraggable } from '../hooks/useDraggable'
 
 export function ParameterPanel() {
   const activeShader = useShaderStore(s => s.activeShader)
   const params = useShaderStore(s => s.params)
   const setParam = useShaderStore(s => s.setParam)
   const immersive = useUIStore(s => s.immersive)
+  const panelsVisible = useUIStore(s => s.panelsVisible)
   const [audioLevel, setAudioLevel] = useState(0)
   const [collapsed, setCollapsed] = useState(false)
+
+  const { position, isDragging, containerRef, dragProps, setPosition } = useDraggable({
+    initialX: typeof window !== 'undefined' ? window.innerWidth - 496 : 800,
+    initialY: 60,
+    bounds: { left: 0, top: 48, right: 0, bottom: 0 },
+  })
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -18,7 +26,7 @@ export function ParameterPanel() {
     return () => clearInterval(interval)
   }, [])
 
-  if (!activeShader || immersive) return null
+  if (!activeShader || immersive || !panelsVisible) return null
 
   const paramDefs = activeShader.params
   if (paramDefs.length === 0) return null
@@ -29,33 +37,43 @@ export function ParameterPanel() {
   return (
     <AnimatePresence>
       <motion.div
+        ref={containerRef}
+        {...dragProps}
         initial={{ x: 20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: 20, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         style={{
           position: 'absolute',
-          top: 60, right: 252,
-          height: collapsed ? 40 : 260,
+          left: position.x,
+          top: position.y,
           width: collapsed ? 36 : 232,
-          zIndex: 15,
+          minHeight: collapsed ? 40 : 48,
+          maxHeight: collapsed ? undefined : 'calc(100vh - 80px)',
+          zIndex: isDragging ? 999 : 15,
           background: colors.surface.panel,
           backdropFilter: 'blur(24px) saturate(1.1)',
           border: `1px solid ${colors.surface.secondary}`,
           borderRadius: radii.lg,
           overflow: 'hidden',
           display: 'flex', flexDirection: 'column',
-          transition: 'width 0.2s ease',
+          transition: isDragging ? 'none' : 'width 0.2s ease',
+          cursor: isDragging ? 'grabbing' : undefined,
+          userSelect: isDragging ? 'none' : undefined,
         }}
       >
-        {/* Header */}
-        <div style={{
-          padding: collapsed ? '12px 0' : `${spacing.scale[3]}px ${spacing.scale[4]}px`,
-          borderBottom: collapsed ? 'none' : `1px solid ${colors.surface.secondary}`,
-          display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between',
-          cursor: 'pointer',
-        }}
-          onClick={() => setCollapsed(!collapsed)}
+        {/* Header — drag handle */}
+        <div
+          style={{
+            padding: collapsed ? '12px 0' : `${spacing.scale[3]}px ${spacing.scale[4]}px`,
+            borderBottom: collapsed ? 'none' : `1px solid ${colors.surface.secondary}`,
+            display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between',
+            cursor: isDragging ? 'grabbing' : 'pointer',
+            touchAction: 'none',
+          }}
+          onClick={(e) => {
+            if (!isDragging) setCollapsed(!collapsed)
+          }}
         >
           {collapsed ? (
             <span style={{ fontSize: 14, color: colors.text.tertiary, transform: 'rotate(180deg)' }}>◂</span>
@@ -138,6 +156,7 @@ export function ParameterPanel() {
           <div style={{
             padding: `${spacing.scale[2]}px ${spacing.scale[4]}px`,
             borderTop: `1px solid ${colors.surface.secondary}`,
+            flexShrink: 0,
           }}>
             <div style={{
               height: 2,
