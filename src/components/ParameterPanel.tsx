@@ -35,8 +35,9 @@ export function ParameterPanel() {
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         style={{
           position: 'absolute',
-          top: 60, right: 12, bottom: 64,
-          width: collapsed ? 36 : 256,
+          top: 60, right: 252,
+          height: collapsed ? 40 : 260,
+          width: collapsed ? 36 : 232,
           zIndex: 15,
           background: colors.surface.panel,
           backdropFilter: 'blur(24px) saturate(1.1)',

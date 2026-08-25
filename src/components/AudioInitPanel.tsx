@@ -84,7 +84,7 @@ export function AudioInitBar() {
         animate={{ opacity: 1, y: 0 }}
         onClick={() => setShow(true)}
         style={{
-          position: 'absolute', bottom: 68, left: '50%',
+          position: 'absolute', bottom: 24, left: '50%',
           transform: 'translateX(-50%)',
           padding: '5px 14px',
           background: 'rgba(34,197,94,0.1)',
@@ -123,7 +123,7 @@ export function AudioInitBar() {
         transition={{ delay: 0.5, duration: 0.4 }}
         onClick={() => setShow(true)}
         style={{
-          position: 'absolute', bottom: 68, left: '50%',
+          position: 'absolute', bottom: 24, left: '50%',
           transform: 'translateX(-50%)',
           padding: `${spacing.scale[2] + 1}px ${spacing.scale[5]}px`,
           background: colors.accent.subtle,
@@ -162,7 +162,7 @@ export function AudioInitBar() {
       exit={{ opacity: 0, y: 12, scale: 0.96 }}
       transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       style={{
-        position: 'absolute', bottom: 68, left: '50%',
+        position: 'absolute', bottom: 24, left: '50%',
         transform: 'translateX(-50%)',
         background: colors.surface.panel,
         border: `1px solid ${colors.surface.secondary}`,

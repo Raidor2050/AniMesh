@@ -1,21 +1,22 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect } from 'react'
 import { useUIStore, useShaderStore } from '../state/stores'
 import { SHADER_LIBRARY } from '../shaders/library'
 import { BootSequence } from './BootSequence'
 import { CanvasLayer } from './CanvasLayer'
-import { HUD } from './HUD'
-import { ShaderBrowser } from './ShaderBrowser'
+import { TopBar } from './TopBar'
+import { LeftPanel } from './LeftPanel'
+import { StreamGraph } from './StreamGraph'
 import { ShaderCreator } from './ShaderCreator'
 import { CommandPalette } from './CommandPalette'
 import { AudioInitBar } from './AudioInitPanel'
 import { ParameterPanel } from './ParameterPanel'
+import { EQMappingPanel } from './EQMappingPanel'
 import { ImmersiveMode } from './ImmersiveMode'
 
 function randomShader() {
   const current = useShaderStore.getState().activeShader
   if (SHADER_LIBRARY.length <= 1) return
   let next = current
-  // Avoid picking the same shader twice in a row
   while (next?.id === current?.id && SHADER_LIBRARY.length > 1) {
     next = SHADER_LIBRARY[Math.floor(Math.random() * SHADER_LIBRARY.length)]
   }
@@ -32,7 +33,6 @@ function cycleShader(direction: 1 | -1) {
 export function App() {
   const bootComplete = useUIStore(s => s.bootComplete)
   const immersive = useUIStore(s => s.immersive)
-  const browserOpen = useUIStore(s => s.browserOpen)
   const creatorOpen = useUIStore(s => s.creatorOpen)
   const commandPaletteOpen = useUIStore(s => s.commandPaletteOpen)
 
@@ -52,7 +52,6 @@ export function App() {
         e.preventDefault()
         store.toggleCommandPalette()
       }
-      // Immersive mode keyboard shortcuts (spacebar, arrows)
       if (store.immersive && !isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (e.code === 'Space') {
           e.preventDefault()
@@ -70,7 +69,6 @@ export function App() {
           return
         }
       }
-      // Non-immersive keyboard shortcuts
       if (!isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (e.key === 'b') store.toggleBrowser()
         if (e.key === 'n') store.toggleCreator()
@@ -86,10 +84,12 @@ export function App() {
       {!bootComplete && <BootSequence />}
       <CanvasLayer />
       <ImmersiveMode />
-      {bootComplete && !immersive && <HUD />}
+      {bootComplete && !immersive && <TopBar />}
+      {bootComplete && !immersive && <LeftPanel />}
+      {bootComplete && !immersive && <StreamGraph />}
       {bootComplete && !immersive && <ParameterPanel />}
+      {bootComplete && !immersive && <EQMappingPanel />}
       {bootComplete && <AudioInitBar />}
-      {bootComplete && !immersive && <ShaderBrowser />}
       {bootComplete && creatorOpen && !immersive && <ShaderCreator />}
       {commandPaletteOpen && <CommandPalette />}
     </div>

@@ -1,5 +1,5 @@
 import { createProgram, createQuadVAO, createFBO, resizeFBO, disposeFBO, disposeProgram, VERT_SRC } from '../core/WebGL'
-import { AudioSnapshot, ShaderDefinition } from '../utils/types'
+import { AudioSnapshot, ShaderDefinition, AudioMapping } from '../utils/types'
 import { AudioMappingEngine } from '../mappings/AudioMappingEngine'
 
 const BLOOM_FRAG = `#version 300 es
@@ -184,7 +184,7 @@ export class Renderer {
 
   getLastError(): string | null { return this.lastError }
 
-  render(audio: AudioSnapshot, time: number, mouse: [number, number]) {
+  render(audio: AudioSnapshot, time: number, mouse: [number, number], customMappings?: AudioMapping[]) {
     const { gl, width, height } = this
     if (!this.program || width === 0 || height === 0 || !this.vao) return
 
@@ -195,9 +195,14 @@ export class Renderer {
     const rw = Math.floor(width * this.dpr)
     const rh = Math.floor(height * this.dpr)
 
+    const allMappings = [
+      ...(this.currentShader?.audioMappings ?? []),
+      ...(customMappings ?? []),
+    ]
+
     const mapped = this.mappingEngine.applyMappings(
       audio,
-      this.currentShader?.audioMappings ?? [],
+      allMappings,
       this.baseParams,
       dt
     )

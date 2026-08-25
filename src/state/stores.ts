@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { ShaderDefinition, AudioSnapshot, DEFAULT_AUDIO } from '../utils/types'
+import { ShaderDefinition, AudioSnapshot, AudioMapping, DEFAULT_AUDIO } from '../utils/types'
 import { SHADER_LIBRARY } from '../shaders/library'
 
 function safeGetItem(key: string): string | null {
@@ -64,10 +64,15 @@ interface ShaderStore {
   params: Record<string, number>
   favorites: string[]
   recent: string[]
+  customAudioMappings: AudioMapping[]
   setActiveShader: (shader: ShaderDefinition) => void
   setParam: (id: string, value: number) => void
   setParams: (params: Record<string, number>) => void
   toggleFavorite: (id: string) => void
+  setCustomAudioMappings: (mappings: AudioMapping[]) => void
+  addCustomAudioMapping: (mapping: AudioMapping) => void
+  removeCustomAudioMapping: (index: number) => void
+  updateCustomAudioMapping: (index: number, mapping: AudioMapping) => void
 }
 
 const savedFavorites = JSON.parse(safeGetItem('animesh-favorites') || '[]')
@@ -82,6 +87,7 @@ export const useShaderStore = create<ShaderStore>((set) => ({
   params: defaultShader ? { ...defaultShader.defaults } : {},
   favorites: savedFavorites,
   recent: savedRecent,
+  customAudioMappings: [],
   setActiveShader: (shader) => set((s) => {
     const newRecent = [shader.id, ...s.recent.filter(id => id !== shader.id)].slice(0, 20)
     safeSetItem('animesh-recent', JSON.stringify(newRecent))
@@ -100,6 +106,14 @@ export const useShaderStore = create<ShaderStore>((set) => ({
     safeSetItem('animesh-favorites', JSON.stringify(favs))
     return { favorites: favs }
   }),
+  setCustomAudioMappings: (customAudioMappings) => set({ customAudioMappings }),
+  addCustomAudioMapping: (mapping) => set((s) => ({ customAudioMappings: [...s.customAudioMappings, mapping] })),
+  removeCustomAudioMapping: (index) => set((s) => ({
+    customAudioMappings: s.customAudioMappings.filter((_, i) => i !== index),
+  })),
+  updateCustomAudioMapping: (index, mapping) => set((s) => ({
+    customAudioMappings: s.customAudioMappings.map((m, i) => i === index ? mapping : m),
+  })),
 }))
 
 type BPMMode = 'auto' | 'manual' | 'tap'
