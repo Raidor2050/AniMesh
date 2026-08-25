@@ -28,7 +28,7 @@ export function EQMappingPanel() {
   const [bandLevels, setBandLevels] = useState<Record<string, number>>({})
   const [collapsed, setCollapsed] = useState(false)
 
-  const { position, isDragging, containerRef, dragProps, setPosition } = useDraggable({
+  const { position, isDragging, containerRef, dragProps } = useDraggable({
     initialX: typeof window !== 'undefined' ? window.innerWidth - 496 : 800,
     initialY: 330,
     bounds: { left: 0, top: 48, right: 0, bottom: 0 },
@@ -259,6 +259,29 @@ function BandLevelRow({ band, level }: {
   band: typeof BANDS[number]
   level: number
 }) {
+  const peakRef = useRef(level)
+  const peakTimeRef = useRef(0)
+  const [peak, setPeak] = useState(level)
+  const prevLevelRef = useRef(level)
+
+  useEffect(() => {
+    const now = Date.now()
+    const prev = prevLevelRef.current
+    prevLevelRef.current = level
+
+    // New peak: level is higher than stored peak
+    if (level > peakRef.current) {
+      peakRef.current = level
+      peakTimeRef.current = now
+      setPeak(level)
+    }
+    // Decay: hold peak for 1.5s then decay toward current level
+    else if (now - peakTimeRef.current > 1500) {
+      peakRef.current = Math.max(level, peakRef.current * 0.96)
+      setPeak(peakRef.current)
+    }
+  }, [level])
+
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 6,
@@ -277,6 +300,7 @@ function BandLevelRow({ band, level }: {
         background: 'rgba(255,255,255,0.04)',
         borderRadius: 2,
         overflow: 'hidden',
+        position: 'relative',
       }}>
         <div style={{
           height: '100%',
@@ -286,6 +310,19 @@ function BandLevelRow({ band, level }: {
           boxShadow: `0 0 6px ${band.glowColor}`,
           transition: 'width 0.05s ease',
         }} />
+        {/* Peak hold marker */}
+        {peak > 0.02 && (
+          <div style={{
+            position: 'absolute',
+            top: 0, bottom: 0,
+            left: `${peak * 100}%`,
+            width: 2,
+            background: '#fff',
+            opacity: 0.7,
+            borderRadius: 1,
+            boxShadow: '0 0 4px rgba(255,255,255,0.5)',
+          }} />
+        )}
       </div>
       <span style={{
         fontFamily: typography.families.mono,

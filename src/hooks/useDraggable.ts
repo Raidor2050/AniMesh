@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useState } from 'react'
+import { useRef, useCallback, useState } from 'react'
 
 interface DraggableOptions {
   initialX?: number
@@ -6,110 +6,111 @@ interface DraggableOptions {
   handleSelector?: string
   bounds?: { left?: number; top?: number; right?: number; bottom?: number }
   onDragEnd?: (x: number, y: number) => void
-}
-
-interface DraggableState {
-  x: number
-  y: number
-  isDragging: boolean
+  dragThreshold?: number
 }
 
 export function useDraggable(options: DraggableOptions = {}) {
-  const { initialX = 100, initialY = 100, handleSelector, bounds, onDragEnd } = options
+  const { initialX = 100, initialY = 100, handleSelector, bounds, onDragEnd, dragThreshold = 4 } = options
 
-  const [state, setState] = useState<DraggableState>({
+  const [position, setPosition] = useState({ x: initialX, y: initialY })
+  const [isDragging, setIsDragging] = useState(false)
+
+  const liveRef = useRef({
     x: initialX,
     y: initialY,
-    isDragging: false,
+    startX: 0,
+    startY: 0,
+    origX: 0,
+    origY: 0,
+    handleEl: null as HTMLElement | null,
+    hasMoved: false,
+    el: null as HTMLDivElement | null,
   })
 
-  const dragRef = useRef<{
-    startX: number
-    startY: number
-    origX: number
-    origY: number
-    handleEl: HTMLElement | null
-  }>({ startX: 0, startY: 0, origX: 0, origY: 0, handleEl: null })
+  const containerRef = useCallback((node: HTMLDivElement | null) => {
+    liveRef.current.el = node
+  }, [])
 
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  const clamp = (val: number, min?: number, max?: number) => {
+  const clampVal = (val: number, min?: number, max?: number) => {
     if (min !== undefined && val < min) return min
     if (max !== undefined && val > max) return max
     return val
   }
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    const container = containerRef.current
-    if (!container) return
+    const el = liveRef.current.el
+    if (!el) return
 
-    // If handleSelector is set, only start drag from the handle element
     if (handleSelector) {
-      const handle = container.querySelector(handleSelector) as HTMLElement | null
+      const handle = el.querySelector(handleSelector) as HTMLElement | null
       if (!handle || !(handle === e.target || handle.contains(e.target as Node))) return
       handle.setPointerCapture(e.pointerId)
-      dragRef.current.handleEl = handle
+      liveRef.current.handleEl = handle
     } else {
-      // Don't start drag on interactive elements
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return
-      container.setPointerCapture(e.pointerId)
-      dragRef.current.handleEl = container
+      el.setPointerCapture(e.pointerId)
+      liveRef.current.handleEl = el
     }
 
-    dragRef.current.startX = e.clientX
-    dragRef.current.startY = e.clientY
-    dragRef.current.origX = state.x
-    dragRef.current.origY = state.y
-
-    setState(s => ({ ...s, isDragging: true }))
+    liveRef.current.startX = e.clientX
+    liveRef.current.startY = e.clientY
+    liveRef.current.origX = liveRef.current.x
+    liveRef.current.origY = liveRef.current.y
+    liveRef.current.hasMoved = false
 
     e.preventDefault()
-  }, [state.x, state.y, handleSelector])
+  }, [handleSelector])
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!state.isDragging) return
+    const el = liveRef.current.el
+    if (!liveRef.current.handleEl) return
 
-    const dx = e.clientX - dragRef.current.startX
-    const dy = e.clientY - dragRef.current.startY
+    const dx = e.clientX - liveRef.current.startX
+    const dy = e.clientY - liveRef.current.startY
 
-    let newX = dragRef.current.origX + dx
-    let newY = dragRef.current.origY + dy
+    if (!liveRef.current.hasMoved) {
+      if (Math.abs(dx) < dragThreshold && Math.abs(dy) < dragThreshold) return
+      liveRef.current.hasMoved = true
+      setIsDragging(true)
+    }
+
+    let newX = liveRef.current.origX + dx
+    let newY = liveRef.current.origY + dy
 
     if (bounds) {
       const vw = window.innerWidth
       const vh = window.innerHeight
-      newX = clamp(newX, bounds.left ?? -Infinity, bounds.right !== undefined ? vw - bounds.right : Infinity)
-      newY = clamp(newY, bounds.top ?? -Infinity, bounds.bottom !== undefined ? vh - bounds.bottom : Infinity)
+      newX = clampVal(newX, bounds.left ?? -Infinity, bounds.right !== undefined ? vw - bounds.right : Infinity)
+      newY = clampVal(newY, bounds.top ?? -Infinity, bounds.bottom !== undefined ? vh - bounds.bottom : Infinity)
     }
 
-    setState(s => ({ ...s, x: newX, y: newY }))
-  }, [state.isDragging, bounds])
+    liveRef.current.x = newX
+    liveRef.current.y = newY
+
+    if (el) {
+      el.style.transform = `translate3d(${newX}px, ${newY}px, 0)`
+    }
+  }, [bounds, dragThreshold])
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (!state.isDragging) return
+    if (!liveRef.current.handleEl) return
 
-    const handle = dragRef.current.handleEl
-    if (handle) {
-      try { handle.releasePointerCapture(e.pointerId) } catch {}
+    const handle = liveRef.current.handleEl
+    try { handle.releasePointerCapture(e.pointerId) } catch {}
+
+    liveRef.current.handleEl = null
+
+    if (liveRef.current.hasMoved) {
+      setIsDragging(false)
+      setPosition({ x: liveRef.current.x, y: liveRef.current.y })
+      if (onDragEnd) onDragEnd(liveRef.current.x, liveRef.current.y)
     }
-
-    setState(s => ({ ...s, isDragging: false }))
-    dragRef.current.handleEl = null
-
-    if (onDragEnd) {
-      onDragEnd(state.x, state.y)
-    }
-  }, [state.isDragging, state.x, state.y, onDragEnd])
-
-  // Reset position when initial values change (e.g. shader switch)
-  const setPosition = useCallback((x: number, y: number) => {
-    setState(s => ({ ...s, x, y }))
-  }, [])
+  }, [onDragEnd])
 
   return {
-    position: { x: state.x, y: state.y },
-    isDragging: state.isDragging,
+    position,
+    isDragging,
     containerRef,
     dragProps: {
       onPointerDown: handlePointerDown,
@@ -117,6 +118,5 @@ export function useDraggable(options: DraggableOptions = {}) {
       onPointerUp: handlePointerUp,
       onPointerCancel: handlePointerUp,
     },
-    setPosition,
   }
 }

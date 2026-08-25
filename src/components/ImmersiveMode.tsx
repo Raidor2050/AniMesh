@@ -11,10 +11,14 @@ export function ImmersiveMode() {
   const [shaderFlash, setShaderFlash] = useState(false)
   const hideTimerRef = useRef<number | null>(null)
   const prevShaderRef = useRef<string | null>(null)
+  const [cursorVisible, setCursorVisible] = useState(true)
 
-  // Show HUD near edges
+  // Show HUD near edges + cursor auto-hide (2s idle)
   useEffect(() => {
     if (!immersive) return
+
+    let cursorTimer: ReturnType<typeof setTimeout> | null = null
+    document.body.style.cursor = 'default'
 
     const handleMouseMove = (e: MouseEvent) => {
       const threshold = 80
@@ -25,17 +29,29 @@ export function ImmersiveMode() {
         e.clientY > window.innerHeight - threshold
 
       setMouseNear(near)
+      setCursorVisible(true)
+      document.body.style.cursor = 'default'
+      if (cursorTimer) clearTimeout(cursorTimer)
+
       if (near) {
         setShowHUD(true)
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
         hideTimerRef.current = window.setTimeout(() => setShowHUD(false), 2500)
       }
+
+      // Auto-hide cursor after 2s idle (anywhere on screen)
+      cursorTimer = setTimeout(() => {
+        setCursorVisible(false)
+        document.body.style.cursor = 'none'
+      }, 2000)
     }
 
     window.addEventListener('mousemove', handleMouseMove)
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+      if (cursorTimer) clearTimeout(cursorTimer)
+      document.body.style.cursor = 'default'
     }
   }, [immersive])
 

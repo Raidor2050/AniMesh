@@ -127,9 +127,11 @@ export class Renderer {
   resize(w: number, h: number, dpr: number) {
     this.width = w
     this.height = h
-    this.dpr = dpr
-    const rw = Math.floor(w * dpr)
-    const rh = Math.floor(h * dpr)
+    // Cap DPR: 2.0 desktop, 1.5 mobile — research-backed for <14ms frame budget
+    const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone/i.test(navigator.userAgent)
+    this.dpr = Math.min(dpr, isMobile ? 1.5 : 2.0)
+    const rw = Math.floor(w * this.dpr)
+    const rh = Math.floor(h * this.dpr)
     this.canvas.width = rw
     this.canvas.height = rh
     this.canvas.style.width = `${w}px`
@@ -246,6 +248,13 @@ export class Renderer {
       gl.drawArrays(gl.TRIANGLES, 0, 6)
 
       gl.activeTexture(gl.TEXTURE0)
+
+      // Hint driver: FBO contents consumed, safe to discard tile memory
+      const invalidate = [gl.COLOR_ATTACHMENT0]
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA.framebuffer)
+      gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
+      gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
     } else {
       // Direct render to screen (no post-processing)
       gl.bindFramebuffer(gl.FRAMEBUFFER, null)
@@ -298,6 +307,9 @@ export class Renderer {
     set('uSub', audio.sub)
     set('uLowMid', audio.lowMid)
     set('uHighMid', audio.highMid)
+    set('uSpectralCentroid', audio.spectralCentroid)
+    set('uHueShift', mapped.uHueShift ?? 0)
+    set('uSaturation', mapped.uSaturation ?? 1.0)
 
     for (const [key, value] of Object.entries(mapped)) {
       set(key, value)

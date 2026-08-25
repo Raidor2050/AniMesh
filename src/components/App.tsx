@@ -13,6 +13,7 @@ import { ParameterPanel } from './ParameterPanel'
 import { EQMappingPanel } from './EQMappingPanel'
 import { PanelToggleButton } from './PanelToggleButton'
 import { ImmersiveMode } from './ImmersiveMode'
+import { getAudioEngine } from '../audio/audioSingleton'
 
 function randomShader() {
   const current = useShaderStore.getState().activeShader
@@ -53,6 +54,7 @@ export function App() {
         e.preventDefault()
         store.toggleCommandPalette()
       }
+      // Immersive-only shortcuts
       if (store.immersive && !isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (e.code === 'Space') {
           e.preventDefault()
@@ -70,10 +72,30 @@ export function App() {
           return
         }
       }
+      // Global shortcuts (not in input fields)
       if (!isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        if (e.key === 'b') store.toggleBrowser()
+        if (e.key === '?') store.toggleBrowser()
         if (e.key === 'n') store.toggleCreator()
         if (e.key === 'f') store.toggleImmersive()
+        if (e.key === 'p') store.togglePanelsVisible()
+        // [ and ] cycle shaders from anywhere
+        if (e.key === '[') { e.preventDefault(); cycleShader(-1) }
+        if (e.key === ']') { e.preventDefault(); cycleShader(1) }
+        if (e.key.toLowerCase() === 'r') { e.preventDefault(); randomShader() }
+        if (e.key.toLowerCase() === 'd') {
+          e.preventDefault()
+          const audio = getAudioEngine()
+          if (audio.getSourceType() === 'demo') {
+            audio.setSource('none')
+          } else {
+            audio.setSource('demo')
+          }
+        }
+        if (e.key.toLowerCase() === 't') {
+          e.preventDefault()
+          const audio = getAudioEngine()
+          audio.tap()
+        }
       }
     }
     window.addEventListener('keydown', handleKey)

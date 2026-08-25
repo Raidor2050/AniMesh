@@ -15,6 +15,7 @@ uniform float uBPM;
 uniform float uSub;
 uniform float uLowMid;
 uniform float uHighMid;
+uniform float uSpectralCentroid;
 uniform float speed;
 uniform float intensity;
 uniform float distortion;
@@ -42,6 +43,47 @@ float turbulence(vec2 p) {
   float f = 0.0; float a = 0.5;
   for(int i = 0; i < 5; i++) { f += a*abs(noise(p)); p *= 2.0; a *= 0.5; }
   return f;
+}
+// IQ cosine palette: 3 base colors + palette parameter t ∈ [0,1]
+vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
+  return a + b * cos(6.28318 * (c * t + d));
+}
+// Rotated FBM — adds directional flow to noise
+float fbmRotated(vec2 p, float angle) {
+  float s = sin(angle), c = cos(angle);
+  mat2 rot = mat2(c, -s, s, c);
+  float f = 0.0, a = 0.5;
+  for(int i = 0; i < 5; i++) { f += a * noise(p); p = rot * p * 2.01; a *= 0.5; }
+  return f;
+}
+// Ridged FBM — sharp ridges, good for terrain/veins
+float ridgedFBM(vec2 p) {
+  float f = 0.0, a = 0.5;
+  for(int i = 0; i < 5; i++) {
+    float n = 1.0 - abs(noise(p) * 2.0 - 1.0);
+    f += a * n * n;
+    p *= 2.01; a *= 0.5;
+  }
+  return f;
+}
+// Domain warping — distorts UVs with noise for organic shapes
+vec2 warp(vec2 p, float amount) {
+  return p + amount * vec2(noise(p + 1.7), noise(p + 4.2));
+}
+// Smooth minimum for SDF unions
+float smin(float a, float b, float k) {
+  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+  return mix(b, a, h) - k * h * (1.0 - h);
+}
+// Angular radial gradient — useful for spirals/rings
+float radialGrad(vec2 uv, float n) {
+  float a = atan(uv.y, uv.x) / 6.28318 + 0.5;
+  return fract(a * n);
+}
+// Soft glow — fast approximate glow without blur passes
+float softGlow(vec2 uv, vec2 center, float radius) {
+  float d = length(uv - center);
+  return exp(-d * d / (radius * radius));
 }
 `
 

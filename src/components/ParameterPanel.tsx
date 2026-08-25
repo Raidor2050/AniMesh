@@ -13,7 +13,7 @@ export function ParameterPanel() {
   const [audioLevel, setAudioLevel] = useState(0)
   const [collapsed, setCollapsed] = useState(false)
 
-  const { position, isDragging, containerRef, dragProps, setPosition } = useDraggable({
+  const { position, isDragging, containerRef, dragProps } = useDraggable({
     initialX: typeof window !== 'undefined' ? window.innerWidth - 496 : 800,
     initialY: 60,
     bounds: { left: 0, top: 48, right: 0, bottom: 0 },
@@ -187,21 +187,29 @@ function ParamSlider({
   onChange: (v: number) => void
   isAudio?: boolean
 }) {
+  const isAtDefault = Math.abs(value - param.default) < param.step * 0.5
+
   return (
     <div style={{ marginBottom: spacing.scale[3] }}>
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         marginBottom: 4,
       }}>
-        <span style={{
-          fontSize: 11,
-          color: isAudio ? colors.accent.hover : colors.text.secondary,
-          fontFamily: typography.families.sans,
-          fontWeight: 500,
-        }}>{param.label}</span>
+        <span
+          onDoubleClick={(e) => { e.preventDefault(); onChange(param.default) }}
+          style={{
+            fontSize: 11,
+            color: isAudio ? colors.accent.hover : colors.text.secondary,
+            fontFamily: typography.families.sans,
+            fontWeight: 500,
+            cursor: isAtDefault ? 'default' : 'pointer',
+            opacity: isAtDefault ? 1 : 0.9,
+          }}
+          title="Double-click to reset to default"
+        >{param.label}</span>
         <span style={{
           fontSize: 10,
-          color: colors.accent.primary,
+          color: isAtDefault ? colors.text.disabled : colors.accent.primary,
           fontFamily: typography.families.mono,
           fontWeight: 500,
           minWidth: 32, textAlign: 'right',

@@ -3,13 +3,14 @@ import { Smoother, computeRMS, clamp } from '../utils/math'
 
 export type AudioSourceType = 'none' | 'mic' | 'file' | 'demo' | 'system'
 
+// Research-backed band ranges (mel-scale inspired, musical frequency groups)
 const BAND_RANGES: [number, number][] = [
-  [20, 60],
-  [60, 250],
-  [250, 500],
-  [500, 2000],
-  [2000, 4000],
-  [4000, 16000],
+  [20, 60],     // sub: sub-bass rumble
+  [60, 200],    // bass: kick fundamental (50-120Hz)
+  [200, 600],   // lowMid: body/timbre warmth
+  [600, 2000],  // mid: vocal/guitar range
+  [2000, 6000], // highMid: snare presence, consonants
+  [6000, 16000], // treble: hi-hats, air, sparkle
 ]
 
 function createSnapshot(): AudioSnapshot {
@@ -26,6 +27,7 @@ export class AudioEngine {
   private ctx: AudioContext | null = null
   private analyser: AnalyserNode | null = null
   private source: AudioNode | null = null
+  private masterGain: GainNode | null = null
   private sourceType: AudioSourceType = 'none'
   private generation = 0
 
@@ -33,16 +35,18 @@ export class AudioEngine {
   private timeData: Float32Array<ArrayBuffer> = new Float32Array(0)
 
   private smoothBands: Smoother[] = [
-    new Smoother(5, 400),
-    new Smoother(5, 300),
-    new Smoother(8, 250),
-    new Smoother(10, 200),
-    new Smoother(12, 180),
-    new Smoother(15, 150),
+    new Smoother(3, 300),   // sub: fast attack, slow release
+    new Smoother(3, 250),   // bass: fast attack for kicks
+    new Smoother(5, 200),   // lowMid
+    new Smoother(8, 180),   // mid
+    new Smoother(10, 150),  // highMid
+    new Smoother(12, 120),  // treble: heavier smoothing for jittery signal
   ]
-  private smoothVolume = new Smoother(5, 200)
-  private smoothBeat = new Smoother(5, 100)
+  private smoothVolume = new Smoother(3, 200)
+  private smoothBeat = new Smoother(0, 100) // instant attack for beat flash
+  private smoothCentroid = new Smoother(10, 300)
 
+  // Energy-based beat detection
   private energyHistory: Float32Array = new Float32Array(43)
   private historyIndex = 0
   private energySum = 0
@@ -52,6 +56,13 @@ export class AudioEngine {
   private bpmEstimate = 128
   private startTime = 0
   private warmUpFrames = 0
+  private beatCount = 0
+
+  // Spectral flux onset detection (production standard)
+  private prevSpectrum: Uint8Array = new Uint8Array(0)
+  private fluxHistory: Float32Array = new Float32Array(43)
+  private fluxIndex = 0
+  private fluxSum = 0
 
   // BPM detection from intervals
   private beatIntervals: number[] = []
@@ -63,8 +74,8 @@ export class AudioEngine {
   private bpmMode: BPMMode = 'auto'
   private manualBpm = 128
   private tapTimes: number[] = []
-  private static readonly TAP_TIMEOUT = 2500
-  private static readonly TAP_MAX_SAMPLES = 8
+  private static readonly TAP_TIMEOUT = 3000
+  private static readonly TAP_MAX_SAMPLES = 12
 
   private snapshot: AudioSnapshot = createSnapshot()
 
@@ -73,13 +84,18 @@ export class AudioEngine {
   private systemStream: MediaStream | null = null
   private debugFrameCount = 0
 
-  // Callback for beat events (used by UI tap tempo visual feedback)
   onBeat: (() => void) | null = null
 
   async init(): Promise<void> {
-    if (this.ctx) return
-    this.ctx = new AudioContext()
-    await this.ctx.resume()
+    if (this.ctx) {
+      // Handle Safari's interrupted state and general suspended state
+      if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
+        try { await this.ctx.resume() } catch {}
+      }
+      return
+    }
+    this.ctx = new AudioContext({ latencyHint: 'interactive' })
+    try { await this.ctx.resume() } catch {}
     this.analyser = this.ctx.createAnalyser()
     this.analyser.fftSize = 2048
     this.analyser.smoothingTimeConstant = 0.8
@@ -87,6 +103,9 @@ export class AudioEngine {
     this.analyser.maxDecibels = -10
     this.freqData = new Uint8Array(this.analyser.frequencyBinCount)
     this.timeData = new Float32Array(this.analyser.fftSize)
+    this.prevSpectrum = new Uint8Array(this.analyser.frequencyBinCount)
+    this.masterGain = this.ctx.createGain()
+    this.masterGain.connect(this.analyser)
     this.startTime = performance.now()
   }
 
@@ -94,7 +113,7 @@ export class AudioEngine {
     await this.init()
     if (!this.ctx || !this.analyser) return false
 
-    this.disconnect()
+    await this.disconnect()
     const gen = ++this.generation
 
     try {
@@ -114,7 +133,7 @@ export class AudioEngine {
   }
 
   private async connectMic(gen: number): Promise<boolean> {
-    if (!this.ctx || !this.analyser) return false
+    if (!this.ctx || !this.masterGain) return false
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: false,
@@ -126,15 +145,14 @@ export class AudioEngine {
     if (gen !== this.generation) { stream.getTracks().forEach(t => t.stop()); return false }
     this.micStream = stream
     this.source = this.ctx.createMediaStreamSource(stream)
-    this.source.connect(this.analyser)
+    this.source.connect(this.masterGain)
     this.sourceType = 'mic'
     return true
   }
 
   private async connectSystem(gen: number): Promise<boolean> {
-    if (!this.ctx || !this.analyser) return false
+    if (!this.ctx || !this.masterGain) return false
 
-    // Check if getDisplayMedia is available
     if (!navigator.mediaDevices?.getDisplayMedia) {
       console.warn('System audio: getDisplayMedia not supported in this browser')
       return false
@@ -142,23 +160,19 @@ export class AudioEngine {
 
     let stream: MediaStream
     try {
-      // Request display media with audio capture enabled.
-      // In Chrome, the user MUST check "Share audio" in the picker dialog.
       stream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: {
+          suppressLocalAudioPlayback: true,
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
           sampleRate: { ideal: 44100 },
-        },
-        // Chrome 109+: request system audio inclusion
+        } as any,
         systemAudio: 'include' as any,
-        // Allow sharing browser tabs too (for web-based audio sources)
         selfBrowserSurface: 'include' as any,
       } as any)
     } catch (err: any) {
-      // Common cases: user cancelled, or browser doesn't support system audio
       if (err?.name === 'NotAllowedError') {
         console.warn('System audio: user cancelled the picker or denied permission')
       } else if (err?.name === 'NotReadableError') {
@@ -173,24 +187,26 @@ export class AudioEngine {
 
     const audioTrack = stream.getAudioTracks()[0]
     if (!audioTrack) {
-      // No audio track returned — user may not have checked "Share audio"
+      const isMac = navigator.platform?.includes('Mac')
       console.warn(
         'System audio: no audio track in display media stream. ' +
-        'Please check "Share audio" (Chrome) or ensure your system supports audio capture.'
+        (isMac
+          ? 'System audio is not supported on macOS. Install BlackHole or Loopback for system audio capture.'
+          : 'In Chrome, check "Share audio" in the picker dialog.')
       )
-      // Clean up the video-only stream
       stream.getTracks().forEach(t => t.stop())
       return false
     }
 
-    // Mute the video track instead of stopping it — stopping it can kill
-    // the audio track on some Chrome versions.
+    // Wider bandwidth for music content
+    try { audioTrack.contentHint = 'music' } catch {}
+
+    // Mute video track — stopping it can kill the audio track
     const videoTrack = stream.getVideoTracks()[0]
     if (videoTrack) {
       videoTrack.enabled = false
     }
 
-    // Handle the case where the user stops sharing via browser UI
     audioTrack.onended = () => {
       if (this.sourceType === 'system') {
         this.disconnect()
@@ -200,35 +216,26 @@ export class AudioEngine {
 
     this.systemStream = stream
     this.source = this.ctx.createMediaStreamSource(stream)
-    this.source.connect(this.analyser)
+    this.source.connect(this.masterGain)
     this.sourceType = 'system'
 
-    // Ensure the AudioContext is running — getDisplayMedia may return
-    // while the context is still suspended from the picker dialog.
-    if (this.ctx.state === 'suspended') {
-      await this.ctx.resume()
+    if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
+      try { await this.ctx.resume() } catch {}
     }
-
-    console.log(
-      `%c[AudioEngine] System audio connected — context state: ${this.ctx.state}, ` +
-      `audio tracks: ${stream.getAudioTracks().length}, ` +
-      `video tracks: ${stream.getVideoTracks().length}`,
-      'color: #22C55E; font-weight: bold'
-    )
 
     return true
   }
 
   private async connectFile(file: File, gen: number): Promise<boolean> {
-    if (!this.ctx || !this.analyser) return false
+    if (!this.ctx || !this.masterGain) return false
     const arrayBuffer = await file.arrayBuffer()
     if (gen !== this.generation) return false
     const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer)
     if (gen !== this.generation) return false
     const source = this.ctx.createBufferSource()
     source.buffer = audioBuffer
-    source.connect(this.analyser)
-    this.analyser.connect(this.ctx.destination)
+    source.connect(this.masterGain)
+    this.analyser!.connect(this.ctx.destination)
     source.loop = true
     source.start(0)
     this.source = source
@@ -237,37 +244,106 @@ export class AudioEngine {
   }
 
   private connectDemo(gen: number): boolean {
-    if (!this.ctx || !this.analyser) return false
+    if (!this.ctx || !this.masterGain) return false
 
-    const osc1 = this.ctx.createOscillator()
-    const osc2 = this.ctx.createOscillator()
-    const osc3 = this.ctx.createOscillator()
-    const gain1 = this.ctx.createGain()
-    const gain2 = this.ctx.createGain()
-    const gain3 = this.ctx.createGain()
-    const lfo = this.ctx.createOscillator()
-    const lfoGain = this.ctx.createGain()
+    // Enhanced FM synthesis demo — evolving, musically interesting
+    const nodes: OscillatorNode[] = []
 
-    osc1.type = 'sawtooth'; osc1.frequency.value = 110
-    osc2.type = 'square'; osc2.frequency.value = 55
-    osc3.type = 'sine'; osc3.frequency.value = 440
-    gain1.gain.value = 0.3; gain2.gain.value = 0.4; gain3.gain.value = 0.1
-    lfo.frequency.value = 2; lfoGain.gain.value = 30
+    // Carrier: FM-modulated bass
+    const carrier = this.ctx.createOscillator()
+    carrier.type = 'sine'
+    carrier.frequency.value = 110
 
-    lfo.connect(lfoGain)
-    lfoGain.connect(osc1.frequency)
+    const modulator = this.ctx.createOscillator()
+    modulator.type = 'sine'
+    modulator.frequency.value = 2.5
 
-    osc1.connect(gain1); osc2.connect(gain2); osc3.connect(gain3)
-    gain1.connect(this.analyser); gain2.connect(this.analyser); gain3.connect(this.analyser)
-    this.analyser.connect(this.ctx.destination)
+    const modGain = this.ctx.createGain()
+    modGain.gain.value = 80
 
-    osc1.start(); osc2.start(); osc3.start(); lfo.start()
-    this.demoNodes = [osc1, osc2, osc3, lfo]
+    modulator.connect(modGain)
+    modGain.connect(carrier.frequency)
+
+    // LFO on modulator for evolution
+    const lfo1 = this.ctx.createOscillator()
+    lfo1.type = 'sine'
+    lfo1.frequency.value = 0.15
+    const lfo1Gain = this.ctx.createGain()
+    lfo1Gain.gain.value = 1.5
+    lfo1.connect(lfo1Gain)
+    lfo1Gain.connect(modulator.frequency)
+
+    // Sub bass pulse
+    const sub = this.ctx.createOscillator()
+    sub.type = 'sine'
+    sub.frequency.value = 55
+    const subGain = this.ctx.createGain()
+    subGain.gain.value = 0.35
+
+    // Sub LFO for rhythmic pulse
+    const subLfo = this.ctx.createOscillator()
+    subLfo.type = 'square'
+    subLfo.frequency.value = 2
+    const subLfoGain = this.ctx.createGain()
+    subLfoGain.gain.value = 0.3
+    subLfo.connect(subLfoGain)
+    subLfoGain.connect(subGain.gain)
+
+    // Detuned pad for harmonic richness
+    const pad1 = this.ctx.createOscillator()
+    pad1.type = 'triangle'
+    pad1.frequency.value = 220
+    pad1.detune.value = -7
+    const pad1Gain = this.ctx.createGain()
+    pad1Gain.gain.value = 0.08
+
+    const pad2 = this.ctx.createOscillator()
+    pad2.type = 'triangle'
+    pad2.frequency.value = 330
+    pad2.detune.value = 5
+    const pad2Gain = this.ctx.createGain()
+    pad2Gain.gain.value = 0.06
+
+    // Hi-hat-like noise burst via high-frequency oscillator
+    const hihat = this.ctx.createOscillator()
+    hihat.type = 'sawtooth'
+    hihat.frequency.value = 6800
+    const hihatGain = this.ctx.createGain()
+    hihatGain.gain.value = 0.03
+    const hihatLfo = this.ctx.createOscillator()
+    hihatLfo.type = 'square'
+    hihatLfo.frequency.value = 4
+    const hihatLfoGain = this.ctx.createGain()
+    hihatLfoGain.gain.value = 0.03
+    hihatLfo.connect(hihatLfoGain)
+    hihatLfoGain.connect(hihatGain.gain)
+
+    // Connect all to master
+    carrier.connect(modGain); modGain.connect(this.masterGain)
+    sub.connect(subGain); subGain.connect(this.masterGain)
+    pad1.connect(pad1Gain); pad1Gain.connect(this.masterGain)
+    pad2.connect(pad2Gain); pad2Gain.connect(this.masterGain)
+    hihat.connect(hihatGain); hihatGain.connect(this.masterGain)
+    this.analyser!.connect(this.ctx.destination)
+
+    nodes.push(carrier, modulator, lfo1, sub, subLfo, pad1, pad2, hihat, hihatLfo)
+    nodes.forEach(n => n.start())
+
+    this.demoNodes = nodes
     this.sourceType = 'demo'
     return true
   }
 
-  private disconnect() {
+  private async disconnect() {
+    // Fade out to prevent clicks
+    if (this.masterGain && this.ctx) {
+      try {
+        this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, this.ctx.currentTime)
+        this.masterGain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.02)
+        await new Promise(r => setTimeout(r, 30))
+      } catch {}
+    }
+
     this.demoNodes.forEach(n => { try { n.stop() } catch {} })
     this.demoNodes = []
     if (this.micStream) {
@@ -285,10 +361,12 @@ export class AudioEngine {
     if (this.analyser) {
       try { this.analyser.disconnect() } catch {}
     }
+    if (this.masterGain) {
+      this.masterGain.gain.setValueAtTime(1, this.ctx?.currentTime ?? 0)
+    }
   }
 
   getSourceType(): AudioSourceType { return this.sourceType }
-
   getSnapshot(): AudioSnapshot { return this.snapshot }
 
   // ── BPM Mode Control ──
@@ -309,12 +387,11 @@ export class AudioEngine {
 
   getManualBpm(): number { return this.manualBpm }
 
-  // ── Tap Tempo ──
+  // ── Tap Tempo (linear regression for accuracy) ──
 
   tap(): number | null {
     const now = performance.now()
 
-    // Reset if tapped after long silence
     if (this.tapTimes.length > 0) {
       const lastTap = this.tapTimes[this.tapTimes.length - 1]
       if (now - lastTap > AudioEngine.TAP_TIMEOUT) {
@@ -323,22 +400,26 @@ export class AudioEngine {
     }
 
     this.tapTimes.push(now)
-
-    // Keep only recent taps
     if (this.tapTimes.length > AudioEngine.TAP_MAX_SAMPLES) {
       this.tapTimes.shift()
     }
 
-    // Need at least 2 taps to calculate BPM
     if (this.tapTimes.length < 2) return null
 
-    // Average intervals between taps
-    let totalInterval = 0
-    for (let i = 1; i < this.tapTimes.length; i++) {
-      totalInterval += this.tapTimes[i] - this.tapTimes[i - 1]
+    // Linear regression for robust BPM estimation
+    const n = this.tapTimes.length
+    const t0 = this.tapTimes[0]
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0
+    for (let i = 0; i < n; i++) {
+      const x = this.tapTimes[i] - t0
+      const y = i
+      sumX += x; sumY += y; sumXY += x * y; sumX2 += x * x
     }
-    const avgInterval = totalInterval / (this.tapTimes.length - 1)
-    const tapBpm = clamp(Math.round(60000 / avgInterval), 30, 300)
+    const denom = n * sumX2 - sumX * sumX
+    if (denom === 0) return null
+    const slope = (n * sumXY - sumX * sumY) / denom
+    if (slope <= 0) return null
+    const tapBpm = clamp(Math.round(60000 * slope), 30, 300)
 
     this.manualBpm = tapBpm
     return tapBpm
@@ -352,7 +433,6 @@ export class AudioEngine {
     if (isBeat && this.beatIntervals.length < AudioEngine.BPM_WINDOW) {
       if (this.lastBeatTime > 0) {
         const interval = timestamp - this.lastBeatTime
-        // Only accept intervals within reasonable BPM range
         const impliedBpm = 60000 / interval
         if (impliedBpm >= AudioEngine.MIN_BPM && impliedBpm <= AudioEngine.MAX_BPM) {
           this.beatIntervals.push(interval)
@@ -361,7 +441,6 @@ export class AudioEngine {
     }
 
     if (this.beatIntervals.length >= 3) {
-      // Remove outlier intervals (more than 40% from median)
       const sorted = [...this.beatIntervals].sort((a, b) => a - b)
       const median = sorted[Math.floor(sorted.length / 2)]
       const filtered = this.beatIntervals.filter(i =>
@@ -370,18 +449,58 @@ export class AudioEngine {
       if (filtered.length >= 2) {
         const avg = filtered.reduce((a, b) => a + b, 0) / filtered.length
         const detected = clamp(Math.round(60000 / avg), AudioEngine.MIN_BPM, AudioEngine.MAX_BPM)
-        // Smooth transition to avoid jitter
         this.bpmEstimate = this.bpmEstimate * 0.7 + detected * 0.3
       }
     }
   }
 
+  // ── Spectral Flux Onset Detection ──
+
+  private detectOnset(freqData: Uint8Array, timestamp: number): boolean {
+    if (this.prevSpectrum.length !== freqData.length) {
+      this.prevSpectrum = new Uint8Array(freqData.length)
+      return false
+    }
+
+    // Half-wave rectified spectral flux
+    let flux = 0
+    for (let i = 0; i < freqData.length; i++) {
+      const diff = freqData[i] - this.prevSpectrum[i]
+      if (diff > 0) flux += diff
+    }
+    this.prevSpectrum.set(freqData)
+
+    // Adaptive threshold
+    this.fluxSum -= this.fluxHistory[this.fluxIndex]
+    this.fluxHistory[this.fluxIndex] = flux
+    this.fluxSum += flux
+    this.fluxIndex = (this.fluxIndex + 1) % this.fluxHistory.length
+
+    const avgFlux = this.fluxSum / this.fluxHistory.length
+    return flux > avgFlux * 1.4 && (timestamp - this.lastBeatTime) > 200
+  }
+
+  // ── Spectral Centroid ──
+
+  private computeSpectralCentroid(freqData: Uint8Array): number {
+    const sampleRate = this.ctx?.sampleRate ?? 44100
+    const fftSize = this.analyser?.fftSize ?? 2048
+    let weightedSum = 0, totalEnergy = 0
+    for (let i = 0; i < freqData.length; i++) {
+      const freq = i * sampleRate / fftSize
+      const energy = freqData[i] / 255
+      weightedSum += freq * energy
+      totalEnergy += energy
+    }
+    return totalEnergy > 0 ? weightedSum / totalEnergy / (sampleRate / 2) : 0
+  }
+
   tick(timestamp: number): AudioSnapshot {
     if (!this.analyser) return this.snapshot
 
-    // Auto-resume if context got suspended (e.g. tab was backgrounded)
-    if (this.ctx?.state === 'suspended' && this.sourceType !== 'none') {
-      this.ctx.resume()
+    // Handle Safari's interrupted state and general suspended state
+    if (this.ctx && this.ctx.state !== 'running' && this.ctx.state !== 'closed' && this.sourceType !== 'none') {
+      try { this.ctx.resume() } catch {}
     }
 
     const { freqData, timeData, analyser } = this
@@ -389,10 +508,10 @@ export class AudioEngine {
     analyser.getByteFrequencyData(freqData)
     analyser.getFloatTimeDomainData(timeData)
 
-    // Debug: log audio data every 60 frames when system audio is active
+    // Debug: log audio data every 120 frames when system audio is active
     if (this.sourceType === 'system') {
       this.debugFrameCount++
-      if (this.debugFrameCount % 60 === 0) {
+      if (this.debugFrameCount % 120 === 0) {
         let maxFreq = 0
         for (let i = 0; i < freqData.length; i++) {
           if (freqData[i] > maxFreq) maxFreq = freqData[i]
@@ -411,20 +530,35 @@ export class AudioEngine {
 
     const bandNames = ['sub', 'bass', 'lowMid', 'mid', 'highMid', 'treble'] as const
 
+    // Power-weighted band energy for more accurate perceived loudness
     for (let i = 0; i < 6; i++) {
       const [minHz, maxHz] = BAND_RANGES[i]
       const startBin = Math.floor(minHz / binHz)
       const endBin = Math.min(Math.ceil(maxHz / binHz), freqData.length - 1)
-      let sum = 0, count = 0
-      for (let j = startBin; j <= endBin; j++) { sum += freqData[j]; count++ }
-      const raw = count > 0 ? (sum / count) / 255 : 0
+      let energy = 0, count = 0
+      for (let j = startBin; j <= endBin; j++) {
+        const mag = freqData[j] / 255
+        energy += mag * mag // power = magnitude²
+        count++
+      }
+      const raw = count > 0 ? Math.sqrt(energy / count) : 0
       const smoothed = this.smoothBands[i].update(raw)
       ;(this.snapshot as any)[bandNames[i]] = smoothed
+    }
+
+    // Noise gate: eliminate idle-state jitter
+    const gatedBands = bandNames.map(n => {
+      const v = (this.snapshot as any)[n]
+      return v > 0.02 ? v : 0
+    })
+    for (let i = 0; i < 6; i++) {
+      ;(this.snapshot as any)[bandNames[i]] = gatedBands[i]
     }
 
     const rms = computeRMS(timeData)
     this.snapshot.volume = this.smoothVolume.update(clamp(rms * 3, 0, 1))
 
+    // Energy-based beat detection
     const currentEnergy = rms * rms * timeData.length
     this.energySum -= this.energyHistory[this.historyIndex]
     this.energyHistory[this.historyIndex] = currentEnergy
@@ -435,34 +569,48 @@ export class AudioEngine {
     const THRESHOLD = 1.4
     const MIN_INTERVAL = 200
     const avgEnergy = this.energySum / this.energyHistory.length
-    const isBeat = this.warmUpFrames > this.energyHistory.length &&
+    const energyBeat = this.warmUpFrames > this.energyHistory.length &&
       currentEnergy > avgEnergy * THRESHOLD &&
       (timestamp - this.lastBeatTime) > MIN_INTERVAL
+
+    // Spectral flux onset detection (catches snare/hat onsets)
+    const fluxBeat = this.detectOnset(freqData, timestamp)
+
+    // Combine both detectors — either triggers a beat
+    const isBeat = energyBeat || fluxBeat
 
     if (isBeat) {
       this.lastBeatTime = timestamp
       this.beatDetected = true
+      this.beatCount++
       this.onBeat?.()
+      // Reset beat phase on detected beat for tight sync
+      this.beatPhaseAcc = 0
     } else {
       this.beatDetected = false
     }
 
-    // Auto-detect BPM from beat intervals
     this.detectBpm(isBeat, timestamp)
 
     this.snapshot.beat = this.beatDetected
     this.snapshot.beatIntensity = this.smoothBeat.update(isBeat ? 1 : 0)
 
-    // Use manual BPM when not in auto mode
     const effectiveBpm = this.bpmMode === 'auto' ? this.bpmEstimate : this.manualBpm
 
-    const elapsed = timestamp - this.startTime
-    const beatMs = 60000 / effectiveBpm
-    this.beatPhaseAcc = (elapsed % beatMs) / beatMs
+    if (!isBeat) {
+      const elapsed = timestamp - this.lastBeatTime
+      const beatMs = 60000 / effectiveBpm
+      this.beatPhaseAcc = Math.min(elapsed / beatMs, 1.0)
+    }
     this.snapshot.beatPhase = this.beatPhaseAcc
 
     this.snapshot.bpm = effectiveBpm
-    this.snapshot.time = elapsed / 1000
+    this.snapshot.time = (timestamp - this.startTime) / 1000
+
+    // Spectral centroid (brightness of sound) — map to hue shift
+    this.snapshot.spectralCentroid = this.smoothCentroid.update(
+      this.computeSpectralCentroid(freqData)
+    )
 
     for (let i = 0; i < Math.min(timeData.length, 1024); i++) {
       this.snapshot.waveform[i] = timeData[i]
@@ -475,8 +623,14 @@ export class AudioEngine {
   }
 
   async resume() {
-    if (this.ctx?.state === 'suspended') {
-      await this.ctx.resume()
+    if (this.ctx && this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
+      try {
+        // Safari can hang on resume — add timeout
+        await Promise.race([
+          this.ctx.resume(),
+          new Promise<void>((_, reject) => setTimeout(() => reject(new Error('resume timeout')), 3000)),
+        ])
+      } catch {}
     }
   }
 

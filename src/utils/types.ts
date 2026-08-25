@@ -59,6 +59,7 @@ export interface AudioSnapshot {
   spectrum: Uint8Array<ArrayBuffer>
   bpm: number
   time: number
+  spectralCentroid: number
 }
 
 export interface RenderState {
@@ -82,7 +83,7 @@ export const DEFAULT_AUDIO: AudioSnapshot = {
   volume: 0, beat: false, beatPhase: 0, beatIntensity: 0,
   waveform: new Float32Array(1024),
   spectrum: new Uint8Array(1024),
-  bpm: 128, time: 0,
+  bpm: 128, time: 0, spectralCentroid: 0,
 }
 
 export const CATEGORY_LABELS: Record<ShaderCategory, string> = {
