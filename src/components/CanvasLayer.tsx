@@ -37,9 +37,9 @@ export function CanvasLayer() {
       resize()
       window.addEventListener('resize', resize)
 
-      // Store now defaults to Sierpinski synchronously, but keep fallback for HMR / edge cases
+      // Store defaults to a random shader; fallback for HMR / edge cases
       const stored = useShaderStore.getState().activeShader
-      const fallback = SHADER_LIBRARY.find(s => s.id === 'fractal-sierpinski') ?? SHADER_LIBRARY[0]
+      const fallback = SHADER_LIBRARY[Math.floor(Math.random() * SHADER_LIBRARY.length)] ?? SHADER_LIBRARY[0]
       const current = stored ?? fallback
       if (!stored) useShaderStore.getState().setActiveShader(current)
       renderer.setShader(current)

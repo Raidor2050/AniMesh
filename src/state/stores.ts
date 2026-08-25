@@ -73,7 +73,9 @@ interface ShaderStore {
 const savedFavorites = JSON.parse(safeGetItem('animesh-favorites') || '[]')
 const savedRecent = JSON.parse(safeGetItem('animesh-recent') || '[]')
 
-const defaultShader = SHADER_LIBRARY.find(s => s.id === 'fractal-sierpinski') ?? SHADER_LIBRARY[0] ?? null
+const defaultShader = SHADER_LIBRARY.length > 0
+  ? SHADER_LIBRARY[Math.floor(Math.random() * SHADER_LIBRARY.length)]
+  : null
 
 export const useShaderStore = create<ShaderStore>((set) => ({
   activeShader: defaultShader,
