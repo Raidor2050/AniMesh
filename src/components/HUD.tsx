@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'motion/react'
-import { useUIStore, useShaderStore, audioDataBridge } from '../state/stores'
-import { colors, typography, spacing, radii, animation } from '../ui/tokens'
+import { useUIStore, useShaderStore, useAudioStore, audioDataBridge } from '../state/stores'
+import { colors, typography, spacing, radii } from '../ui/tokens'
+import { BPMControl } from './BPMControl'
 
 export function HUD() {
   const immersive = useUIStore(s => s.immersive)
@@ -9,10 +10,13 @@ export function HUD() {
   const toggleCreator = useUIStore(s => s.toggleCreator)
   const toggleImmersive = useUIStore(s => s.toggleImmersive)
   const activeShader = useShaderStore(s => s.activeShader)
+  const sourceType = useAudioStore(s => s.sourceType)
   const [fps, setFps] = useState(0)
   const [audioLevel, setAudioLevel] = useState(0)
   const [bass, setBass] = useState(0)
   const [treble, setTreble] = useState(0)
+  const [bpm, setBpm] = useState(128)
+  const [beatPulse, setBeatPulse] = useState(false)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -20,7 +24,20 @@ export function HUD() {
       setAudioLevel(audioDataBridge.snapshot.volume)
       setBass(audioDataBridge.snapshot.bass)
       setTreble(audioDataBridge.snapshot.treble)
+      setBpm(audioDataBridge.snapshot.bpm)
     }, 100)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Beat pulse animation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const beat = audioDataBridge.snapshot.beat
+      if (beat) {
+        setBeatPulse(true)
+        setTimeout(() => setBeatPulse(false), 100)
+      }
+    }, 50)
     return () => clearInterval(interval)
   }, [])
 
@@ -35,6 +52,14 @@ export function HUD() {
     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
     e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
   }, [])
+
+  const sourceLabels: Record<string, string> = {
+    none: '',
+    demo: '♪ Demo',
+    mic: '🎤 Mic',
+    system: '🔊 System',
+    file: '📄 File',
+  }
 
   return (
     <>
@@ -62,6 +87,19 @@ export function HUD() {
             color: colors.text.primary,
             letterSpacing: '-0.03em',
           }}>ANIMESH</span>
+          {sourceType !== 'none' && (
+            <span style={{
+              fontSize: 9,
+              fontFamily: typography.families.mono,
+              color: colors.text.disabled,
+              background: colors.surface.primary,
+              padding: '2px 6px',
+              borderRadius: radii.xs,
+              border: `1px solid ${colors.surface.secondary}`,
+            }}>
+              {sourceLabels[sourceType]}
+            </span>
+          )}
         </div>
 
         {/* Center: Active shader */}
@@ -73,9 +111,12 @@ export function HUD() {
             <>
               <div style={{
                 width: 6, height: 6, borderRadius: '50%',
-                background: colors.accent.primary,
-                boxShadow: `0 0 8px ${colors.accent.glow}`,
-                animation: 'pulse-glow 2s ease-in-out infinite',
+                background: beatPulse ? '#22C55E' : colors.accent.primary,
+                boxShadow: beatPulse
+                  ? '0 0 12px rgba(34,197,94,0.6)'
+                  : `0 0 8px ${colors.accent.glow}`,
+                transition: 'all 0.06s ease',
+                transform: beatPulse ? 'scale(1.3)' : 'scale(1)',
               }} />
               <span style={{
                 fontFamily: typography.families.mono,
@@ -89,8 +130,11 @@ export function HUD() {
           )}
         </div>
 
-        {/* Right: FPS + Audio bars */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, pointerEvents: 'auto' }}>
+        {/* Right: BPM + FPS + Audio bars */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
+          {/* BPM Control */}
+          <BPMControl />
+
           {/* Audio level micro-bars */}
           <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 14 }}>
             {[bass * 0.6 + 0.1, bass * 0.8 + 0.1, audioLevel, treble * 0.7 + 0.1, treble * 0.5 + 0.1].map((val, i) => (

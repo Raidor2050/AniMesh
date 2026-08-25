@@ -20,6 +20,8 @@ function createSnapshot(): AudioSnapshot {
   }
 }
 
+export type BPMMode = 'auto' | 'manual' | 'tap'
+
 export class AudioEngine {
   private ctx: AudioContext | null = null
   private analyser: AnalyserNode | null = null
@@ -51,11 +53,27 @@ export class AudioEngine {
   private startTime = 0
   private warmUpFrames = 0
 
+  // BPM detection from intervals
+  private beatIntervals: number[] = []
+  private static readonly BPM_WINDOW = 16
+  private static readonly MIN_BPM = 60
+  private static readonly MAX_BPM = 200
+
+  // Manual BPM
+  private bpmMode: BPMMode = 'auto'
+  private manualBpm = 128
+  private tapTimes: number[] = []
+  private static readonly TAP_TIMEOUT = 2500
+  private static readonly TAP_MAX_SAMPLES = 8
+
   private snapshot: AudioSnapshot = createSnapshot()
 
   private demoNodes: OscillatorNode[] = []
   private micStream: MediaStream | null = null
   private systemStream: MediaStream | null = null
+
+  // Callback for beat events (used by UI tap tempo visual feedback)
+  onBeat: (() => void) | null = null
 
   async init(): Promise<void> {
     if (this.ctx) return
@@ -114,20 +132,52 @@ export class AudioEngine {
 
   private async connectSystem(gen: number): Promise<boolean> {
     if (!this.ctx || !this.analyser) return false
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: false,
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-      } as any,
-    })
+
+    let stream: MediaStream
+    try {
+      // Primary: request audio-only (works in Chrome when tab shares audio)
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          width: { ideal: 1 },
+          height: { ideal: 1 },
+          frameRate: { ideal: 1 },
+        } as any,
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          channelCount: 1,
+        } as any,
+        // Chrome: prefer current tab so the picker is less confusing
+        preferCurrentTab: true as any,
+      } as any)
+    } catch (err) {
+      // User cancelled or browser doesn't support it
+      console.warn('System audio: getDisplayMedia failed or cancelled:', err)
+      return false
+    }
+
     if (gen !== this.generation) { stream.getTracks().forEach(t => t.stop()); return false }
+
     const audioTrack = stream.getAudioTracks()[0]
     if (!audioTrack) {
+      // No audio track returned — inform the user via console
+      console.warn(
+        'System audio: no audio track in display media stream. ' +
+        'Make sure to check "Share audio" in the browser picker dialog.'
+      )
       stream.getTracks().forEach(t => t.stop())
       return false
     }
+
+    // Handle the case where the user stops sharing
+    audioTrack.onended = () => {
+      if (this.sourceType === 'system') {
+        this.disconnect()
+        this.sourceType = 'none'
+      }
+    }
+
     this.systemStream = stream
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.analyser)
@@ -207,6 +257,91 @@ export class AudioEngine {
 
   getSnapshot(): AudioSnapshot { return this.snapshot }
 
+  // ── BPM Mode Control ──
+
+  setBpmMode(mode: BPMMode) {
+    this.bpmMode = mode
+    if (mode === 'auto') {
+      this.beatIntervals = []
+      this.tapTimes = []
+    }
+  }
+
+  getBpmMode(): BPMMode { return this.bpmMode }
+
+  setManualBpm(bpm: number) {
+    this.manualBpm = clamp(bpm, 30, 300)
+  }
+
+  getManualBpm(): number { return this.manualBpm }
+
+  // ── Tap Tempo ──
+
+  tap(): number | null {
+    const now = performance.now()
+
+    // Reset if tapped after long silence
+    if (this.tapTimes.length > 0) {
+      const lastTap = this.tapTimes[this.tapTimes.length - 1]
+      if (now - lastTap > AudioEngine.TAP_TIMEOUT) {
+        this.tapTimes = []
+      }
+    }
+
+    this.tapTimes.push(now)
+
+    // Keep only recent taps
+    if (this.tapTimes.length > AudioEngine.TAP_MAX_SAMPLES) {
+      this.tapTimes.shift()
+    }
+
+    // Need at least 2 taps to calculate BPM
+    if (this.tapTimes.length < 2) return null
+
+    // Average intervals between taps
+    let totalInterval = 0
+    for (let i = 1; i < this.tapTimes.length; i++) {
+      totalInterval += this.tapTimes[i] - this.tapTimes[i - 1]
+    }
+    const avgInterval = totalInterval / (this.tapTimes.length - 1)
+    const tapBpm = clamp(Math.round(60000 / avgInterval), 30, 300)
+
+    this.manualBpm = tapBpm
+    return tapBpm
+  }
+
+  // ── Auto BPM Detection ──
+
+  private detectBpm(isBeat: boolean, timestamp: number) {
+    if (this.bpmMode !== 'auto') return
+
+    if (isBeat && this.beatIntervals.length < AudioEngine.BPM_WINDOW) {
+      if (this.lastBeatTime > 0) {
+        const interval = timestamp - this.lastBeatTime
+        // Only accept intervals within reasonable BPM range
+        const impliedBpm = 60000 / interval
+        if (impliedBpm >= AudioEngine.MIN_BPM && impliedBpm <= AudioEngine.MAX_BPM) {
+          this.beatIntervals.push(interval)
+        }
+      }
+    }
+
+    if (this.beatIntervals.length >= 3) {
+      // Remove outlier intervals (more than 40% from median)
+      const sorted = [...this.beatIntervals].sort((a, b) => a - b)
+      const median = sorted[Math.floor(sorted.length / 2)]
+      const filtered = this.beatIntervals.filter(i =>
+        Math.abs(i - median) / median < 0.4
+      )
+      if (filtered.length >= 2) {
+        const avg = filtered.reduce((a, b) => a + b, 0) / filtered.length
+        const detected = clamp(Math.round(60000 / avg), AudioEngine.MIN_BPM, AudioEngine.MAX_BPM)
+        // Smooth transition to avoid jitter
+        this.bpmEstimate = this.bpmEstimate * 0.7 + detected * 0.3
+      }
+    }
+  }
+
   tick(timestamp: number): AudioSnapshot {
     if (!this.analyser) return this.snapshot
 
@@ -251,19 +386,26 @@ export class AudioEngine {
     if (isBeat) {
       this.lastBeatTime = timestamp
       this.beatDetected = true
+      this.onBeat?.()
     } else {
       this.beatDetected = false
     }
 
+    // Auto-detect BPM from beat intervals
+    this.detectBpm(isBeat, timestamp)
+
     this.snapshot.beat = this.beatDetected
     this.snapshot.beatIntensity = this.smoothBeat.update(isBeat ? 1 : 0)
 
+    // Use manual BPM when not in auto mode
+    const effectiveBpm = this.bpmMode === 'auto' ? this.bpmEstimate : this.manualBpm
+
     const elapsed = timestamp - this.startTime
-    const beatMs = 60000 / this.bpmEstimate
+    const beatMs = 60000 / effectiveBpm
     this.beatPhaseAcc = (elapsed % beatMs) / beatMs
     this.snapshot.beatPhase = this.beatPhaseAcc
 
-    this.snapshot.bpm = this.bpmEstimate
+    this.snapshot.bpm = effectiveBpm
     this.snapshot.time = elapsed / 1000
 
     for (let i = 0; i < Math.min(timeData.length, 1024); i++) {
