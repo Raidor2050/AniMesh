@@ -1,0 +1,268 @@
+import { AudioSnapshot, DEFAULT_AUDIO } from '../utils/types'
+import { Smoother, computeRMS, clamp } from '../utils/math'
+
+export type AudioSourceType = 'none' | 'mic' | 'file' | 'demo' | 'system'
+
+const BAND_RANGES: [number, number][] = [
+  [20, 60],     // sub
+  [60, 250],    // bass
+  [250, 500],   // lowMid
+  [500, 2000],  // mid
+  [2000, 4000], // highMid
+  [4000, 16000],// treble
+]
+
+export class AudioEngine {
+  private ctx: AudioContext | null = null
+  private analyser: AnalyserNode | null = null
+  private source: AudioNode | null = null
+  private sourceType: AudioSourceType = 'none'
+
+  private freqData: Uint8Array<ArrayBuffer> = new Uint8Array(0)
+  private timeData: Float32Array<ArrayBuffer> = new Float32Array(0)
+
+  private smoothBands: Smoother[] = [
+    new Smoother(5, 400),   // sub
+    new Smoother(5, 300),   // bass
+    new Smoother(8, 250),   // lowMid
+    new Smoother(10, 200),  // mid
+    new Smoother(12, 180),  // highMid
+    new Smoother(15, 150),  // treble
+  ]
+  private smoothVolume = new Smoother(5, 200)
+  private smoothBeat = new Smoother(5, 100)
+
+  private energyHistory: Float32Array = new Float32Array(43)
+  private historyIndex = 0
+  private energySum = 0
+  private lastBeatTime = 0
+  private beatDetected = false
+  private beatPhaseAcc = 0
+  private bpmEstimate = 128
+  private startTime = 0
+
+  private snapshot: AudioSnapshot = { ...DEFAULT_AUDIO }
+
+  private demoNodes: OscillatorNode[] = []
+  private micStream: MediaStream | null = null
+
+  async init(): Promise<void> {
+    if (this.ctx) return
+    this.ctx = new AudioContext()
+    this.analyser = this.ctx.createAnalyser()
+    this.analyser.fftSize = 2048
+    this.analyser.smoothingTimeConstant = 0.8
+    this.analyser.minDecibels = -90
+    this.analyser.maxDecibels = -10
+    this.freqData = new Uint8Array(this.analyser.frequencyBinCount)
+    this.timeData = new Float32Array(this.analyser.fftSize)
+    this.startTime = performance.now()
+  }
+
+  async setSource(type: AudioSourceType, file?: File): Promise<boolean> {
+    await this.init()
+    if (!this.ctx || !this.analyser) return false
+
+    this.disconnect()
+
+    try {
+      switch (type) {
+        case 'mic': return this.connectMic()
+        case 'file': return file ? this.connectFile(file) : false
+        case 'demo': return this.connectDemo()
+        case 'system': return this.connectSystem()
+        case 'none':
+        default: this.sourceType = 'none'; return true
+      }
+    } catch (e) {
+      console.warn('Audio source failed:', e)
+      this.sourceType = 'none'
+      return false
+    }
+  }
+
+  private async connectMic(): Promise<boolean> {
+    if (!this.ctx || !this.analyser) return false
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        channelCount: 1,
+      }
+    })
+    this.micStream = stream
+    this.source = this.ctx.createMediaStreamSource(stream)
+    this.source.connect(this.analyser)
+    this.sourceType = 'mic'
+    return true
+  }
+
+  private async connectSystem(): Promise<boolean> {
+    if (!this.ctx || !this.analyser) return false
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: false,
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      } as any,
+    })
+    const audioTrack = stream.getAudioTracks()[0]
+    if (!audioTrack) {
+      stream.getTracks().forEach(t => t.stop())
+      return false
+    }
+    this.source = this.ctx.createMediaStreamSource(stream)
+    this.source.connect(this.analyser)
+    this.sourceType = 'system'
+    return true
+  }
+
+  private async connectFile(file: File): Promise<boolean> {
+    if (!this.ctx || !this.analyser) return false
+    const arrayBuffer = await file.arrayBuffer()
+    const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer)
+    const source = this.ctx.createBufferSource()
+    source.buffer = audioBuffer
+    source.connect(this.analyser)
+    this.analyser.connect(this.ctx.destination)
+    source.loop = true
+    source.start(0)
+    this.source = source
+    this.sourceType = 'file'
+    return true
+  }
+
+  private connectDemo(): boolean {
+    if (!this.ctx || !this.analyser) return false
+
+    const osc1 = this.ctx.createOscillator()
+    const osc2 = this.ctx.createOscillator()
+    const osc3 = this.ctx.createOscillator()
+    const gain1 = this.ctx.createGain()
+    const gain2 = this.ctx.createGain()
+    const gain3 = this.ctx.createGain()
+    const lfo = this.ctx.createOscillator()
+    const lfoGain = this.ctx.createGain()
+
+    osc1.type = 'sawtooth'; osc1.frequency.value = 110
+    osc2.type = 'square'; osc2.frequency.value = 55
+    osc3.type = 'sine'; osc3.frequency.value = 440
+    gain1.gain.value = 0.3; gain2.gain.value = 0.4; gain3.gain.value = 0.1
+    lfo.frequency.value = 2; lfoGain.gain.value = 30
+
+    lfo.connect(lfoGain)
+    lfoGain.connect(osc1.frequency)
+
+    osc1.connect(gain1); osc2.connect(gain2); osc3.connect(gain3)
+    gain1.connect(this.analyser); gain2.connect(this.analyser); gain3.connect(this.analyser)
+    this.analyser.connect(this.ctx.destination)
+
+    osc1.start(); osc2.start(); osc3.start(); lfo.start()
+    this.demoNodes = [osc1, osc2, osc3, lfo]
+    this.sourceType = 'demo'
+    return true
+  }
+
+  private disconnect() {
+    this.demoNodes.forEach(n => { try { n.stop() } catch {} })
+    this.demoNodes = []
+    if (this.micStream) {
+      this.micStream.getTracks().forEach(t => t.stop())
+      this.micStream = null
+    }
+    if (this.source) {
+      try { this.source.disconnect() } catch {}
+      this.source = null
+    }
+    if (this.analyser) {
+      try { this.analyser.disconnect() } catch {}
+    }
+  }
+
+  getSourceType(): AudioSourceType { return this.sourceType }
+
+  getSnapshot(): AudioSnapshot { return this.snapshot }
+
+  tick(timestamp: number): AudioSnapshot {
+    if (!this.analyser) return this.snapshot
+
+    const { freqData, timeData, analyser } = this
+
+    analyser.getByteFrequencyData(freqData)
+    analyser.getFloatTimeDomainData(timeData)
+
+    const sampleRate = this.ctx?.sampleRate ?? 44100
+    const binHz = sampleRate / analyser.fftSize
+
+    const bandNames = ['sub', 'bass', 'lowMid', 'mid', 'highMid', 'treble'] as const
+
+    for (let i = 0; i < 6; i++) {
+      const [minHz, maxHz] = BAND_RANGES[i]
+      const startBin = Math.floor(minHz / binHz)
+      const endBin = Math.min(Math.ceil(maxHz / binHz), freqData.length - 1)
+      let sum = 0, count = 0
+      for (let j = startBin; j <= endBin; j++) { sum += freqData[j]; count++ }
+      const raw = count > 0 ? (sum / count) / 255 : 0
+      const smoothed = this.smoothBands[i].update(raw)
+      ;(this.snapshot as any)[bandNames[i]] = smoothed
+    }
+
+    const rms = computeRMS(timeData)
+    this.snapshot.volume = this.smoothVolume.update(clamp(rms * 3, 0, 1))
+
+    const currentEnergy = rms * rms * timeData.length
+    this.energySum -= this.energyHistory[this.historyIndex]
+    this.energyHistory[this.historyIndex] = currentEnergy
+    this.energySum += currentEnergy
+    this.historyIndex = (this.historyIndex + 1) % this.energyHistory.length
+    const avgEnergy = this.energySum / this.energyHistory.length
+
+    const THRESHOLD = 1.4
+    const MIN_INTERVAL = 200
+    const isBeat = currentEnergy > avgEnergy * THRESHOLD &&
+      (timestamp - this.lastBeatTime) > MIN_INTERVAL
+
+    if (isBeat) {
+      this.lastBeatTime = timestamp
+      this.beatDetected = true
+    } else {
+      this.beatDetected = false
+    }
+
+    this.snapshot.beat = this.beatDetected
+    this.snapshot.beatIntensity = this.smoothBeat.update(isBeat ? 1 : 0)
+
+    const elapsed = timestamp - this.startTime
+    const beatMs = 60000 / this.bpmEstimate
+    this.beatPhaseAcc = (elapsed % beatMs) / beatMs
+    this.snapshot.beatPhase = this.beatPhaseAcc
+
+    this.snapshot.bpm = this.bpmEstimate
+    this.snapshot.time = elapsed / 1000
+
+    for (let i = 0; i < Math.min(timeData.length, 1024); i++) {
+      this.snapshot.waveform[i] = timeData[i]
+    }
+    for (let i = 0; i < Math.min(freqData.length, 1024); i++) {
+      this.snapshot.spectrum[i] = freqData[i]
+    }
+
+    return this.snapshot
+  }
+
+  async resume() {
+    if (this.ctx?.state === 'suspended') {
+      await this.ctx.resume()
+    }
+  }
+
+  destroy() {
+    this.disconnect()
+    if (this.ctx) {
+      this.ctx.close()
+      this.ctx = null
+    }
+  }
+}
