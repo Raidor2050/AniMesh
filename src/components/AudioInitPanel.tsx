@@ -50,16 +50,16 @@ export function AudioInitBar() {
         if (ok) {
           setSourceType(type)
           const labels: Record<string, string> = {
-            demo: 'Demo mode active',
-            mic: 'Microphone connected',
-            system: 'System audio captured — make sure audio is playing',
+            demo: 'Demo mode active — synthetic audio running',
+            mic: 'Microphone connected — speak or play audio nearby',
+            system: 'System audio captured — play music or video to see reactivity',
           }
           setStatus({ type: 'success', msg: labels[type] || 'Connected' })
-          setTimeout(() => setShow(false), 800)
+          setTimeout(() => setShow(false), 1200)
         } else {
           let errorMsg = 'Connection failed'
           if (type === 'system') {
-            errorMsg = 'System audio not available. Use Chrome and check "Share audio" in the picker.'
+            errorMsg = 'No audio captured. In Chrome, check "Share audio" in the picker. Use Chrome for best results.'
           } else if (type === 'mic') {
             errorMsg = 'Microphone access denied or unavailable'
           } else if (type === 'demo') {
@@ -148,11 +148,11 @@ export function AudioInitBar() {
   }
 
   // Expanded: show all source options
-  const sources: { type: AudioSourceType; label: string; icon: string }[] = [
-    { type: 'demo', label: 'Demo', icon: '♪' },
-    { type: 'mic', label: 'Mic', icon: '🎤' },
-    { type: 'system', label: 'System', icon: '🔊' },
-    { type: 'file', label: 'File', icon: '📄' },
+  const sources: { type: AudioSourceType; label: string; icon: string; hint: string }[] = [
+    { type: 'demo', label: 'Demo', icon: '♪', hint: 'Synthetic audio — no input needed' },
+    { type: 'mic', label: 'Mic', icon: '🎤', hint: 'Use your microphone' },
+    { type: 'system', label: 'System', icon: '🔊', hint: 'Chrome: check "Share audio"' },
+    { type: 'file', label: 'File', icon: '📄', hint: 'Load an audio file' },
   ]
 
   return (
@@ -219,6 +219,9 @@ export function AudioInitBar() {
           >
             <span style={{ fontSize: 14 }}>{s.icon}</span>
             <span>{s.label}</span>
+            {s.type === 'system' && (
+              <span style={{ fontSize: 8, opacity: 0.5, lineHeight: '10px' }}>Chrome recommended</span>
+            )}
           </motion.button>
         ))}
         <button

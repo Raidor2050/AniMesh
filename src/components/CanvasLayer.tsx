@@ -37,7 +37,7 @@ export function CanvasLayer() {
       resize()
       window.addEventListener('resize', resize)
 
-      const current = useShaderStore.getState().activeShader ?? SHADER_LIBRARY[0]
+      const current = useShaderStore.getState().activeShader ?? SHADER_LIBRARY.find(s => s.id === 'fractal-sierpinski') ?? SHADER_LIBRARY[0]
       useShaderStore.getState().setActiveShader(current)
       renderer.setShader(current)
 

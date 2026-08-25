@@ -184,7 +184,7 @@ export function ShaderBrowser() {
           flex: 1, overflow: 'auto', padding: `${spacing.scale[3]}px ${spacing.scale[4]}px`,
           display: 'grid',
           gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: `${spacing.scale[2]}px`,
+          gap: `${spacing.scale[2] + 2}px`,
           alignContent: 'start',
         }}>
           <AnimatePresence mode="popLayout">
@@ -293,40 +293,52 @@ function ShaderCard({
       style={{
         background: isActive
           ? 'rgba(99,102,241,0.10)'
-          : isHovered ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
-        border: `1px solid ${isActive ? 'rgba(99,102,241,0.3)' : isHovered ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)'}`,
-        borderRadius: radii.md,
+          : isHovered ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.025)',
+        border: `1px solid ${isActive ? 'rgba(99,102,241,0.35)' : isHovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)'}`,
+        borderRadius: radii.lg,
         cursor: 'pointer',
         overflow: 'hidden',
-        transition: 'background 0.15s ease, border-color 0.15s ease',
-        transform: isHovered ? 'translateY(-1px)' : 'none',
-        boxShadow: isActive ? '0 0 24px rgba(99,102,241,0.12), inset 0 1px 0 rgba(99,102,241,0.1)' : 'none',
+        transition: 'all 0.2s ease',
+        transform: isHovered ? 'translateY(-2px)' : 'none',
+        boxShadow: isActive
+          ? '0 0 32px rgba(99,102,241,0.15), inset 0 1px 0 rgba(99,102,241,0.1)'
+          : isHovered
+            ? '0 4px 16px rgba(0,0,0,0.3)'
+            : 'none',
       }}
     >
       {/* Preview area */}
       <div style={{
-        height: '110px',
+        height: '100px',
         background: previewUrl
           ? `url(${previewUrl}) center/cover`
-          : `linear-gradient(135deg, rgba(20,20,30,0.9), rgba(30,20,50,0.6))`,
+          : `linear-gradient(135deg, rgba(20,20,30,0.95), rgba(30,20,50,0.7))`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative',
         overflow: 'hidden',
+        borderBottom: `1px solid ${colors.surface.secondary}`,
       }}>
         {!previewUrl && (
           <div style={{
             width: '100%', height: '100%',
-            background: 'linear-gradient(135deg, rgba(20,20,30,0.9), rgba(30,20,50,0.6))',
+            background: 'linear-gradient(135deg, rgba(20,20,30,0.95), rgba(30,20,50,0.7))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <span style={{
               fontFamily: typography.families.mono,
-              fontSize: 18,
-              color: 'rgba(255,255,255,0.08)',
+              fontSize: 22,
+              color: 'rgba(255,255,255,0.06)',
               fontWeight: 700,
-            }}>{shader.name.charAt(0)}</span>
+            }}>{CATEGORY_ICONS[shader.category] || shader.name.charAt(0)}</span>
           </div>
         )}
+
+        {/* Bottom gradient for text readability when preview loads */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%',
+          background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)',
+          pointerEvents: 'none',
+        }} />
 
         {/* Shimmer loading overlay */}
         {!previewUrl && (
@@ -376,15 +388,16 @@ function ShaderCard({
       </div>
 
       {/* Info */}
-      <div style={{ padding: `${spacing.scale[2]}px ${spacing.scale[3]}px` }}>
+      <div style={{ padding: `${spacing.scale[3]}px ${spacing.scale[3]}px ${spacing.scale[3] - 2}px` }}>
         <div style={{
-          fontFamily: typography.families.mono,
-          fontSize: typography.scale.sm.size,
+          fontFamily: typography.families.sans,
+          fontSize: typography.scale.base.size,
           fontWeight: 600,
           color: colors.text.primary,
-          marginBottom: 3,
+          marginBottom: 4,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          lineHeight: '16px',
+          lineHeight: `${typography.scale.base.lineHeight}px`,
+          letterSpacing: '-0.01em',
         }}>
           {shader.name}
         </div>
@@ -392,13 +405,14 @@ function ShaderCard({
           fontSize: 10,
           color: colors.text.tertiary,
           display: 'flex', gap: 5, alignItems: 'center',
+          fontFamily: typography.families.mono,
         }}>
           <span style={{
-            textTransform: 'capitalize',
             color: isActive ? colors.accent.hover : colors.text.tertiary,
-          }}>{shader.category}</span>
-          <span style={{ opacity: 0.4 }}>·</span>
-          <span style={{ opacity: 0.7 }}>{shader.tags[0]}</span>
+            fontWeight: 500,
+          }}>{CATEGORY_LABELS[shader.category] || shader.category}</span>
+          <span style={{ opacity: 0.3 }}>·</span>
+          <span style={{ opacity: 0.6 }}>{shader.tags[0]}</span>
         </div>
       </div>
     </motion.div>

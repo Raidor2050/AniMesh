@@ -133,27 +133,45 @@ export class AudioEngine {
   private async connectSystem(gen: number): Promise<boolean> {
     if (!this.ctx || !this.analyser) return false
 
+    // Check if getDisplayMedia is available
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      console.warn('System audio: getDisplayMedia not supported in this browser')
+      return false
+    }
+
     let stream: MediaStream
     try {
-      // Primary: request audio-only (works in Chrome when tab shares audio)
+      // Request display media with audio capture enabled.
+      // In Chrome, the user MUST check "Share audio" in the picker dialog.
+      // Using a minimal video constraint (1x1 at 1fps) keeps the picker simple.
       stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           width: { ideal: 1 },
           height: { ideal: 1 },
           frameRate: { ideal: 1 },
-        } as any,
+          cursor: 'never',
+        },
         audio: {
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
           channelCount: 1,
-        } as any,
-        // Chrome: prefer current tab so the picker is less confusing
+          sampleRate: { ideal: 44100 },
+        },
+        // Chrome hint: prefer current tab to simplify the picker
         preferCurrentTab: true as any,
+        // Chrome 109+: request system audio inclusion
+        systemAudio: 'include' as any,
       } as any)
-    } catch (err) {
-      // User cancelled or browser doesn't support it
-      console.warn('System audio: getDisplayMedia failed or cancelled:', err)
+    } catch (err: any) {
+      // Common cases: user cancelled, or browser doesn't support system audio
+      if (err?.name === 'NotAllowedError') {
+        console.warn('System audio: user cancelled the picker or denied permission')
+      } else if (err?.name === 'NotReadableError') {
+        console.warn('System audio: selected source is not readable')
+      } else {
+        console.warn('System audio: getDisplayMedia failed:', err)
+      }
       return false
     }
 
@@ -161,16 +179,24 @@ export class AudioEngine {
 
     const audioTrack = stream.getAudioTracks()[0]
     if (!audioTrack) {
-      // No audio track returned — inform the user via console
+      // No audio track returned — user may not have checked "Share audio"
       console.warn(
         'System audio: no audio track in display media stream. ' +
-        'Make sure to check "Share audio" in the browser picker dialog.'
+        'Please check "Share audio" (Chrome) or ensure your system supports audio capture.'
       )
+      // Clean up the video-only stream
       stream.getTracks().forEach(t => t.stop())
       return false
     }
 
-    // Handle the case where the user stops sharing
+    // Stop the video track — we only need audio
+    const videoTrack = stream.getVideoTracks()[0]
+    if (videoTrack) {
+      videoTrack.stop()
+      stream.removeTrack(videoTrack)
+    }
+
+    // Handle the case where the user stops sharing via browser UI
     audioTrack.onended = () => {
       if (this.sourceType === 'system') {
         this.disconnect()
