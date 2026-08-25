@@ -4,17 +4,17 @@
 
 ### Phase 1: Research & Architecture ✅
 - [x] Spawn 5 browser/audio/shader research agents
-- [x] Spawn 3 GitHub repository research agents
-- [x] Synthesize all findings
+- [x] Spawn 3 GitHub repository research agents  
+- [x] Synthesize all findings (30 repos evaluated)
 - [x] Spawn 2 architecture agents
 - [x] Create implementation.md
 
 ### Phase 2: Project Foundation ✅
-- [x] Initialize Vite + TypeScript + React project
-- [x] Install dependencies
-- [x] Set up project structure
-- [x] Configure build for GitHub Pages (hash router, base path)
-- [x] Create design tokens
+- [x] Initialize Vite 6 + TypeScript + React 18 project
+- [x] Install dependencies (Zustand, motion, react-router-dom)
+- [x] Set up project structure (14 modules)
+- [x] Configure build for GitHub Pages (hash router, base path /AniMesh/)
+- [x] Create design tokens (colors, typography, spacing, animation)
 
 ### Phase 3: Core Engine ✅
 - [x] WebGL2 context manager
@@ -27,50 +27,49 @@
 ### Phase 4: Audio Engine ✅
 - [x] AudioContext lifecycle management
 - [x] Source switching (mic/file/demo/system)
-- [x] FFT band extraction (6 bands)
-- [x] Beat detection (adaptive threshold)
-- [x] Per-band smoothing envelopes
-- [x] AudioSnapshot bridge
+- [x] FFT band extraction (6 bands: sub, bass, lowMid, mid, highMid, treble)
+- [x] Beat detection (adaptive threshold, 200ms min interval)
+- [x] Per-band smoothing envelopes (ADSR)
+- [x] AudioSnapshot bridge (mutable, ref-based)
 
-### Phase 5: Shader Library ✅
-- [x] Fractals category (6 shaders: Mandelbrot, Julia, Kaleidoscope, Menger, Sierpinski)
-- [x] VJ category (7 shaders: Tunnel, Radial Burst, Spectrum, Waveform, Strobe, Psychedelic)
-- [x] Geometric category (4 shaders: Grid, Voronoi, Mandala, Cellular)
-- [x] Liquid category (4 shaders: Fluid, Metaballs, Ink, Mercury)
-- [x] Cosmic category (4 shaders: Nebula, Black Hole, Galaxy, Aurora)
-- [x] Synthwave category (3 shaders: Horizon, City, Retrowave)
-- [x] Abstract category (5 shaders: Domain Warp, Interference, Noise, Plasma, Mesh)
-- [x] Particle category (3 shaders: Galaxy, Trails, Stardust)
-- [x] Minimal category (5 shaders: Circle, Lines, Breathing, Zen, Concentric)
-- **Total: 41 shaders**
+### Phase 5: Shader Library ✅ — 41 Shaders
+- [x] Fractals: 6 (Mandelbrot, Julia, Kaleidoscope, Menger, Sierpinski)
+- [x] VJ: 7 (Tunnel, Radial Burst, Spectrum, Waveform, Strobe, Psychedelic)
+- [x] Geometric: 4 (Grid, Voronoi, Mandala, Cellular)
+- [x] Liquid: 4 (Fluid, Metaballs, Ink, Mercury)
+- [x] Cosmic: 4 (Nebula, Black Hole, Galaxy, Aurora)
+- [x] Synthwave: 3 (Horizon, City, Retrowave)
+- [x] Abstract: 5 (Domain Warp, Interference, Noise, Plasma, Mesh)
+- [x] Particle: 3 (Galaxy, Trails, Stardust)
+- [x] Minimal: 5 (Circle, Lines, Breathing, Zen, Concentric)
 
 ### Phase 6: Audio Mapping System ✅
-- [x] Mapping engine with per-signal curves
+- [x] Mapping engine with per-signal curves (linear/log/exp)
 - [x] Per-shader default mappings
-- [x] Smoothing and interpolation
+- [x] Exponential decay smoothing
 
-### Phase 7: UI — Centerpiece & Panels ✅
-- [x] Canvas layer (WebGL mount)
-- [x] HUD (TopBar, Transport, Audio meter)
+### Phase 7: UI ✅
+- [x] Canvas layer (WebGL mount, always rendered)
+- [x] HUD (TopBar with logo + FPS, Transport bar, Audio meter)
 - [x] Panel system with spring animations
 - [x] Shader browser (masonry, categories, search, favorites)
-- [x] Parameter panel (dynamic controls)
-- [x] Command palette (Ctrl+K)
+- [x] Parameter panel (dynamic controls from shader schema)
+- [x] Command palette (Ctrl+K, fuzzy search)
 
 ### Phase 8: Shader Creator ✅
-- [x] 5-step wizard flow
-- [x] Composable GLSL generation
+- [x] 5-step wizard (Mood → Movement → Intensity → Palette → Generate)
+- [x] Composable shader generation
 - [x] Poetic naming system
-- [x] Randomize/Regenerate
+- [x] Randomize / Regenerate
 
-### Phase 9: Penrose Triangle Branding ✅
-- [x] SVG Penrose Triangle logo (boot + HUD)
+### Phase 9: Branding ✅
+- [x] SVG Penrose Triangle logo
 - [x] Boot sequence (4s generative animation)
 
 ### Phase 10: Immersive Mode ✅
-- [x] Full takeover mode
+- [x] Full takeover mode (F key)
 - [x] Proximity-reveal HUD (80px edge detection)
-- [x] Keyboard shortcuts (arrows, space, ESC)
+- [x] Keyboard shortcuts
 
 ### Phase 11: Documentation ✅
 - [x] README.md
@@ -78,18 +77,29 @@
 - [x] Progress.md
 - [x] Agents.md
 
-### Phase 12: Build & Deploy 🔄
-- [x] Production build succeeds
-- [x] Git initialized
-- [x] .gitignore configured
-- [ ] GitHub remote connected
-- [ ] Code committed
-- [ ] Pushed to repository
-- [ ] GitHub Pages configured
-- [ ] Live site verified
+### Phase 12: Build & Deploy ✅
+- [x] Production build (4.4s, 110KB gzipped)
+- [x] TypeScript: 0 errors
+- [x] Git initialized and pushed
+- [x] GitHub Pages configured (gh-pages branch)
+- [x] Live site: https://raidor2050.github.io/AniMesh/
 
-## Performance Notes
-- Total JS gzipped: ~110KB
-- 41 shaders in library
-- Build time: ~4.5s
-- TypeScript: 0 errors
+## Performance Metrics
+| Metric | Value | Target |
+|--------|-------|--------|
+| Total JS (gzipped) | ~110KB | <150KB ✅ |
+| Shader count | 41 | 40+ ✅ |
+| Build time | 4.4s | <10s ✅ |
+| TypeScript errors | 0 | 0 ✅ |
+| Categories | 9 | 9 ✅ |
+
+## Key Decisions Log
+| Date | Decision | Rationale |
+|------|----------|-----------|
+| 2026-08-25 | Raw WebGL2 over Three.js | VJ use-case needs max control, smaller bundle |
+| 2026-08-25 | AnalyserNode over AudioWorklet | Sufficient for visualization, universal support |
+| 2026-08-25 | React for UI only, not rendering | Refs for GL bridge, zero re-renders during playback |
+| 2026-08-25 | Hash router for GitHub Pages | No server-side routing needed |
+| 2026-08-25 | Zustand over Context | Transient subscriptions, performance |
+| 2026-08-25 | motion library for panels | Spring physics, performant animations |
+| 2026-08-25 | gh-pages branch over Actions | Token scope limitation, still effective |
