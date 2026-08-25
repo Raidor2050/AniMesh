@@ -1,4 +1,4 @@
-import { createProgram, createQuadVAO, createFBO, VERT_SRC } from '../core/WebGL'
+import { createProgram, createQuadVAO, createFBO, resizeFBO, disposeFBO, disposeProgram, VERT_SRC } from '../core/WebGL'
 import { AudioSnapshot, ShaderDefinition } from '../utils/types'
 import { AudioMappingEngine } from '../mappings/AudioMappingEngine'
 
@@ -50,20 +50,35 @@ void main() {
   fragColor = vec4(color, 1.0);
 }`
 
+interface CachedUniforms {
+  uTexture: WebGLUniformLocation | null
+  uResolution: WebGLUniformLocation | null
+  uIntensity: WebGLUniformLocation | null
+}
+
+interface CompositeUniforms {
+  uScene: WebGLUniformLocation | null
+  uBloom: WebGLUniformLocation | null
+  uBloomStrength: WebGLUniformLocation | null
+  uSaturation: WebGLUniformLocation | null
+}
+
 export class Renderer {
   private gl: WebGL2RenderingContext
   private canvas: HTMLCanvasElement
   private program: WebGLProgram | null = null
   private vao: WebGLVertexArrayObject
-  private quadBuffer: WebGLBuffer
+  private vaoBuffer: WebGLBuffer
 
   private fboA: { framebuffer: WebGLFramebuffer; texture: WebGLTexture }
   private fboB: { framebuffer: WebGLFramebuffer; texture: WebGLTexture }
-  private fboC: { framebuffer: WebGLFramebuffer; texture: WebGLTexture }
 
   private bloomProgram: WebGLProgram
   private vignetteProgram: WebGLProgram
   private compositeProgram: WebGLProgram
+  private bloomUniforms: CachedUniforms
+  private vignetteUniforms: { uTexture: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null }
+  private compositeUniforms: CompositeUniforms
 
   private mappingEngine = new AudioMappingEngine()
   private currentShader: ShaderDefinition | null = null
@@ -76,24 +91,49 @@ export class Renderer {
   private fps = 0
   private frameCount = 0
   private lastFpsTime = 0
+  private lastFrameTime = 0
 
   constructor(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) {
     this.canvas = canvas
     this.gl = gl
-    this.vao = createQuadVAO(gl)
 
-    const buf = gl.createBuffer()!
-    this.quadBuffer = buf
+    const quadResult = createQuadVAO(gl)
+    if (!quadResult) throw new Error('Failed to create quad VAO')
+    this.vao = quadResult.vao
+    this.vaoBuffer = quadResult.buffer
 
-    const w = canvas.width
-    const h = canvas.height
-    this.fboA = createFBO(gl, w, h)
-    this.fboB = createFBO(gl, w, h)
-    this.fboC = createFBO(gl, w, h)
+    const w = canvas.width || 1
+    const h = canvas.height || 1
 
-    this.bloomProgram = createProgram(gl, VERT_SRC, BLOOM_FRAG)!
-    this.vignetteProgram = createProgram(gl, VERT_SRC, VIGNETTE_FRAG)!
-    this.compositeProgram = createProgram(gl, VERT_SRC, COMPOSITE_FRAG)!
+    const fboAResult = createFBO(gl, w, h)
+    const fboBResult = createFBO(gl, w, h)
+    if (!fboAResult || !fboBResult) throw new Error('Failed to create FBOs')
+    this.fboA = fboAResult
+    this.fboB = fboBResult
+
+    const bloomProg = createProgram(gl, VERT_SRC, BLOOM_FRAG)
+    const vignetteProg = createProgram(gl, VERT_SRC, VIGNETTE_FRAG)
+    const compositeProg = createProgram(gl, VERT_SRC, COMPOSITE_FRAG)
+    if (!bloomProg || !vignetteProg || !compositeProg) throw new Error('Failed to compile post-processing programs')
+    this.bloomProgram = bloomProg
+    this.vignetteProgram = vignetteProg
+    this.compositeProgram = compositeProg
+
+    this.bloomUniforms = {
+      uTexture: gl.getUniformLocation(bloomProg, 'uTexture'),
+      uResolution: gl.getUniformLocation(bloomProg, 'uResolution'),
+      uIntensity: gl.getUniformLocation(bloomProg, 'uIntensity'),
+    }
+    this.vignetteUniforms = {
+      uTexture: gl.getUniformLocation(vignetteProg, 'uTexture'),
+      uIntensity: gl.getUniformLocation(vignetteProg, 'uIntensity'),
+    }
+    this.compositeUniforms = {
+      uScene: gl.getUniformLocation(compositeProg, 'uScene'),
+      uBloom: gl.getUniformLocation(compositeProg, 'uBloom'),
+      uBloomStrength: gl.getUniformLocation(compositeProg, 'uBloomStrength'),
+      uSaturation: gl.getUniformLocation(compositeProg, 'uSaturation'),
+    }
   }
 
   resize(w: number, h: number, dpr: number) {
@@ -108,39 +148,40 @@ export class Renderer {
     this.canvas.style.height = `${h}px`
 
     const { gl } = this
-    const resize = (fbo: { framebuffer: WebGLFramebuffer; texture: WebGLTexture }) => {
-      gl.bindTexture(gl.TEXTURE_2D, fbo.texture)
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, rw, rh, 0, gl.RGBA, gl.HALF_FLOAT, null)
-    }
-    resize(this.fboA)
-    resize(this.fboB)
-    resize(this.fboC)
+    resizeFBO(gl, this.fboA, rw, rh)
+    resizeFBO(gl, this.fboB, rw, rh)
   }
 
   setShader(def: ShaderDefinition) {
     const { gl } = this
+
     if (this.program) gl.deleteProgram(this.program)
+    this.program = null
+    this.currentShader = null
+    this.uniforms.clear()
+    this.baseParams = {}
 
     try {
       this.program = createProgram(gl, def.vertex ?? VERT_SRC, def.fragment)
     } catch (e) {
       console.error('Shader compile failed:', e)
-      this.program = null
+      return
+    }
+
+    if (!this.program) {
+      console.error('Shader compile returned null')
       return
     }
 
     this.currentShader = def
-    this.uniforms.clear()
     this.baseParams = { ...def.defaults }
 
-    if (this.program) {
-      const numUniforms = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORMS) as number
-      for (let i = 0; i < numUniforms; i++) {
-        const info = gl.getActiveUniform(this.program, i)
-        if (info) {
-          const loc = gl.getUniformLocation(this.program, info.name)
-          if (loc) this.uniforms.set(info.name, loc)
-        }
+    const numUniforms = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORMS) as number
+    for (let i = 0; i < numUniforms; i++) {
+      const info = gl.getActiveUniform(this.program, i)
+      if (info) {
+        const loc = gl.getUniformLocation(this.program, info.name)
+        if (loc) this.uniforms.set(info.name, loc)
       }
     }
 
@@ -149,26 +190,30 @@ export class Renderer {
 
   render(audio: AudioSnapshot, time: number, mouse: [number, number]) {
     const { gl, width, height } = this
-    if (!this.program) return
+    if (!this.program || !this.currentShader) return
+    if (width === 0 || height === 0) return
+
+    const now = performance.now()
+    const dt = this.lastFrameTime > 0 ? (now - this.lastFrameTime) / 1000 : 1 / 60
+    this.lastFrameTime = now
 
     const rw = Math.floor(width * this.dpr)
     const rh = Math.floor(height * this.dpr)
 
     const mapped = this.mappingEngine.applyMappings(
       audio,
-      this.currentShader?.audioMappings ?? [],
+      this.currentShader.audioMappings ?? [],
       this.baseParams,
-      1 / 60
+      dt
     )
+
+    gl.bindVertexArray(this.vao)
 
     // Scene pass → FBO A
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA.framebuffer)
     gl.viewport(0, 0, rw, rh)
     gl.clear(gl.COLOR_BUFFER_BIT)
-
     gl.useProgram(this.program)
-    gl.bindVertexArray(this.vao)
-
     this.setUniforms(time, audio, mapped, [rw, rh], mouse)
     gl.drawArrays(gl.TRIANGLES, 0, 6)
 
@@ -177,36 +222,43 @@ export class Renderer {
     gl.viewport(0, 0, rw, rh)
     gl.clear(gl.COLOR_BUFFER_BIT)
     gl.useProgram(this.bloomProgram)
-    gl.bindVertexArray(this.vao)
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, this.fboA.texture)
-    const bloomLoc = gl.getUniformLocation(this.bloomProgram, 'uTexture')
-    gl.uniform1i(bloomLoc, 0)
-    const bloomResLoc = gl.getUniformLocation(this.bloomProgram, 'uResolution')
-    gl.uniform2f(bloomResLoc, rw, rh)
-    const bloomIntLoc = gl.getUniformLocation(this.bloomProgram, 'uIntensity')
-    gl.uniform1f(bloomIntLoc, mapped.bloom ?? 0.5)
+    if (this.bloomUniforms.uTexture) gl.uniform1i(this.bloomUniforms.uTexture, 0)
+    if (this.bloomUniforms.uResolution) gl.uniform2f(this.bloomUniforms.uResolution, rw, rh)
+    if (this.bloomUniforms.uIntensity) gl.uniform1f(this.bloomUniforms.uIntensity, mapped.bloom ?? 0.5)
     gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-    // Composite + vignette → screen
+    // Vignette pass → FBO A (reuse)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA.framebuffer)
+    gl.viewport(0, 0, rw, rh)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    gl.useProgram(this.vignetteProgram)
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, this.fboB.texture)
+    if (this.vignetteUniforms.uTexture) gl.uniform1i(this.vignetteUniforms.uTexture, 0)
+    if (this.vignetteUniforms.uIntensity) gl.uniform1f(this.vignetteUniforms.uIntensity, 0.5)
+    gl.drawArrays(gl.TRIANGLES, 0, 6)
+
+    // Composite → screen
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
     gl.viewport(0, 0, rw, rh)
     gl.clear(gl.COLOR_BUFFER_BIT)
-
     gl.useProgram(this.compositeProgram)
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, this.fboA.texture)
-    gl.uniform1i(gl.getUniformLocation(this.compositeProgram, 'uScene'), 0)
+    if (this.compositeUniforms.uScene) gl.uniform1i(this.compositeUniforms.uScene, 0)
     gl.activeTexture(gl.TEXTURE1)
     gl.bindTexture(gl.TEXTURE_2D, this.fboB.texture)
-    gl.uniform1i(gl.getUniformLocation(this.compositeProgram, 'uBloom'), 1)
-    gl.uniform1f(gl.getUniformLocation(this.compositeProgram, 'uBloomStrength'), mapped.bloomStrength ?? 0.6)
-    gl.uniform1f(gl.getUniformLocation(this.compositeProgram, 'uSaturation'), mapped.saturation ?? 1.0)
+    if (this.compositeUniforms.uBloom) gl.uniform1i(this.compositeUniforms.uBloom, 1)
+    if (this.compositeUniforms.uBloomStrength) gl.uniform1f(this.compositeUniforms.uBloomStrength, mapped.bloomStrength ?? 0.6)
+    if (this.compositeUniforms.uSaturation) gl.uniform1f(this.compositeUniforms.uSaturation, mapped.saturation ?? 1.0)
     gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-    // FPS
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindVertexArray(null)
+
     this.frameCount++
-    const now = performance.now()
     if (now - this.lastFpsTime >= 1000) {
       this.fps = this.frameCount
       this.frameCount = 0
@@ -243,6 +295,9 @@ export class Renderer {
     set('uBeat', audio.beatIntensity)
     set('uBeatPhase', audio.beatPhase)
     set('uBPM', audio.bpm)
+    set('sub', audio.sub)
+    set('lowMid', audio.lowMid)
+    set('highMid', audio.highMid)
 
     for (const [key, value] of Object.entries(mapped)) {
       set(key, value)
@@ -258,12 +313,8 @@ export class Renderer {
     gl.deleteProgram(this.vignetteProgram)
     gl.deleteProgram(this.compositeProgram)
     gl.deleteVertexArray(this.vao)
-    gl.deleteBuffer(this.quadBuffer)
-    gl.deleteFramebuffer(this.fboA.framebuffer)
-    gl.deleteTexture(this.fboA.texture)
-    gl.deleteFramebuffer(this.fboB.framebuffer)
-    gl.deleteTexture(this.fboB.texture)
-    gl.deleteFramebuffer(this.fboC.framebuffer)
-    gl.deleteTexture(this.fboC.texture)
+    gl.deleteBuffer(this.vaoBuffer)
+    disposeFBO(gl, this.fboA)
+    disposeFBO(gl, this.fboB)
   }
 }

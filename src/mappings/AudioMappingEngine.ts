@@ -6,13 +6,11 @@ export interface MappedParams {
 }
 
 export class AudioMappingEngine {
-  private params: MappedParams = {}
   private decayValues: Map<string, number> = new Map()
 
   constructor() {}
 
   reset() {
-    this.params = {}
     this.decayValues.clear()
   }
 
@@ -26,7 +24,6 @@ export class AudioMappingEngine {
 
     for (const mapping of mappings) {
       const signalValue = this.getSignalValue(snapshot, mapping.signal)
-      const baseValue = baseParams[mapping.param] ?? 0
 
       let mappedValue: number
       switch (mapping.curve) {
@@ -34,17 +31,19 @@ export class AudioMappingEngine {
           mappedValue = Math.log(1 + signalValue * mapping.amount * 9) / Math.log(10)
           break
         case 'exp':
-          mappedValue = Math.pow(signalValue * mapping.amount, 2)
+          mappedValue = Math.pow(signalValue, 1 / Math.max(mapping.amount, 0.01))
           break
         default:
           mappedValue = signalValue * mapping.amount
       }
 
       const key = `${mapping.param}_${mapping.signal}`
-      const decayed = expDecay(this.decayValues.get(key) ?? 0, mappedValue, 8, dt)
+      const prevDecayed = this.decayValues.get(key) ?? 0
+      const decayed = expDecay(prevDecayed, mappedValue, 8, dt)
       this.decayValues.set(key, decayed)
 
-      result[mapping.param] = clamp(baseValue + decayed, 0, 1)
+      const currentVal = result[mapping.param] ?? 0
+      result[mapping.param] = currentVal + decayed
     }
 
     return result

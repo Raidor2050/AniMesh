@@ -1,19 +1,23 @@
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 export const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 export const smoothstep = (edge0: number, edge1: number, x: number) => {
+  if (edge0 === edge1) return 0
   const t = clamp((x - edge0) / (edge1 - edge0), 0, 1)
   return t * t * (3 - 2 * t)
 }
-export const mapRange = (v: number, inMin: number, inMax: number, outMin: number, outMax: number) =>
-  outMin + (outMax - outMin) * ((v - inMin) / (inMax - inMin))
+export const mapRange = (v: number, inMin: number, inMax: number, outMin: number, outMax: number) => {
+  if (inMin === inMax) return (outMin + outMax) / 2
+  return outMin + (outMax - outMin) * ((v - inMin) / (inMax - inMin))
+}
 export const expDecay = (current: number, target: number, decay: number, dt: number) =>
-  lerp(target, current, 1 - Math.exp(-decay * dt))
+  lerp(current, target, 1 - Math.exp(-decay * dt))
 export const DB_TO_LINEAR = (db: number) => Math.pow(10, db / 20)
 
 export class Smoother {
   private attackCoeff: number
   private releaseCoeff: number
   private value: number = 0
+  private ready = false
 
   constructor(
     attackMs: number = 10,
@@ -24,12 +28,17 @@ export class Smoother {
   }
 
   update(target: number): number {
+    if (!this.ready) {
+      this.ready = true
+      this.value = target
+      return target
+    }
     const coeff = target > this.value ? this.attackCoeff : this.releaseCoeff
     this.value += (target - this.value) * coeff
     return this.value
   }
 
-  reset(v: number = 0) { this.value = v }
+  reset(v: number = 0) { this.value = v; this.ready = false }
   get() { return this.value }
 }
 

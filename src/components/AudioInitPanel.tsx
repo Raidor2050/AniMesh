@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useUIStore } from '../state/stores'
 import { connectAudio } from '../audio/audioSingleton'
 import type { AudioSourceType } from '../audio/AudioEngine'
 

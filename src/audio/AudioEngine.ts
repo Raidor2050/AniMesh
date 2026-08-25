@@ -4,30 +4,39 @@ import { Smoother, computeRMS, clamp } from '../utils/math'
 export type AudioSourceType = 'none' | 'mic' | 'file' | 'demo' | 'system'
 
 const BAND_RANGES: [number, number][] = [
-  [20, 60],     // sub
-  [60, 250],    // bass
-  [250, 500],   // lowMid
-  [500, 2000],  // mid
-  [2000, 4000], // highMid
-  [4000, 16000],// treble
+  [20, 60],
+  [60, 250],
+  [250, 500],
+  [500, 2000],
+  [2000, 4000],
+  [4000, 16000],
 ]
+
+function createSnapshot(): AudioSnapshot {
+  return {
+    ...DEFAULT_AUDIO,
+    waveform: new Float32Array(1024),
+    spectrum: new Uint8Array(1024),
+  }
+}
 
 export class AudioEngine {
   private ctx: AudioContext | null = null
   private analyser: AnalyserNode | null = null
   private source: AudioNode | null = null
   private sourceType: AudioSourceType = 'none'
+  private generation = 0
 
   private freqData: Uint8Array<ArrayBuffer> = new Uint8Array(0)
   private timeData: Float32Array<ArrayBuffer> = new Float32Array(0)
 
   private smoothBands: Smoother[] = [
-    new Smoother(5, 400),   // sub
-    new Smoother(5, 300),   // bass
-    new Smoother(8, 250),   // lowMid
-    new Smoother(10, 200),  // mid
-    new Smoother(12, 180),  // highMid
-    new Smoother(15, 150),  // treble
+    new Smoother(5, 400),
+    new Smoother(5, 300),
+    new Smoother(8, 250),
+    new Smoother(10, 200),
+    new Smoother(12, 180),
+    new Smoother(15, 150),
   ]
   private smoothVolume = new Smoother(5, 200)
   private smoothBeat = new Smoother(5, 100)
@@ -40,15 +49,18 @@ export class AudioEngine {
   private beatPhaseAcc = 0
   private bpmEstimate = 128
   private startTime = 0
+  private warmUpFrames = 0
 
-  private snapshot: AudioSnapshot = { ...DEFAULT_AUDIO }
+  private snapshot: AudioSnapshot = createSnapshot()
 
   private demoNodes: OscillatorNode[] = []
   private micStream: MediaStream | null = null
+  private systemStream: MediaStream | null = null
 
   async init(): Promise<void> {
     if (this.ctx) return
     this.ctx = new AudioContext()
+    await this.ctx.resume()
     this.analyser = this.ctx.createAnalyser()
     this.analyser.fftSize = 2048
     this.analyser.smoothingTimeConstant = 0.8
@@ -64,13 +76,14 @@ export class AudioEngine {
     if (!this.ctx || !this.analyser) return false
 
     this.disconnect()
+    const gen = ++this.generation
 
     try {
       switch (type) {
-        case 'mic': return this.connectMic()
-        case 'file': return file ? this.connectFile(file) : false
-        case 'demo': return this.connectDemo()
-        case 'system': return this.connectSystem()
+        case 'mic': return this.connectMic(gen)
+        case 'file': return file ? await this.connectFile(file, gen) : false
+        case 'demo': return this.connectDemo(gen)
+        case 'system': return await this.connectSystem(gen)
         case 'none':
         default: this.sourceType = 'none'; return true
       }
@@ -81,7 +94,7 @@ export class AudioEngine {
     }
   }
 
-  private async connectMic(): Promise<boolean> {
+  private async connectMic(gen: number): Promise<boolean> {
     if (!this.ctx || !this.analyser) return false
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
@@ -91,6 +104,7 @@ export class AudioEngine {
         channelCount: 1,
       }
     })
+    if (gen !== this.generation) { stream.getTracks().forEach(t => t.stop()); return false }
     this.micStream = stream
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.analyser)
@@ -98,7 +112,7 @@ export class AudioEngine {
     return true
   }
 
-  private async connectSystem(): Promise<boolean> {
+  private async connectSystem(gen: number): Promise<boolean> {
     if (!this.ctx || !this.analyser) return false
     const stream = await navigator.mediaDevices.getDisplayMedia({
       video: false,
@@ -108,21 +122,25 @@ export class AudioEngine {
         autoGainControl: false,
       } as any,
     })
+    if (gen !== this.generation) { stream.getTracks().forEach(t => t.stop()); return false }
     const audioTrack = stream.getAudioTracks()[0]
     if (!audioTrack) {
       stream.getTracks().forEach(t => t.stop())
       return false
     }
+    this.systemStream = stream
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.analyser)
     this.sourceType = 'system'
     return true
   }
 
-  private async connectFile(file: File): Promise<boolean> {
+  private async connectFile(file: File, gen: number): Promise<boolean> {
     if (!this.ctx || !this.analyser) return false
     const arrayBuffer = await file.arrayBuffer()
+    if (gen !== this.generation) return false
     const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer)
+    if (gen !== this.generation) return false
     const source = this.ctx.createBufferSource()
     source.buffer = audioBuffer
     source.connect(this.analyser)
@@ -134,7 +152,7 @@ export class AudioEngine {
     return true
   }
 
-  private connectDemo(): boolean {
+  private connectDemo(gen: number): boolean {
     if (!this.ctx || !this.analyser) return false
 
     const osc1 = this.ctx.createOscillator()
@@ -171,6 +189,10 @@ export class AudioEngine {
     if (this.micStream) {
       this.micStream.getTracks().forEach(t => t.stop())
       this.micStream = null
+    }
+    if (this.systemStream) {
+      this.systemStream.getTracks().forEach(t => t.stop())
+      this.systemStream = null
     }
     if (this.source) {
       try { this.source.disconnect() } catch {}
@@ -217,11 +239,13 @@ export class AudioEngine {
     this.energyHistory[this.historyIndex] = currentEnergy
     this.energySum += currentEnergy
     this.historyIndex = (this.historyIndex + 1) % this.energyHistory.length
-    const avgEnergy = this.energySum / this.energyHistory.length
 
+    this.warmUpFrames++
     const THRESHOLD = 1.4
     const MIN_INTERVAL = 200
-    const isBeat = currentEnergy > avgEnergy * THRESHOLD &&
+    const avgEnergy = this.energySum / this.energyHistory.length
+    const isBeat = this.warmUpFrames > this.energyHistory.length &&
+      currentEnergy > avgEnergy * THRESHOLD &&
       (timestamp - this.lastBeatTime) > MIN_INTERVAL
 
     if (isBeat) {

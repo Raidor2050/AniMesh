@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useUIStore, useShaderStore, audioDataBridge } from '../state/stores'
 
 export function HUD() {

@@ -64,6 +64,8 @@ export function ShaderCreator() {
     const candidates = SHADER_LIBRARY.filter(s => s.category === category)
     const base = candidates[Math.floor(seed * candidates.length) % candidates.length] || SHADER_LIBRARY[0]
 
+    const paletteColors = PALETTES.find(p => p.id === palette)?.colors ?? []
+
     setActiveShader({
       ...base,
       name: generateName(seed),
@@ -72,10 +74,14 @@ export function ShaderCreator() {
         ...base.defaults,
         speed: movement === 'pulse' ? 1.5 : movement === 'drift' ? 0.5 : 1,
         intensity: intensity * 2,
+        ...(paletteColors.length > 0 ? {
+          color1: parseInt(paletteColors[0].slice(1), 16) / 0xFFFFFF,
+          color2: parseInt(paletteColors[1]?.slice(1) ?? paletteColors[0].slice(1), 16) / 0xFFFFFF,
+        } : {}),
       },
     })
     toggleCreator()
-  }, [mood, movement, intensity, seed, setActiveShader, toggleCreator])
+  }, [mood, movement, intensity, palette, seed, setActiveShader, toggleCreator])
 
   const randomize = () => {
     setSeed(Math.random())

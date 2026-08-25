@@ -32,10 +32,18 @@ export function createProgram(
 ): WebGLProgram | null {
   const vert = compileShader(gl, gl.VERTEX_SHADER, vertSrc)
   const frag = compileShader(gl, gl.FRAGMENT_SHADER, fragSrc)
-  if (!vert || !frag) return null
+  if (!vert || !frag) {
+    if (vert) gl.deleteShader(vert)
+    if (frag) gl.deleteShader(frag)
+    return null
+  }
 
   const program = gl.createProgram()
-  if (!program) return null
+  if (!program) {
+    gl.deleteShader(vert)
+    gl.deleteShader(frag)
+    return null
+  }
   gl.attachShader(program, vert)
   gl.attachShader(program, frag)
   gl.linkProgram(program)
@@ -53,11 +61,17 @@ export function createProgram(
   return program
 }
 
-export function createQuadVAO(gl: WebGL2RenderingContext): WebGLVertexArrayObject {
+export function createQuadVAO(gl: WebGL2RenderingContext): { vao: WebGLVertexArrayObject; buffer: WebGLBuffer } | null {
   const vao = gl.createVertexArray()
+  if (!vao) return null
   gl.bindVertexArray(vao)
 
   const buf = gl.createBuffer()
+  if (!buf) {
+    gl.deleteVertexArray(vao)
+    gl.bindVertexArray(null)
+    return null
+  }
   gl.bindBuffer(gl.ARRAY_BUFFER, buf)
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
     -1, -1,  1, -1,  -1, 1,
@@ -67,16 +81,21 @@ export function createQuadVAO(gl: WebGL2RenderingContext): WebGLVertexArrayObjec
   gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
 
   gl.bindVertexArray(null)
-  return vao!
+  return { vao, buffer: buf }
 }
 
 export function createFBO(
   gl: WebGL2RenderingContext,
   width: number,
   height: number
-): { framebuffer: WebGLFramebuffer; texture: WebGLTexture } {
-  const framebuffer = gl.createFramebuffer()!
-  const texture = gl.createTexture()!
+): { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null {
+  const framebuffer = gl.createFramebuffer()
+  const texture = gl.createTexture()
+  if (!framebuffer || !texture) {
+    if (framebuffer) gl.deleteFramebuffer(framebuffer)
+    if (texture) gl.deleteTexture(texture)
+    return null
+  }
 
   gl.bindTexture(gl.TEXTURE_2D, texture)
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.HALF_FLOAT, null)
@@ -84,11 +103,20 @@ export function createFBO(
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+  gl.bindTexture(gl.TEXTURE_2D, null)
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0)
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
 
+  const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER)
+  if (status !== gl.FRAMEBUFFER_COMPLETE) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    gl.deleteFramebuffer(framebuffer)
+    gl.deleteTexture(texture)
+    return null
+  }
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
   return { framebuffer, texture }
 }
 
@@ -100,6 +128,7 @@ export function resizeFBO(
 ) {
   gl.bindTexture(gl.TEXTURE_2D, fbo.texture)
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.HALF_FLOAT, null)
+  gl.bindTexture(gl.TEXTURE_2D, null)
 }
 
 export function disposeProgram(gl: WebGL2RenderingContext, program: WebGLProgram | null) {

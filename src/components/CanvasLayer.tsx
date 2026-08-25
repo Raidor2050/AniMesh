@@ -33,12 +33,10 @@ export function CanvasLayer() {
     resize()
     window.addEventListener('resize', resize)
 
-    // Load first shader immediately
-    const defaultShader = SHADER_LIBRARY[0]
-    useShaderStore.getState().setActiveShader(defaultShader)
-    renderer.setShader(defaultShader)
+    const current = useShaderStore.getState().activeShader ?? SHADER_LIBRARY[0]
+    useShaderStore.getState().setActiveShader(current)
+    renderer.setShader(current)
 
-    // Mouse tracking
     const handleMouseMove = (e: MouseEvent) => {
       mouseRef.current = [
         e.clientX / window.innerWidth,
@@ -47,27 +45,21 @@ export function CanvasLayer() {
     }
     window.addEventListener('mousemove', handleMouseMove)
 
-    // Main render loop — runs forever, audio is optional
     let lastTime = performance.now()
     const tick = (timestamp: number) => {
-      const dt = (timestamp - lastTime) / 1000
-      lastTime = timestamp
-
-      // Audio (reads from shared engine, returns zeros if no source connected)
       const audio = getAudioEngine()
       const audioSnapshot = audio.tick(timestamp)
       audioDataBridge.snapshot = audioSnapshot
 
-      // Check if shader changed
       const currentShader = useShaderStore.getState().activeShader
       if (currentShader && currentShader !== renderer.getCurrentShader()) {
         renderer.setShader(currentShader)
       }
 
-      // Render
       renderer.render(audioSnapshot, audioSnapshot.time, mouseRef.current)
       audioDataBridge.fps = renderer.getFPS()
 
+      lastTime = timestamp
       animFrameRef.current = requestAnimationFrame(tick)
     }
     animFrameRef.current = requestAnimationFrame(tick)
@@ -77,12 +69,12 @@ export function CanvasLayer() {
       window.removeEventListener('resize', resize)
       window.removeEventListener('mousemove', handleMouseMove)
       renderer.dispose()
+      rendererRef.current = null
     }
   }, [])
 
-  // Handle shader changes reactively
   useEffect(() => {
-    if (activeShader && rendererRef.current) {
+    if (activeShader && rendererRef.current && activeShader !== rendererRef.current.getCurrentShader()) {
       rendererRef.current.setShader(activeShader)
     }
   }, [activeShader])

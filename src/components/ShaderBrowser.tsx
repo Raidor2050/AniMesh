@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore } from '../state/stores'
-import { SHADER_LIBRARY, searchShaders, getShadersByCategory } from '../shaders/library'
+import { SHADER_LIBRARY, searchShaders } from '../shaders/library'
 import { ShaderDefinition, ShaderCategory, CATEGORY_LABELS } from '../utils/types'
 
 const CATEGORIES: (ShaderCategory | 'all' | 'favorites' | 'recent')[] = [

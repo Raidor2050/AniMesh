@@ -60,9 +60,8 @@ function createShader(
     ],
     defaults: { speed: 1, intensity: 1, ...defaults },
     audioMappings: [
-      { signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' },
-      { signal: 'beat', param: 'scale', amount: 0.3, curve: 'linear' },
-      { signal: 'treble', param: 'brightness', amount: 0.4, curve: 'linear' },
+      { signal: 'bass', param: 'speed', amount: 0.5, curve: 'log' },
+      { signal: 'beat', param: 'intensity', amount: 0.3, curve: 'linear' },
       ...audioMappings,
     ],
     performanceTier: tier,
