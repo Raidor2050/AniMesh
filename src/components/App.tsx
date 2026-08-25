@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
-import { useUIStore } from '../state/stores'
+import { useEffect, useCallback } from 'react'
+import { useUIStore, useShaderStore } from '../state/stores'
+import { SHADER_LIBRARY } from '../shaders/library'
 import { BootSequence } from './BootSequence'
 import { CanvasLayer } from './CanvasLayer'
 import { HUD } from './HUD'
@@ -9,6 +10,24 @@ import { CommandPalette } from './CommandPalette'
 import { AudioInitBar } from './AudioInitPanel'
 import { ParameterPanel } from './ParameterPanel'
 import { ImmersiveMode } from './ImmersiveMode'
+
+function randomShader() {
+  const current = useShaderStore.getState().activeShader
+  if (SHADER_LIBRARY.length <= 1) return
+  let next = current
+  // Avoid picking the same shader twice in a row
+  while (next?.id === current?.id && SHADER_LIBRARY.length > 1) {
+    next = SHADER_LIBRARY[Math.floor(Math.random() * SHADER_LIBRARY.length)]
+  }
+  if (next) useShaderStore.getState().setActiveShader(next)
+}
+
+function cycleShader(direction: 1 | -1) {
+  const current = useShaderStore.getState().activeShader
+  const idx = SHADER_LIBRARY.findIndex(s => s.id === current?.id) ?? 0
+  const next = SHADER_LIBRARY[(idx + direction + SHADER_LIBRARY.length) % SHADER_LIBRARY.length]
+  if (next) useShaderStore.getState().setActiveShader(next)
+}
 
 export function App() {
   const bootComplete = useUIStore(s => s.bootComplete)
@@ -33,6 +52,25 @@ export function App() {
         e.preventDefault()
         store.toggleCommandPalette()
       }
+      // Immersive mode keyboard shortcuts (spacebar, arrows)
+      if (store.immersive && !isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (e.code === 'Space') {
+          e.preventDefault()
+          randomShader()
+          return
+        }
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault()
+          cycleShader(1)
+          return
+        }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault()
+          cycleShader(-1)
+          return
+        }
+      }
+      // Non-immersive keyboard shortcuts
       if (!isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (e.key === 'b') store.toggleBrowser()
         if (e.key === 'n') store.toggleCreator()
@@ -50,7 +88,7 @@ export function App() {
       <ImmersiveMode />
       {bootComplete && !immersive && <HUD />}
       {bootComplete && !immersive && <ParameterPanel />}
-      {bootComplete && !immersive && <AudioInitBar />}
+      {bootComplete && <AudioInitBar />}
       {bootComplete && !immersive && <ShaderBrowser />}
       {bootComplete && creatorOpen && !immersive && <ShaderCreator />}
       {commandPaletteOpen && <CommandPalette />}

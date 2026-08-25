@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore, audioDataBridge } from '../state/stores'
 import { colors, typography, spacing } from '../ui/tokens'
 
 export function ImmersiveMode() {
   const immersive = useUIStore(s => s.immersive)
-  const toggleImmersive = useUIStore(s => s.toggleImmersive)
   const activeShader = useShaderStore(s => s.activeShader)
   const [showHUD, setShowHUD] = useState(false)
   const [mouseNear, setMouseNear] = useState(false)
+  const [shaderFlash, setShaderFlash] = useState(false)
   const hideTimerRef = useRef<number | null>(null)
+  const prevShaderRef = useRef<string | null>(null)
 
+  // Show HUD near edges
   useEffect(() => {
     if (!immersive) return
 
@@ -36,7 +39,23 @@ export function ImmersiveMode() {
     }
   }, [immersive])
 
+  // Flash when shader changes (spacebar, arrows, etc.)
+  useEffect(() => {
+    if (!immersive) return
+    const id = activeShader?.id
+    if (id && prevShaderRef.current && id !== prevShaderRef.current) {
+      setShaderFlash(true)
+      // Show HUD briefly on shader change
+      setShowHUD(true)
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+      hideTimerRef.current = window.setTimeout(() => { setShowHUD(false); setShaderFlash(false) }, 1200)
+    }
+    prevShaderRef.current = id ?? null
+  }, [activeShader?.id, immersive])
+
   if (!immersive) return null
+
+  const bpm = Math.round(audioDataBridge.snapshot.bpm)
 
   return (
     <div style={{
@@ -68,24 +87,46 @@ export function ImmersiveMode() {
           }}>IMMERSIVE</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {activeShader && (
-            <span style={{
-              fontFamily: typography.families.mono,
-              fontSize: 11,
-              color: colors.text.tertiary,
-            }}>
-              {activeShader.name}
-            </span>
-          )}
+          <span style={{
+            fontSize: 10,
+            fontFamily: typography.families.mono,
+            color: colors.text.disabled,
+          }}>{bpm} BPM</span>
           <span style={{
             fontFamily: typography.families.mono,
             fontSize: 10,
             color: colors.text.disabled,
-          }}>
-            ESC to exit
-          </span>
+          }}>ESC to exit</span>
         </div>
       </div>
+
+      {/* Center: shader name flash on change */}
+      <AnimatePresence>
+        {shaderFlash && activeShader && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            style={{
+              position: 'absolute', top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              padding: '8px 20px',
+              background: 'rgba(0,0,0,0.55)',
+              border: `1px solid rgba(255,255,255,0.08)`,
+              borderRadius: 8,
+              backdropFilter: 'blur(16px)',
+            }}
+          >
+            <span style={{
+              fontFamily: typography.families.mono,
+              fontSize: 14, fontWeight: 600,
+              color: colors.text.primary,
+              letterSpacing: '-0.02em',
+            }}>{activeShader.name}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom bar */}
       <div style={{
@@ -104,8 +145,8 @@ export function ImmersiveMode() {
           display: 'flex', gap: 16,
         }}>
           <span>← → cycle</span>
+          <span>Space random</span>
           <span>F exit</span>
-          <span>Space pause</span>
         </span>
       </div>
     </div>
