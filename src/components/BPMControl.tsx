@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { useAudioStore } from '../state/stores'
-import { setBpmMode, setManualBpm, tapTempo, getAudioEngine } from '../audio/audioSingleton'
+import { useAudioStore, audioDataBridge } from '../state/stores'
+import { setBpmMode, setManualBpm, tapTempo } from '../audio/audioSingleton'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 
 export function BPMControl() {
@@ -9,7 +9,7 @@ export function BPMControl() {
   const manualBpm = useAudioStore(s => s.manualBpm)
   const setBpmModeStore = useAudioStore(s => s.setBpmMode)
   const setManualBpmStore = useAudioStore(s => s.setManualBpm)
-  const snapshot = useAudioStore(s => s.snapshot)
+  const [detectedBpm, setDetectedBpm] = useState(128)
   const [open, setOpen] = useState(false)
   const [tapFlash, setTapFlash] = useState(false)
   const [inputValue, setInputValue] = useState(String(manualBpm))
@@ -17,12 +17,20 @@ export function BPMControl() {
   const inputRef = useRef<HTMLInputElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
+  // Poll audioDataBridge for BPM (avoids Zustand subscription on render-loop data)
+  useEffect(() => {
+    const id = setInterval(() => {
+      setDetectedBpm(Math.round(audioDataBridge.snapshot.bpm))
+    }, 200)
+    return () => clearInterval(id)
+  }, [])
+
   // Sync displayed BPM from auto-detect
   useEffect(() => {
     if (!editing) {
-      setInputValue(bpmMode === 'auto' ? String(Math.round(snapshot.bpm)) : String(manualBpm))
+      setInputValue(bpmMode === 'auto' ? String(detectedBpm) : String(manualBpm))
     }
-  }, [snapshot.bpm, manualBpm, bpmMode, editing])
+  }, [detectedBpm, manualBpm, bpmMode, editing])
 
   // Close panel on outside click
   useEffect(() => {
@@ -85,7 +93,7 @@ export function BPMControl() {
     }
   }, [handleBpmSubmit, manualBpm])
 
-  const effectiveBpm = bpmMode === 'auto' ? Math.round(snapshot.bpm) : manualBpm
+  const effectiveBpm = bpmMode === 'auto' ? detectedBpm : manualBpm
 
   // Tap BPM mode: listen for spacebar
   useEffect(() => {
@@ -219,7 +227,7 @@ export function BPMControl() {
                   }}>
                     Beat intervals are averaged to estimate tempo. Detected: <span style={{
                       color: colors.accent.hover, fontFamily: typography.families.mono,
-                    }}>{Math.round(snapshot.bpm)}</span> BPM
+                    }}>{detectedBpm}</span> BPM
                   </div>
                 </div>
               )}

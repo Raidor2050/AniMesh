@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { ShaderDefinition, AudioSnapshot, AudioMapping, DEFAULT_AUDIO } from '../utils/types'
+import { ShaderDefinition, AudioMapping, DEFAULT_AUDIO, AudioSnapshot } from '../utils/types'
 import { SHADER_LIBRARY } from '../shaders/library'
 
 function safeGetItem(key: string): string | null {
@@ -27,6 +27,8 @@ interface UIStore {
   panelTab: 'browser' | 'creator' | null
   qualityTier: 'low' | 'medium' | 'high' | 'ultra'
   reducedMotion: boolean
+  minimizedPanels: string[]
+  streamPreset: 'stream' | 'spectrum' | 'bars' | 'oscilloscope'
   setBootComplete: (v: boolean) => void
   toggleImmersive: () => void
   toggleBrowser: () => void
@@ -36,13 +38,16 @@ interface UIStore {
   setPanelTab: (tab: 'browser' | 'creator' | null) => void
   setQualityTier: (tier: 'low' | 'medium' | 'high' | 'ultra') => void
   setReducedMotion: (v: boolean) => void
+  togglePanelMinimized: (id: string) => void
+  isPanelMinimized: (id: string) => boolean
+  setStreamPreset: (preset: UIStore['streamPreset']) => void
 }
 
 const reducedMotionDefault = typeof window !== 'undefined'
   ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
   : false
 
-export const useUIStore = create<UIStore>((set) => ({
+export const useUIStore = create<UIStore>((set, get) => ({
   bootComplete: false,
   immersive: false,
   browserOpen: false,
@@ -52,6 +57,8 @@ export const useUIStore = create<UIStore>((set) => ({
   panelTab: null,
   qualityTier: 'high',
   reducedMotion: reducedMotionDefault,
+  minimizedPanels: [],
+  streamPreset: 'stream',
   setBootComplete: (v) => set({ bootComplete: v }),
   toggleImmersive: () => set((s) => ({ immersive: !s.immersive, browserOpen: false, creatorOpen: false })),
   toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, creatorOpen: false, panelTab: s.browserOpen ? null : 'browser' })),
@@ -61,6 +68,14 @@ export const useUIStore = create<UIStore>((set) => ({
   setPanelTab: (tab) => set({ panelTab: tab }),
   setQualityTier: (tier) => set({ qualityTier: tier }),
   setReducedMotion: (v) => set({ reducedMotion: v }),
+  togglePanelMinimized: (id) => set((s) => {
+    const minimized = s.minimizedPanels.includes(id)
+      ? s.minimizedPanels.filter(p => p !== id)
+      : [...s.minimizedPanels, id]
+    return { minimizedPanels: minimized }
+  }),
+  isPanelMinimized: (id) => get().minimizedPanels.includes(id),
+  setStreamPreset: (streamPreset) => set({ streamPreset }),
 }))
 
 interface ShaderStore {
@@ -125,13 +140,11 @@ type BPMMode = 'auto' | 'manual' | 'tap'
 interface AudioStore {
   sourceType: 'none' | 'mic' | 'file' | 'demo' | 'system'
   permissionState: 'unknown' | 'granted' | 'denied' | 'prompt'
-  snapshot: AudioSnapshot
   playing: boolean
   bpmMode: BPMMode
   manualBpm: number
   setSourceType: (type: AudioStore['sourceType']) => void
   setPermissionState: (state: AudioStore['permissionState']) => void
-  setSnapshot: (snapshot: AudioSnapshot) => void
   setPlaying: (v: boolean) => void
   setBpmMode: (mode: BPMMode) => void
   setManualBpm: (bpm: number) => void
@@ -140,13 +153,11 @@ interface AudioStore {
 export const useAudioStore = create<AudioStore>((set) => ({
   sourceType: 'none',
   permissionState: 'unknown',
-  snapshot: createDefaultSnapshot(),
   playing: false,
   bpmMode: 'auto',
   manualBpm: 128,
   setSourceType: (sourceType) => set({ sourceType }),
   setPermissionState: (permissionState) => set({ permissionState }),
-  setSnapshot: (snapshot) => set({ snapshot }),
   setPlaying: (playing) => set({ playing }),
   setBpmMode: (bpmMode) => set({ bpmMode }),
   setManualBpm: (manualBpm) => set({ manualBpm }),
@@ -155,5 +166,4 @@ export const useAudioStore = create<AudioStore>((set) => ({
 export const audioDataBridge = {
   snapshot: createDefaultSnapshot(),
   fps: 0,
-  beatPulse: 0,
 }

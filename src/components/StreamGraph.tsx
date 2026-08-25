@@ -1,6 +1,9 @@
-import { useRef, useEffect, useCallback } from 'react'
-import { audioDataBridge, useAudioStore } from '../state/stores'
-import { colors, radii, typography } from '../ui/tokens'
+import { useRef, useEffect, useCallback, useState } from 'react'
+import { audioDataBridge, useAudioStore, useUIStore } from '../state/stores'
+import { AudioSnapshot } from '../utils/types'
+import { colors, radii, typography, spacing } from '../ui/tokens'
+import { useDraggable } from '../hooks/useDraggable'
+import { motion, AnimatePresence } from 'motion/react'
 
 const BAND_KEYS = ['sub', 'bass', 'lowMid', 'mid', 'highMid', 'treble'] as const
 const BAND_COLORS = [
@@ -24,6 +27,22 @@ const BAND_COUNT = 6
 const PAD_TOP = 12
 const PAD_BOT = 12
 
+const PRESETS = [
+  { id: 'stream' as const, label: 'Stream' },
+  { id: 'spectrum' as const, label: 'Spectrum' },
+  { id: 'bars' as const, label: 'Bars' },
+  { id: 'oscilloscope' as const, label: 'Oscilloscope' },
+]
+
+type StreamPreset = 'stream' | 'spectrum' | 'bars' | 'oscilloscope'
+
+const SPECTRUM_BAR_COUNT = 64
+
+function colorForSpectrum(index: number, total: number): string {
+  const hue = (index / total) * 270
+  return `hsl(${hue}, 75%, 60%)`
+}
+
 export function StreamGraph() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const historyRef = useRef<Float32Array>(new Float32Array(HISTORY_LEN * BAND_COUNT))
@@ -31,6 +50,21 @@ export function StreamGraph() {
   const animRef = useRef<number>(0)
   const timeRef = useRef<number>(0)
   const sourceType = useAudioStore(s => s.sourceType)
+  const streamPreset = useUIStore(s => s.streamPreset)
+  const setStreamPreset = useUIStore(s => s.setStreamPreset)
+  const isMinimized = useUIStore(s => s.minimizedPanels.includes('stream'))
+  const togglePanelMinimized = useUIStore(s => s.togglePanelMinimized)
+  const immersive = useUIStore(s => s.immersive)
+  const bootComplete = useUIStore(s => s.bootComplete)
+
+  const peakHoldRef = useRef<Float32Array>(new Float32Array(SPECTRUM_BAR_COUNT))
+  const peakDecayRef = useRef<Float32Array>(new Float32Array(SPECTRUM_BAR_COUNT))
+
+  const { position, isDragging, containerRef, dragProps } = useDraggable({
+    initialX: typeof window !== 'undefined' ? window.innerWidth - 252 : 800,
+    initialY: 52,
+    bounds: { left: 0, top: 48, right: 0, bottom: 0 },
+  })
 
   const render = useCallback((timestamp: number) => {
     const canvas = canvasRef.current
@@ -57,6 +91,23 @@ export function StreamGraph() {
     ctx.clearRect(0, 0, W, H)
 
     const snap = audioDataBridge.snapshot
+    const t = timestamp * 0.001
+    timeRef.current = t
+
+    if (streamPreset === 'stream') {
+      renderStream(ctx, W, H, snap, timestamp)
+    } else if (streamPreset === 'spectrum') {
+      renderSpectrum(ctx, W, H, snap)
+    } else if (streamPreset === 'bars') {
+      renderBars(ctx, W, H, snap, timestamp)
+    } else if (streamPreset === 'oscilloscope') {
+      renderOscilloscope(ctx, W, H, snap)
+    }
+
+    animRef.current = requestAnimationFrame(render)
+  }, [sourceType, streamPreset])
+
+  function renderStream(ctx: CanvasRenderingContext2D, W: number, H: number, snap: AudioSnapshot, _timestamp: number) {
     const smooth = smoothRef.current
     const hist = historyRef.current
 
@@ -77,10 +128,7 @@ export function StreamGraph() {
     const usableH = H - PAD_TOP - PAD_BOT
     const baseline = PAD_TOP + usableH * 0.5
     const bandH = usableH / (BAND_COUNT * 2)
-
-    const t = timestamp * 0.001
-    timeRef.current = t
-
+    const t = timeRef.current
     const xStep = W / (HISTORY_LEN - 1)
 
     for (let band = 0; band < BAND_COUNT; band++) {
@@ -154,40 +202,253 @@ export function StreamGraph() {
       ctx.stroke()
       ctx.shadowBlur = 0
     }
+  }
 
-    animRef.current = requestAnimationFrame(render)
-  }, [sourceType])
+  function renderSpectrum(ctx: CanvasRenderingContext2D, W: number, H: number, snap: AudioSnapshot) {
+    const spectrum = snap.spectrum
+    const barCount = SPECTRUM_BAR_COUNT
+    const binSize = Math.floor(spectrum.length / barCount)
+    const gap = 1
+    const barWidth = (W - gap * (barCount - 1)) / barCount
+    const usableH = H - PAD_TOP - PAD_BOT
+
+    for (let i = 0; i < barCount; i++) {
+      let sum = 0
+      for (let j = 0; j < binSize; j++) {
+        sum += spectrum[i * binSize + j] || 0
+      }
+      const avg = sum / binSize / 255
+
+      const barH = avg * usableH * 0.9
+      const x = i * (barWidth + gap)
+      const y = PAD_TOP + usableH - barH
+
+      const hue = (i / barCount) * 270
+      const gradient = ctx.createLinearGradient(x, y, x, PAD_TOP + usableH)
+      gradient.addColorStop(0, `hsla(${hue}, 80%, 65%, 0.9)`)
+      gradient.addColorStop(1, `hsla(${hue}, 60%, 45%, 0.5)`)
+      ctx.fillStyle = gradient
+      ctx.fillRect(x, y, barWidth, barH)
+
+      ctx.fillStyle = `hsla(${hue}, 80%, 75%, 0.3)`
+      ctx.fillRect(x, y - 2, barWidth, 2)
+    }
+  }
+
+  function renderBars(ctx: CanvasRenderingContext2D, W: number, H: number, snap: AudioSnapshot, timestamp: number) {
+    const spectrum = snap.spectrum
+    const barCount = SPECTRUM_BAR_COUNT
+    const binSize = Math.floor(spectrum.length / barCount)
+    const gap = 2
+    const barWidth = (W - gap * (barCount - 1)) / barCount
+    const usableH = H - PAD_TOP - PAD_BOT
+    const peakHold = peakHoldRef.current
+    const peakDecay = peakDecayRef.current
+
+    for (let i = 0; i < barCount; i++) {
+      let sum = 0
+      for (let j = 0; j < binSize; j++) {
+        sum += spectrum[i * binSize + j] || 0
+      }
+      const avg = sum / binSize / 255
+
+      // Peak hold logic
+      if (avg > peakHold[i]) {
+        peakHold[i] = avg
+        peakDecay[i] = timestamp
+      } else if (timestamp - peakDecay[i] > 1200) {
+        peakHold[i] = Math.max(avg, peakHold[i] * 0.985)
+      }
+
+      const barH = avg * usableH * 0.9
+      const x = i * (barWidth + gap)
+      const y = PAD_TOP + usableH - barH
+
+      const hue = (i / barCount) * 270
+
+      // Segmented bar
+      const segH = 3
+      const segGap = 1
+      const segs = Math.floor(barH / (segH + segGap))
+      for (let s = 0; s < segs; s++) {
+        const segY = PAD_TOP + usableH - (s + 1) * (segH + segGap)
+        const brightness = 50 + (s / (usableH / (segH + segGap))) * 20
+        ctx.fillStyle = `hsla(${hue}, 70%, ${brightness}%, 0.85)`
+        ctx.fillRect(x, segY, barWidth, segH)
+      }
+
+      // Peak hold indicator
+      if (peakHold[i] > 0.01) {
+        const peakY = PAD_TOP + usableH - peakHold[i] * usableH * 0.9
+        ctx.fillStyle = `hsla(${hue}, 80%, 80%, 0.9)`
+        ctx.fillRect(x, peakY - 1, barWidth, 2)
+      }
+    }
+  }
+
+  function renderOscilloscope(ctx: CanvasRenderingContext2D, W: number, H: number, snap: AudioSnapshot) {
+    const waveform = snap.waveform
+    const usableH = H - PAD_TOP - PAD_BOT
+    const baseline = PAD_TOP + usableH * 0.5
+    const len = waveform.length
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)'
+    ctx.lineWidth = 0.5
+    for (let i = 0; i <= 4; i++) {
+      const gy = PAD_TOP + (usableH / 4) * i
+      ctx.beginPath()
+      ctx.moveTo(0, gy)
+      ctx.lineTo(W, gy)
+      ctx.stroke()
+    }
+    // Center line
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+    ctx.lineWidth = 0.5
+    ctx.beginPath()
+    ctx.moveTo(0, baseline)
+    ctx.lineTo(W, baseline)
+    ctx.stroke()
+
+    // Glow layer
+    ctx.strokeStyle = 'rgba(99,102,241,0.15)'
+    ctx.lineWidth = 4
+    ctx.shadowColor = 'rgba(99,102,241,0.4)'
+    ctx.shadowBlur = 12
+    ctx.beginPath()
+    for (let i = 0; i < len; i++) {
+      const x = (i / (len - 1)) * W
+      const y = baseline + waveform[i] * usableH * 0.45
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.stroke()
+    ctx.shadowBlur = 0
+
+    // Main line
+    const gradient = ctx.createLinearGradient(0, PAD_TOP, 0, H - PAD_BOT)
+    gradient.addColorStop(0, 'rgba(129,140,248,0.9)')
+    gradient.addColorStop(0.5, 'rgba(99,102,241,1)')
+    gradient.addColorStop(1, 'rgba(168,85,247,0.9)')
+    ctx.strokeStyle = gradient
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    for (let i = 0; i < len; i++) {
+      const x = (i / (len - 1)) * W
+      const y = baseline + waveform[i] * usableH * 0.45
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.stroke()
+  }
 
   useEffect(() => {
     animRef.current = requestAnimationFrame(render)
     return () => cancelAnimationFrame(animRef.current)
   }, [render])
 
+  if (!bootComplete || immersive || isMinimized) return null
+
   return (
-    <div style={{
-      position: 'absolute', top: 52, right: 0, bottom: 0,
-      width: 240, zIndex: 15,
-      display: 'flex', flexDirection: 'column',
-      pointerEvents: 'none',
-    }}>
-      {/* Label */}
-      <div style={{
-        padding: '10px 14px 0',
-        display: 'flex', alignItems: 'center', gap: 6,
-        pointerEvents: 'auto',
-      }}>
-        <span style={{
-          fontFamily: typography.families.mono,
-          fontSize: 9, fontWeight: 600,
-          color: colors.text.disabled,
-          textTransform: 'uppercase' as const,
-          letterSpacing: '0.1em',
-        }}>Audio Stream</span>
-        <span style={{
-          width: 4, height: 4, borderRadius: '50%',
-          background: sourceType !== 'none' ? colors.state.success : colors.text.disabled,
-          boxShadow: sourceType !== 'none' ? `0 0 6px ${colors.state.success}` : 'none',
-        }} />
+    <motion.div
+      ref={containerRef}
+      {...dragProps}
+      initial={{ x: 20, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 20, opacity: 0 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      style={{
+        position: 'absolute',
+        left: position.x,
+        top: position.y,
+        width: 240,
+        height: 360,
+        zIndex: 15,
+        display: 'flex',
+        flexDirection: 'column',
+        background: colors.surface.panel,
+        backdropFilter: 'blur(24px) saturate(1.1)',
+        border: `1px solid ${colors.surface.secondary}`,
+        borderRadius: radii.lg,
+        overflow: 'hidden',
+        cursor: isDragging ? 'grabbing' : undefined,
+        userSelect: isDragging ? 'none' : undefined,
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: `${spacing.scale[2]}px ${spacing.scale[3]}px`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: `1px solid ${colors.surface.secondary}`,
+          cursor: isDragging ? 'grabbing' : 'pointer',
+          touchAction: 'none',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{
+            width: 4, height: 4, borderRadius: '50%',
+            background: sourceType !== 'none' ? colors.state.success : colors.text.disabled,
+            boxShadow: sourceType !== 'none' ? `0 0 6px ${colors.state.success}` : 'none',
+            flexShrink: 0,
+          }} />
+          <div style={{ display: 'flex', gap: 2 }}>
+            {PRESETS.map(p => (
+              <button
+                key={p.id}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setStreamPreset(p.id)
+                }}
+                style={{
+                  padding: '2px 6px',
+                  background: streamPreset === p.id ? colors.accent.subtle : 'transparent',
+                  border: `1px solid ${streamPreset === p.id ? 'rgba(99,102,241,0.3)' : 'transparent'}`,
+                  borderRadius: radii.xs,
+                  color: streamPreset === p.id ? colors.accent.hover : colors.text.disabled,
+                  fontFamily: typography.families.mono,
+                  fontSize: 8,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.1s ease',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={e => {
+                  if (streamPreset !== p.id) e.currentTarget.style.color = colors.text.secondary
+                }}
+                onMouseLeave={e => {
+                  if (streamPreset !== p.id) e.currentTarget.style.color = colors.text.disabled
+                }}
+              >{p.label}</button>
+            ))}
+          </div>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            togglePanelMinimized('stream')
+          }}
+          aria-label="Minimize stream"
+          title="Minimize"
+          style={{
+            width: 18, height: 18,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'transparent',
+            border: 'none',
+            borderRadius: radii.xs,
+            color: colors.text.disabled,
+            fontSize: 13,
+            lineHeight: 1,
+            cursor: 'pointer',
+            flexShrink: 0,
+            marginLeft: 4,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = colors.text.secondary }}
+          onMouseLeave={e => { e.currentTarget.style.color = colors.text.disabled }}
+        >−</button>
       </div>
 
       {/* Canvas container */}
@@ -197,35 +458,38 @@ export function StreamGraph() {
       }}>
         <canvas ref={canvasRef} style={{
           position: 'absolute', inset: 0,
-          borderRadius: radii.lg,
+          borderRadius: 0,
         }} />
       </div>
 
-      {/* Band legend */}
-      <div style={{
-        padding: '4px 14px 10px',
-        display: 'flex', flexWrap: 'wrap', gap: '3px 10px',
-        pointerEvents: 'auto',
-      }}>
-        {BAND_KEYS.map((key, i) => (
-          <div key={key} style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-          }}>
-            <span style={{
-              width: 6, height: 6, borderRadius: '50%',
-              background: `rgb(${BAND_COLORS[i].r},${BAND_COLORS[i].g},${BAND_COLORS[i].b})`,
-              boxShadow: `0 0 4px ${BAND_GLOW_COLORS[i]}`,
-            }} />
-            <span style={{
-              fontFamily: typography.families.mono,
-              fontSize: 8,
-              color: colors.text.disabled,
-              textTransform: 'uppercase' as const,
-              letterSpacing: '0.06em',
-            }}>{key}</span>
-          </div>
-        ))}
-      </div>
-    </div>
+      {/* Band legend (only for stream mode) */}
+      {streamPreset === 'stream' && (
+        <div style={{
+          padding: '4px 10px 6px',
+          display: 'flex', flexWrap: 'wrap', gap: '3px 10px',
+          pointerEvents: 'auto',
+          flexShrink: 0,
+        }}>
+          {BAND_KEYS.map((key, i) => (
+            <div key={key} style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <span style={{
+                width: 5, height: 5, borderRadius: '50%',
+                background: `rgb(${BAND_COLORS[i].r},${BAND_COLORS[i].g},${BAND_COLORS[i].b})`,
+                boxShadow: `0 0 4px ${BAND_GLOW_COLORS[i]}`,
+              }} />
+              <span style={{
+                fontFamily: typography.families.mono,
+                fontSize: 7,
+                color: colors.text.disabled,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+              }}>{key}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </motion.div>
   )
 }

@@ -1,6 +1,6 @@
 export type ShaderCategory =
   | 'fractals' | 'vj' | 'geometric' | 'liquid'
-  | 'cosmic' | 'synthwave' | 'abstract' | 'particle' | 'minimal'
+  | 'cosmic' | 'synthwave' | 'abstract' | 'particle' | 'minimal' | 'milkdrop'
 
 export interface UniformDef {
   name: string
@@ -96,6 +96,7 @@ export const CATEGORY_LABELS: Record<ShaderCategory, string> = {
   abstract: 'Abstract',
   particle: 'Particle',
   minimal: 'Minimal',
+  milkdrop: 'MilkDrop',
 }
 
 export const TIER_COLORS: Record<string, string> = {

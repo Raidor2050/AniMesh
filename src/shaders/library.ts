@@ -1,4 +1,5 @@
 import { ShaderDefinition, ShaderCategory } from '../utils/types'
+import { MILKDROP_PRESETS } from './milkdrop-generated'
 
 const UNIFORM_HEADER = `#version 300 es
 precision highp float;
@@ -1249,7 +1250,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     ['🔥'],
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
-  uv *= 2.5 - uZoom * 0.5;
+  uv *= 2.5 - uZoom * 0.5 + uBass * 0.15;
   uv += uOffset;
   vec2 c = vec2(-0.745, 0.186);
   vec2 z = uv;
@@ -1261,14 +1262,15 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   }
   float t = iter / 80.0;
   vec3 col = vec3(0.0);
-  col += 0.5 + 0.5 * cos(6.28 * (t * 3.0 + uTime * 0.1 + vec3(0.0, 0.33, 0.67)));
-  col *= 1.0 + uBass * 0.3;
+  col += 0.5 + 0.5 * cos(6.28 * (t * 3.0 + uTime * 0.1 + vec3(0.0, 0.33, 0.67) + uSpectralCentroid * 0.3));
+  col *= (1.0 + uBass * 0.3) * (0.7 + 0.5 * uBeat);
+  col *= 0.8 + uTreble * 0.4;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'zoom', label: 'Zoom', min: 0, max: 5, default: 1, step: 0.1, group: 'transform' },
      { id: 'offsetX', label: 'Offset X', min: -2, max: 2, default: -0.745, step: 0.01, group: 'transform' },
      { id: 'offsetY', label: 'Offset Y', min: -2, max: 2, default: 0.186, step: 0.01, group: 'transform' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1358,7 +1360,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
   uv *= 2.0;
-  vec2 c = vec2(-0.7, 0.27015) + 0.1 * sin(uTime * 0.3);
+  vec2 c = vec2(-0.7, 0.27015) + 0.1 * sin(uTime * 0.3 + uMid * 0.5);
   vec2 z = uv;
   float iter = 0.0;
   for (int i = 0; i < 60; i++) {
@@ -1368,14 +1370,15 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   }
   float t = iter / 60.0;
   vec3 col = vec3(0.0);
-  col.r = sin(t * 3.14 * 2.0 + uTime * 0.5);
-  col.g = sin(t * 3.14 * 2.0 + uTime * 0.5 + 2.094);
-  col.b = sin(t * 3.14 * 2.0 + uTime * 0.5 + 4.188);
+  col.r = sin(t * 3.14 * 2.0 + uTime * 0.5 + uBass * 0.4);
+  col.g = sin(t * 3.14 * 2.0 + uTime * 0.5 + 2.094 + uBeat * 0.3);
+  col.b = sin(t * 3.14 * 2.0 + uTime * 0.5 + 4.188 + uTreble * 0.5);
   col = pow(col, vec3(2.0));
+  col *= 0.7 + 0.5 * uBeat;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'speed', label: 'Animation Speed', min: 0, max: 2, default: 0.3, step: 0.01, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1383,7 +1386,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     ['🔥'],
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
-  float zoom = pow(1.5, uZoom * 3.0);
+  float zoom = pow(1.5, uZoom * 3.0 + uBass * 0.5);
   uv *= zoom;
   uv += vec2(-0.745, 0.186);
   vec2 c = vec2(-0.745, 0.186);
@@ -1395,11 +1398,13 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     iter += 1.0;
   }
   float t = iter / 100.0;
-  vec3 col = 0.5 + 0.5 * cos(6.28 * (t + vec3(0.0, 0.1, 0.2) + uTime * 0.05));
+  vec3 col = 0.5 + 0.5 * cos(6.28 * (t + vec3(0.0, 0.1, 0.2) + uTime * 0.05 + uMid * 0.3));
+  col *= 0.7 + 0.6 * uBeat;
+  col *= 0.8 + uTreble * 0.3;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'zoom', label: 'Zoom', min: 0, max: 10, default: 1, step: 0.1, group: 'transform' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.35, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1407,8 +1412,8 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     ['🔻'],
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
-  uv *= 2.5;
-  vec2 c = vec2(-0.3, 0.6);
+  uv *= 2.5 * (1.0 + uBass * 0.15);
+  vec2 c = vec2(-0.3, 0.6) + vec2(sin(uTime * 0.2) * 0.05 * uMid, cos(uTime * 0.15) * 0.05 * uMid);
   vec2 z = uv;
   float iter = 0.0;
   for (int i = 0; i < 80; i++) {
@@ -1418,11 +1423,13 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   }
   float t = iter / 80.0;
   vec3 col = vec3(0.0);
-  col += 0.5 + 0.5 * cos(6.28 * (t * 2.0 + vec3(0.0, 0.33, 0.67)));
+  col += 0.5 + 0.5 * cos(6.28 * (t * 2.0 + vec3(0.0, 0.33, 0.67) + uSpectralCentroid * 0.4));
+  col *= 0.7 + 0.6 * uBeat;
+  col *= 0.8 + uTreble * 0.3;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'zoom', label: 'Zoom', min: 0, max: 5, default: 1, step: 0.1, group: 'transform' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -1430,7 +1437,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     ['🧘'],
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
-  uv *= 3.0;
+  uv *= 3.0 * (1.0 + uBass * 0.1);
   vec3 col = vec3(0.0);
   for (int s = 0; s < 20; s++) {
     vec2 c = vec2(
@@ -1449,15 +1456,16 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
         z = vec2(z.x * z.x - z.y * z.y + c.x, 2.0 * z.x * z.y + c.y);
         vec2 p = z;
         float d = length(p - uv);
-        col += exp(-d * 5.0) * vec3(0.5, 0.2, 0.8);
+        col += exp(-d * 5.0) * vec3(0.5 + uBeat * 0.3, 0.2, 0.8 + uTreble * 0.2);
       }
     }
   }
   col /= 20.0;
+  col *= 0.7 + 0.6 * uVolume;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'samples', label: 'Samples', min: 5, max: 50, default: 20, step: 1, group: 'quality' }],
-    {}, [], 'high'
+    {}, [{ signal: 'beat', param: 'brightness', amount: 0.4, curve: 'linear' }, { signal: 'volume', param: 'distortion', amount: 0.3, curve: 'log' }], 'high'
   ),
 
   createShader(
@@ -1495,25 +1503,26 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
   uv *= 2.0;
   vec2 z = uv;
-  float t = uTime * 0.1;
+  float t = uTime * 0.1 + uMid * 0.3;
   float iter = 0.0;
   for (int i = 0; i < 60; i++) {
     float r = length(z);
     float theta = atan(z.y, z.x);
     z = vec2(
-      r * cos(theta * 2.0 + t) + 0.5 * cos(theta * 3.0),
-      r * sin(theta * 2.0 + t) + 0.5 * sin(theta * 3.0)
+      r * cos(theta * 2.0 + t) + 0.5 * cos(theta * 3.0 + uBass * 0.2),
+      r * sin(theta * 2.0 + t) + 0.5 * sin(theta * 3.0 + uBeat * 0.3)
     );
     if (length(z) > 2.0) break;
     iter += 1.0;
   }
   float f = iter / 60.0;
   vec3 col = vec3(f * 0.8, f * 0.4, f * 0.6);
-  col *= 1.0 + uMid * 0.3;
+  col *= (1.0 + uMid * 0.3) * (0.7 + 0.6 * uBeat);
+  col *= 0.8 + uTreble * 0.3;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'complexity', label: 'Complexity', min: 1, max: 5, default: 2, step: 0.1, group: 'shape' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'mid', param: 'speed', amount: 0.3, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -3395,6 +3404,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     {}, [], 'low'
   ),
 
+  ...MILKDROP_PRESETS,
 ]
 
 export function getShadersByCategory(category: ShaderCategory): ShaderDefinition[] {

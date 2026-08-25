@@ -25,6 +25,8 @@ export function EQMappingPanel() {
   const updateMapping = useShaderStore(s => s.updateCustomAudioMapping)
   const immersive = useUIStore(s => s.immersive)
   const panelsVisible = useUIStore(s => s.panelsVisible)
+  const isMinimized = useUIStore(s => s.minimizedPanels.includes('eq'))
+  const togglePanelMinimized = useUIStore(s => s.togglePanelMinimized)
   const [bandLevels, setBandLevels] = useState<Record<string, number>>({})
   const [collapsed, setCollapsed] = useState(false)
 
@@ -49,7 +51,7 @@ export function EQMappingPanel() {
     return () => clearInterval(interval)
   }, [])
 
-  if (!activeShader || immersive || !panelsVisible) return null
+  if (!activeShader || immersive || !panelsVisible || isMinimized) return null
 
   const availableParams = activeShader.params.map(p => p.id)
   const shaderMappings = activeShader.audioMappings
@@ -116,7 +118,29 @@ export function EQMappingPanel() {
                   borderRadius: radii.xs,
                 }}>{customMappings.length}</span>
               </div>
-              <span style={{ fontSize: 12, color: colors.text.disabled, transform: 'rotate(180deg)' }}>◂</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    togglePanelMinimized('eq')
+                  }}
+                  aria-label="Minimize EQ mapping"
+                  title="Minimize"
+                  style={{
+                    width: 20, height: 20,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: radii.xs,
+                    color: colors.text.disabled,
+                    fontSize: 14,
+                    lineHeight: 1,
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = colors.text.secondary; e.currentTarget.style.background = colors.surface.primary }}
+                  onMouseLeave={e => { e.currentTarget.style.color = colors.text.disabled; e.currentTarget.style.background = 'transparent' }}
+                >−</button>
+              </div>
             </>
           )}
         </div>

@@ -88,7 +88,6 @@ export class AudioEngine {
 
   async init(): Promise<void> {
     if (this.ctx) {
-      // Handle Safari's interrupted state and general suspended state
       if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
         try { await this.ctx.resume() } catch {}
       }
@@ -98,14 +97,16 @@ export class AudioEngine {
     try { await this.ctx.resume() } catch {}
     this.analyser = this.ctx.createAnalyser()
     this.analyser.fftSize = 2048
-    this.analyser.smoothingTimeConstant = 0.8
+    this.analyser.smoothingTimeConstant = 0.1
     this.analyser.minDecibels = -90
     this.analyser.maxDecibels = -10
     this.freqData = new Uint8Array(this.analyser.frequencyBinCount)
     this.timeData = new Float32Array(this.analyser.fftSize)
     this.prevSpectrum = new Uint8Array(this.analyser.frequencyBinCount)
     this.masterGain = this.ctx.createGain()
+    // Fixed audio graph: masterGain → analyser → destination (established once)
     this.masterGain.connect(this.analyser)
+    this.analyser.connect(this.ctx.destination)
     this.startTime = performance.now()
   }
 
@@ -235,7 +236,6 @@ export class AudioEngine {
     const source = this.ctx.createBufferSource()
     source.buffer = audioBuffer
     source.connect(this.masterGain)
-    this.analyser!.connect(this.ctx.destination)
     source.loop = true
     source.start(0)
     this.source = source
@@ -318,13 +318,12 @@ export class AudioEngine {
     hihatLfo.connect(hihatLfoGain)
     hihatLfoGain.connect(hihatGain.gain)
 
-    // Connect all to master
+    // Connect all to master (analyser→destination already established in init)
     carrier.connect(modGain); modGain.connect(this.masterGain)
     sub.connect(subGain); subGain.connect(this.masterGain)
     pad1.connect(pad1Gain); pad1Gain.connect(this.masterGain)
     pad2.connect(pad2Gain); pad2Gain.connect(this.masterGain)
     hihat.connect(hihatGain); hihatGain.connect(this.masterGain)
-    this.analyser!.connect(this.ctx.destination)
 
     nodes.push(carrier, modulator, lfo1, sub, subLfo, pad1, pad2, hihat, hihatLfo)
     nodes.forEach(n => n.start())
@@ -354,12 +353,10 @@ export class AudioEngine {
       this.systemStream.getTracks().forEach(t => t.stop())
       this.systemStream = null
     }
+    // Only disconnect source nodes from masterGain — never tear down masterGain→analyser→destination
     if (this.source) {
-      try { this.source.disconnect() } catch {}
+      try { if (this.masterGain) this.source.disconnect(this.masterGain); else this.source.disconnect() } catch { try { this.source.disconnect() } catch {} }
       this.source = null
-    }
-    if (this.analyser) {
-      try { this.analyser.disconnect() } catch {}
     }
     if (this.masterGain) {
       this.masterGain.gain.setValueAtTime(1, this.ctx?.currentTime ?? 0)
@@ -634,8 +631,8 @@ export class AudioEngine {
     }
   }
 
-  destroy() {
-    this.disconnect()
+  async destroy() {
+    await this.disconnect()
     if (this.ctx) {
       this.ctx.close()
       this.ctx = null

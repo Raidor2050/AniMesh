@@ -200,38 +200,6 @@ export function LeftPanel() {
 
   return (
     <>
-      {/* Transparent left-edge arrow toggle when panel is closed */}
-      {!browserOpen && (
-        <button
-          onClick={toggleBrowser}
-          aria-label="Open shader library"
-          style={{
-            position: 'absolute',
-            top: '50%', left: 0,
-            transform: 'translateY(-50%)',
-            width: 20, height: 64,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'transparent',
-            border: 'none',
-            borderLeft: `1px solid rgba(255,255,255,0.06)`,
-            borderRadius: '0 6px 6px 0',
-            color: 'rgba(255,255,255,0.12)',
-            fontSize: 12,
-            cursor: 'pointer',
-            zIndex: 20,
-            transition: 'color 0.15s ease, background 0.15s ease',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.color = 'rgba(255,255,255,0.45)'
-            e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.color = 'rgba(255,255,255,0.12)'
-            e.currentTarget.style.background = 'transparent'
-          }}
-        >▸</button>
-      )}
-
       <AnimatePresence>
       {browserOpen && (
         <motion.div

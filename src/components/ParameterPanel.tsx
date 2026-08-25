@@ -3,13 +3,28 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 import { useDraggable } from '../hooks/useDraggable'
+import { ParameterSchema } from '../utils/types'
+
+function randomizeParams(paramDefs: ParameterSchema[]): Record<string, number> {
+  const result: Record<string, number> = {}
+  for (const p of paramDefs) {
+    const range = p.max - p.min
+    const raw = p.min + Math.random() * range
+    const snapped = Math.round(raw / p.step) * p.step
+    result[p.id] = Math.max(p.min, Math.min(p.max, parseFloat(snapped.toFixed(4))))
+  }
+  return result
+}
 
 export function ParameterPanel() {
   const activeShader = useShaderStore(s => s.activeShader)
   const params = useShaderStore(s => s.params)
   const setParam = useShaderStore(s => s.setParam)
+  const setParams = useShaderStore(s => s.setParams)
   const immersive = useUIStore(s => s.immersive)
   const panelsVisible = useUIStore(s => s.panelsVisible)
+  const isMinimized = useUIStore(s => s.minimizedPanels.includes('params'))
+  const togglePanelMinimized = useUIStore(s => s.togglePanelMinimized)
   const [audioLevel, setAudioLevel] = useState(0)
   const [collapsed, setCollapsed] = useState(false)
 
@@ -26,7 +41,7 @@ export function ParameterPanel() {
     return () => clearInterval(interval)
   }, [])
 
-  if (!activeShader || immersive || !panelsVisible) return null
+  if (!activeShader || immersive || !panelsVisible || isMinimized) return null
 
   const paramDefs = activeShader.params
   if (paramDefs.length === 0) return null
@@ -96,7 +111,70 @@ export function ParameterPanel() {
                   borderRadius: radii.xs,
                 }}>{paramDefs.length}</span>
               </div>
-              <span style={{ fontSize: 12, color: colors.text.disabled, transform: 'rotate(180deg)' }}>◂</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setParams(randomizeParams(paramDefs))
+                  }}
+                  aria-label="Randomize parameters"
+                  title="Randomize all"
+                  style={{
+                    width: 20, height: 20,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: radii.xs,
+                    color: colors.text.disabled,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = colors.accent.hover; e.currentTarget.style.background = colors.surface.primary }}
+                  onMouseLeave={e => { e.currentTarget.style.color = colors.text.disabled; e.currentTarget.style.background = 'transparent' }}
+                >🎲</button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (activeShader) setParams({ ...activeShader.defaults })
+                  }}
+                  aria-label="Reset parameters"
+                  title="Reset to defaults"
+                  style={{
+                    width: 20, height: 20,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: radii.xs,
+                    color: colors.text.disabled,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = colors.accent.hover; e.currentTarget.style.background = colors.surface.primary }}
+                  onMouseLeave={e => { e.currentTarget.style.color = colors.text.disabled; e.currentTarget.style.background = 'transparent' }}
+                >↺</button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    togglePanelMinimized('params')
+                  }}
+                  aria-label="Minimize parameters"
+                  title="Minimize"
+                  style={{
+                    width: 20, height: 20,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: radii.xs,
+                    color: colors.text.disabled,
+                    fontSize: 14,
+                    lineHeight: 1,
+                    cursor: 'pointer',
+                    marginLeft: 2,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = colors.text.secondary; e.currentTarget.style.background = colors.surface.primary }}
+                  onMouseLeave={e => { e.currentTarget.style.color = colors.text.disabled; e.currentTarget.style.background = 'transparent' }}
+                >−</button>
+              </div>
             </>
           )}
         </div>
