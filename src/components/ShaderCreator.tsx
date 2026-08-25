@@ -2,28 +2,29 @@ import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore } from '../state/stores'
 import { SHADER_LIBRARY } from '../shaders/library'
-import { ShaderCategory, CATEGORY_LABELS } from '../utils/types'
+import { ShaderCategory } from '../utils/types'
+import { colors, typography, spacing, radii, animation } from '../ui/tokens'
 
 type Mood = 'calm' | 'energetic' | 'dark' | 'cosmic' | 'organic' | 'chaotic'
 type Movement = 'flow' | 'pulse' | 'spiral' | 'drift' | 'burst' | 'orbit'
 type Palette = 'neon' | 'pastel' | 'monochrome' | 'sunset' | 'ocean' | 'custom'
 
-const MOODS: { id: Mood; label: string; color: string }[] = [
-  { id: 'calm', label: 'Calm', color: 'rgba(59,130,246,0.3)' },
-  { id: 'energetic', label: 'Energetic', color: 'rgba(239,68,68,0.3)' },
-  { id: 'dark', label: 'Dark', color: 'rgba(80,40,80,0.4)' },
-  { id: 'cosmic', label: 'Cosmic', color: 'rgba(120,40,180,0.3)' },
-  { id: 'organic', label: 'Organic', color: 'rgba(34,197,94,0.3)' },
-  { id: 'chaotic', label: 'Chaotic', color: 'rgba(245,158,11,0.3)' },
+const MOODS: { id: Mood; label: string; icon: string; color: string; desc: string }[] = [
+  { id: 'calm', label: 'Calm', icon: '○', color: 'rgba(59,130,246,0.15)', desc: 'Smooth, flowing visuals' },
+  { id: 'energetic', label: 'Energetic', icon: '⚡', color: 'rgba(239,68,68,0.15)', desc: 'Fast, pulsing reactions' },
+  { id: 'dark', label: 'Dark', icon: '◑', color: 'rgba(80,40,80,0.2)', desc: 'Deep, moody tones' },
+  { id: 'cosmic', label: 'Cosmic', icon: '✧', color: 'rgba(120,40,180,0.15)', desc: 'Space-inspired wonder' },
+  { id: 'organic', label: 'Organic', icon: '❋', color: 'rgba(34,197,94,0.15)', desc: 'Natural, growing forms' },
+  { id: 'chaotic', label: 'Chaotic', icon: '◈', color: 'rgba(245,158,11,0.15)', desc: 'Unpredictable energy' },
 ]
 
-const MOVEMENTS: { id: Movement; label: string }[] = [
-  { id: 'flow', label: 'Flow' },
-  { id: 'pulse', label: 'Pulse' },
-  { id: 'spiral', label: 'Spiral' },
-  { id: 'drift', label: 'Drift' },
-  { id: 'burst', label: 'Burst' },
-  { id: 'orbit', label: 'Orbit' },
+const MOVEMENTS: { id: Movement; label: string; icon: string }[] = [
+  { id: 'flow', label: 'Flow', icon: '≈' },
+  { id: 'pulse', label: 'Pulse', icon: '◎' },
+  { id: 'spiral', label: 'Spiral', icon: '🌀' },
+  { id: 'drift', label: 'Drift', icon: '→' },
+  { id: 'burst', label: 'Burst', icon: '✦' },
+  { id: 'orbit', label: 'Orbit', icon: '◯' },
 ]
 
 const PALETTES: { id: Palette; label: string; colors: string[] }[] = [
@@ -36,7 +37,7 @@ const PALETTES: { id: Palette; label: string; colors: string[] }[] = [
 ]
 
 const ADJECTIVES = ['Luminous', 'Silent', 'Pulse', 'Void', 'Neon', 'Drift', 'Wave', 'Echo', 'Prism', 'Flux', 'Astral', 'Chrome', 'Velvet', 'Crystal', 'Shadow', 'Nova', 'Eclipse', 'Phantom', 'Radiant', 'Frozen']
-const NOUNS = ['Drift', 'Storm', 'Wave', 'Pulse', 'Flow', 'Bloom', 'Cascade', 'Meridian', 'Cascade', 'Resonance', 'Sphere', 'Lattice', 'Horizon', 'Vortex', 'Dream', 'Signal', 'Frequency', 'Harmonic', 'Surge', 'Field']
+const NOUNS = ['Drift', 'Storm', 'Wave', 'Pulse', 'Flow', 'Bloom', 'Cascade', 'Meridian', 'Resonance', 'Sphere', 'Lattice', 'Horizon', 'Vortex', 'Dream', 'Signal', 'Frequency', 'Harmonic', 'Surge', 'Field', 'Nebula']
 
 function generateName(seed: number): string {
   const a = ADJECTIVES[Math.floor(seed * 1000) % ADJECTIVES.length]
@@ -101,247 +102,312 @@ export function ShaderCreator() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
         style={{
           position: 'absolute', inset: 0, zIndex: 30,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(0,0,0,0.65)',
+          backdropFilter: 'blur(12px)',
         }}
         onClick={(e: React.MouseEvent) => { if (e.target === e.currentTarget) toggleCreator() }}
       >
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          initial={{ scale: 0.96, opacity: 0, y: 8 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.96, opacity: 0, y: 8 }}
+          transition={animation.spring.panel}
           style={{
-            width: '560px', maxWidth: '90vw', maxHeight: '80vh',
-            background: 'rgba(10,10,14,0.95)',
-            backdropFilter: 'blur(24px)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '12px',
+            width: 580, maxWidth: '92vw', maxHeight: '82vh',
+            background: colors.surface.panel,
+            backdropFilter: 'blur(32px) saturate(1.2)',
+            border: `1px solid ${colors.surface.secondary}`,
+            borderRadius: radii.xl,
             overflow: 'hidden',
             display: 'flex', flexDirection: 'column',
+            boxShadow: '0 32px 80px rgba(0,0,0,0.6), 0 0 1px rgba(99,102,241,0.15)',
           }}
         >
           {/* Header */}
           <div style={{
-            padding: '20px 24px 16px',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            padding: `${spacing.scale[5]}px ${spacing.scale[6]}px ${spacing.scale[4]}px`,
+            borderBottom: `1px solid ${colors.surface.secondary}`,
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <span style={{
-                fontFamily: '"JetBrains Mono", monospace',
-                fontSize: '16px', fontWeight: 600,
-                color: 'rgba(255,255,255,0.92)',
-              }}>Create Your Shader</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.scale[4] }}>
+              <div>
+                <span style={{
+                  fontFamily: typography.families.mono,
+                  fontSize: typography.scale.xl.size,
+                  fontWeight: typography.scale.xl.weight,
+                  color: colors.text.primary,
+                  letterSpacing: typography.scale.xl.tracking,
+                }}>Create Shader</span>
+                <span style={{
+                  fontSize: 10,
+                  color: colors.text.disabled,
+                  fontFamily: typography.families.mono,
+                  marginLeft: 8,
+                }}>Step {step + 1} of {steps.length}</span>
+              </div>
               <button onClick={toggleCreator} style={{
-                padding: '4px 8px',
-                background: 'rgba(255,255,255,0.06)',
-                border: 'none', borderRadius: '4px',
-                color: 'rgba(255,255,255,0.5)',
-                fontSize: '11px', cursor: 'pointer',
-              }}>ESC</button>
+                padding: '4px 10px',
+                background: colors.surface.primary,
+                border: `1px solid ${colors.surface.secondary}`,
+                borderRadius: radii.xs,
+                color: colors.text.tertiary,
+                fontSize: 10, cursor: 'pointer',
+                fontFamily: typography.families.mono,
+                transition: 'all 0.15s ease',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = colors.surface.hover; e.currentTarget.style.color = colors.text.secondary }}
+                onMouseLeave={e => { e.currentTarget.style.background = colors.surface.primary; e.currentTarget.style.color = colors.text.tertiary }}
+              >ESC</button>
             </div>
 
-            {/* Step indicators */}
-            <div style={{ display: 'flex', gap: '4px' }}>
+            {/* Step progress */}
+            <div style={{ display: 'flex', gap: 3 }}>
               {steps.map((s, i) => (
                 <div key={i} style={{
-                  flex: 1, height: '2px',
-                  background: i <= step ? '#6366F1' : 'rgba(255,255,255,0.08)',
-                  borderRadius: '1px',
+                  flex: 1, height: 2,
+                  background: i <= step ? colors.accent.primary : colors.surface.secondary,
+                  borderRadius: 1,
                   transition: 'background 0.3s ease',
                 }} />
               ))}
             </div>
             <div style={{
-              fontSize: '10px', color: 'rgba(255,255,255,0.4)',
-              marginTop: '8px',
-              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: 10, color: colors.text.tertiary,
+              marginTop: 8,
+              fontFamily: typography.families.mono,
             }}>
-              Step {step + 1}: {steps[step]}
+              {steps[step]}
             </div>
           </div>
 
           {/* Content */}
-          <div style={{ padding: '20px 24px', flex: 1, overflow: 'auto' }}>
-            {step === 0 && (
-              <div>
-                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', marginBottom: '16px' }}>
-                  What's the vibe?
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                  {MOODS.map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => setMood(m.id)}
-                      style={{
-                        padding: '16px',
-                        background: mood === m.id ? m.color : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${mood === m.id ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.06)'}`,
-                        borderRadius: '8px',
-                        color: 'rgba(255,255,255,0.8)',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+          <div style={{ padding: `${spacing.scale[5]}px ${spacing.scale[6]}px`, flex: 1, overflow: 'auto' }}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.2 }}
+              >
+                {step === 0 && (
+                  <div>
+                    <div style={{ fontSize: typography.scale.base.size, color: colors.text.secondary, marginBottom: spacing.scale[4] }}>
+                      What's the vibe?
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                      {MOODS.map(m => (
+                        <button
+                          key={m.id}
+                          onClick={() => setMood(m.id)}
+                          style={{
+                            padding: `${spacing.scale[4]}px`,
+                            background: mood === m.id ? m.color : colors.surface.primary,
+                            border: `1px solid ${mood === m.id ? colors.accent.glow.replace('0.4', '0.25') : colors.surface.secondary}`,
+                            borderRadius: radii.md,
+                            color: colors.text.primary,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            textAlign: 'left',
+                          }}
+                          onMouseEnter={e => { if (mood !== m.id) e.currentTarget.style.borderColor = colors.borderHover }}
+                          onMouseLeave={e => { if (mood !== m.id) e.currentTarget.style.borderColor = colors.surface.secondary }}
+                        >
+                          <div style={{ fontSize: 18, marginBottom: 6 }}>{m.icon}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, fontFamily: typography.families.mono, marginBottom: 2 }}>{m.label}</div>
+                          <div style={{ fontSize: 10, color: colors.text.tertiary }}>{m.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {step === 1 && (
-              <div>
-                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', marginBottom: '16px' }}>
-                  How should it move?
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                  {MOVEMENTS.map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => setMovement(m.id)}
-                      style={{
-                        padding: '16px',
-                        background: movement === m.id ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${movement === m.id ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.06)'}`,
-                        borderRadius: '8px',
-                        color: 'rgba(255,255,255,0.8)',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+                {step === 1 && (
+                  <div>
+                    <div style={{ fontSize: typography.scale.base.size, color: colors.text.secondary, marginBottom: spacing.scale[4] }}>
+                      How should it move?
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                      {MOVEMENTS.map(m => (
+                        <button
+                          key={m.id}
+                          onClick={() => setMovement(m.id)}
+                          style={{
+                            padding: `${spacing.scale[4]}px ${spacing.scale[3]}px`,
+                            background: movement === m.id ? colors.accent.subtle : colors.surface.primary,
+                            border: `1px solid ${movement === m.id ? colors.accent.glow.replace('0.4', '0.25') : colors.surface.secondary}`,
+                            borderRadius: radii.md,
+                            color: colors.text.primary,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            textAlign: 'center',
+                          }}
+                          onMouseEnter={e => { if (movement !== m.id) e.currentTarget.style.borderColor = colors.borderHover }}
+                          onMouseLeave={e => { if (movement !== m.id) e.currentTarget.style.borderColor = colors.surface.secondary }}
+                        >
+                          <div style={{ fontSize: 16, marginBottom: 4 }}>{m.icon}</div>
+                          <div style={{ fontSize: 11, fontWeight: 500, fontFamily: typography.families.mono }}>{m.label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {step === 2 && (
-              <div>
-                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', marginBottom: '16px' }}>
-                  How intense? <span style={{ color: '#818CF8' }}>{Math.round(intensity * 100)}%</span>
-                </div>
-                <input
-                  type="range" min="0" max="1" step="0.01"
-                  value={intensity}
-                  onChange={e => setIntensity(parseFloat(e.target.value))}
-                  style={{
-                    width: '100%',
-                    accentColor: '#6366F1',
-                    height: '4px',
-                  }}
-                />
-                <div style={{
-                  display: 'flex', justifyContent: 'space-between',
-                  fontSize: '10px', color: 'rgba(255,255,255,0.3)',
-                  marginTop: '8px',
-                }}>
-                  <span>Subtle</span>
-                  <span>Overwhelming</span>
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div>
-                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', marginBottom: '16px' }}>
-                  Color mood?
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                  {PALETTES.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => setPalette(p.id)}
-                      style={{
-                        padding: '12px',
-                        background: palette === p.id ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${palette === p.id ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.06)'}`,
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <div style={{ display: 'flex', gap: '3px', marginBottom: '8px', justifyContent: 'center' }}>
-                        {p.colors.map((c, i) => (
-                          <div key={i} style={{
-                            width: '14px', height: '14px', borderRadius: '3px',
-                            background: c,
-                          }} />
-                        ))}
-                      </div>
+                {step === 2 && (
+                  <div>
+                    <div style={{ fontSize: typography.scale.base.size, color: colors.text.secondary, marginBottom: spacing.scale[4] }}>
+                      Intensity: <span style={{ color: colors.accent.hover, fontFamily: typography.families.mono }}>{Math.round(intensity * 100)}%</span>
+                    </div>
+                    <input
+                      type="range" min="0" max="1" step="0.01"
+                      value={intensity}
+                      onChange={e => setIntensity(parseFloat(e.target.value))}
+                      style={{ width: '100%' }}
+                    />
+                    <div style={{
+                      display: 'flex', justifyContent: 'space-between',
+                      fontSize: 10, color: colors.text.disabled,
+                      marginTop: 8,
+                      fontFamily: typography.families.mono,
+                    }}>
+                      <span>Subtle</span>
+                      <span>Overwhelming</span>
+                    </div>
+                    {/* Intensity preview bar */}
+                    <div style={{
+                      marginTop: spacing.scale[4],
+                      height: 4, borderRadius: 2,
+                      background: 'rgba(255,255,255,0.04)',
+                      overflow: 'hidden',
+                    }}>
                       <div style={{
-                        fontSize: '11px', color: 'rgba(255,255,255,0.7)',
-                        textAlign: 'center',
-                      }}>
-                        {p.label}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+                        height: '100%',
+                        width: `${intensity * 100}%`,
+                        background: `linear-gradient(90deg, ${colors.accent.primary}, #A855F7, #EC4899)`,
+                        borderRadius: 2,
+                        transition: 'width 0.1s ease',
+                      }} />
+                    </div>
+                  </div>
+                )}
 
-            {step === 4 && (
-              <div style={{ textAlign: 'center' }}>
-                <div style={{
-                  fontFamily: '"JetBrains Mono", monospace',
-                  fontSize: '18px', fontWeight: 600,
-                  color: 'rgba(255,255,255,0.92)',
-                  marginBottom: '8px',
-                }}>
-                  {generateName(seed)}
-                </div>
-                <div style={{
-                  fontSize: '12px', color: 'rgba(255,255,255,0.4)',
-                  marginBottom: '24px',
-                }}>
-                  {mood} · {movement} · {palette}
-                </div>
-                <button
-                  onClick={randomize}
-                  style={{
-                    padding: '8px 16px',
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '6px',
-                    color: 'rgba(255,255,255,0.6)',
-                    fontSize: '11px',
-                    cursor: 'pointer',
-                    marginBottom: '12px',
-                  }}
-                >
-                  ↻ Randomize
-                </button>
-              </div>
-            )}
+                {step === 3 && (
+                  <div>
+                    <div style={{ fontSize: typography.scale.base.size, color: colors.text.secondary, marginBottom: spacing.scale[4] }}>
+                      Color mood?
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                      {PALETTES.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => setPalette(p.id)}
+                          style={{
+                            padding: spacing.scale[3],
+                            background: palette === p.id ? colors.accent.subtle : colors.surface.primary,
+                            border: `1px solid ${palette === p.id ? colors.accent.glow.replace('0.4', '0.25') : colors.surface.secondary}`,
+                            borderRadius: radii.md,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={e => { if (palette !== p.id) e.currentTarget.style.borderColor = colors.borderHover }}
+                          onMouseLeave={e => { if (palette !== p.id) e.currentTarget.style.borderColor = colors.surface.secondary }}
+                        >
+                          <div style={{ display: 'flex', gap: 3, marginBottom: 8, justifyContent: 'center' }}>
+                            {p.colors.map((c, i) => (
+                              <div key={i} style={{
+                                width: 16, height: 16, borderRadius: radii.xs,
+                                background: c,
+                                boxShadow: palette === p.id ? `0 0 8px ${c}40` : 'none',
+                              }} />
+                            ))}
+                          </div>
+                          <div style={{
+                            fontSize: 11, color: palette === p.id ? colors.text.primary : colors.text.secondary,
+                            textAlign: 'center',
+                            fontFamily: typography.families.mono,
+                            fontWeight: 500,
+                          }}>
+                            {p.label}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {step === 4 && (
+                  <div style={{ textAlign: 'center', padding: `${spacing.scale[4]}px 0` }}>
+                    <div style={{
+                      fontFamily: typography.families.mono,
+                      fontSize: typography.scale.xxl.size,
+                      fontWeight: typography.scale.xxl.weight,
+                      color: colors.text.primary,
+                      letterSpacing: typography.scale.xxl.tracking,
+                      marginBottom: 8,
+                    }}>
+                      {generateName(seed)}
+                    </div>
+                    <div style={{
+                      fontSize: typography.scale.sm.size,
+                      color: colors.text.tertiary,
+                      fontFamily: typography.families.mono,
+                      marginBottom: spacing.scale[5],
+                      display: 'flex', gap: 8, justifyContent: 'center',
+                    }}>
+                      <span>{MOODS.find(m => m.id === mood)?.icon} {mood}</span>
+                      <span style={{ color: colors.text.disabled }}>·</span>
+                      <span>{MOVEMENTS.find(m => m.id === movement)?.icon} {movement}</span>
+                      <span style={{ color: colors.text.disabled }}>·</span>
+                      <span>{palette}</span>
+                    </div>
+                    <button
+                      onClick={randomize}
+                      style={{
+                        padding: `${spacing.scale[2]}px ${spacing.scale[4]}px`,
+                        background: colors.surface.primary,
+                        border: `1px solid ${colors.surface.secondary}`,
+                        borderRadius: radii.sm,
+                        color: colors.text.secondary,
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        fontFamily: typography.families.sans,
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = colors.surface.hover; e.currentTarget.style.borderColor = colors.borderHover }}
+                      onMouseLeave={e => { e.currentTarget.style.background = colors.surface.primary; e.currentTarget.style.borderColor = colors.surface.secondary }}
+                    >
+                      ↻ Randomize
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           {/* Footer */}
           <div style={{
-            padding: '16px 24px',
-            borderTop: '1px solid rgba(255,255,255,0.06)',
-            display: 'flex', justifyContent: 'flex-end', gap: '8px',
+            padding: `${spacing.scale[4]}px ${spacing.scale[6]}px`,
+            borderTop: `1px solid ${colors.surface.secondary}`,
+            display: 'flex', justifyContent: 'flex-end', gap: 8,
           }}>
             {step > 0 && (
               <button
                 onClick={() => setStep(s => s - 1)}
                 style={{
-                  padding: '8px 16px',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '6px',
-                  color: 'rgba(255,255,255,0.6)',
-                  fontSize: '12px',
+                  padding: `${spacing.scale[2]}px ${spacing.scale[4]}px`,
+                  background: colors.surface.primary,
+                  border: `1px solid ${colors.surface.secondary}`,
+                  borderRadius: radii.sm,
+                  color: colors.text.secondary,
+                  fontSize: 12,
                   cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
+                onMouseEnter={e => { e.currentTarget.style.background = colors.surface.hover; e.currentTarget.style.borderColor = colors.borderHover }}
+                onMouseLeave={e => { e.currentTarget.style.background = colors.surface.primary; e.currentTarget.style.borderColor = colors.surface.secondary }}
               >
                 Back
               </button>
@@ -350,15 +416,19 @@ export function ShaderCreator() {
               <button
                 onClick={() => setStep(s => s + 1)}
                 style={{
-                  padding: '8px 20px',
-                  background: '#6366F1',
+                  padding: `${spacing.scale[2]}px ${spacing.scale[5]}px`,
+                  background: colors.accent.primary,
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: radii.sm,
                   color: 'white',
-                  fontSize: '12px',
+                  fontSize: 12,
                   fontWeight: 500,
                   cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  fontFamily: typography.families.sans,
                 }}
+                onMouseEnter={e => { e.currentTarget.style.background = colors.accent.hover }}
+                onMouseLeave={e => { e.currentTarget.style.background = colors.accent.primary }}
               >
                 Next →
               </button>
@@ -366,16 +436,20 @@ export function ShaderCreator() {
               <button
                 onClick={generate}
                 style={{
-                  padding: '8px 20px',
-                  background: '#6366F1',
+                  padding: `${spacing.scale[2]}px ${spacing.scale[5]}px`,
+                  background: colors.accent.primary,
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: radii.sm,
                   color: 'white',
-                  fontSize: '12px',
+                  fontSize: 12,
                   fontWeight: 500,
                   cursor: 'pointer',
-                  boxShadow: '0 0 20px rgba(99,102,241,0.3)',
+                  boxShadow: `0 0 24px ${colors.accent.glow}`,
+                  transition: 'all 0.15s ease',
+                  fontFamily: typography.families.sans,
                 }}
+                onMouseEnter={e => { e.currentTarget.style.background = colors.accent.hover; e.currentTarget.style.boxShadow = `0 0 32px ${colors.accent.glow}` }}
+                onMouseLeave={e => { e.currentTarget.style.background = colors.accent.primary; e.currentTarget.style.boxShadow = `0 0 24px ${colors.accent.glow}` }}
               >
                 Generate ✦
               </button>

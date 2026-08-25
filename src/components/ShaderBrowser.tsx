@@ -1,12 +1,20 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore } from '../state/stores'
 import { SHADER_LIBRARY, searchShaders } from '../shaders/library'
 import { ShaderDefinition, ShaderCategory, CATEGORY_LABELS } from '../utils/types'
+import { getShaderPreviewManager } from '../renderer/ShaderPreviewManager'
+import { colors, typography, spacing, radii, animation } from '../ui/tokens'
 
 const CATEGORIES: (ShaderCategory | 'all' | 'favorites' | 'recent')[] = [
-  'all', 'fractals', 'vj', 'geometric', 'liquid', 'cosmic', 'synthwave', 'abstract', 'minimal', 'favorites', 'recent',
+  'all', 'fractals', 'vj', 'geometric', 'liquid', 'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'favorites', 'recent',
 ]
+
+const CATEGORY_ICONS: Record<string, string> = {
+  all: '◈', fractals: '✦', vj: '◎', geometric: '◇', liquid: '≈',
+  cosmic: '✧', synthwave: '▶', abstract: '◆', minimal: '○', particle: '∴',
+  favorites: '★', recent: '◷',
+}
 
 export function ShaderBrowser() {
   const browserOpen = useUIStore(s => s.browserOpen)
@@ -19,6 +27,8 @@ export function ShaderBrowser() {
 
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<ShaderCategory | 'all' | 'favorites' | 'recent'>('all')
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
 
   const filteredShaders = useMemo(() => {
     let shaders = search ? searchShaders(search) : SHADER_LIBRARY
@@ -34,6 +44,13 @@ export function ShaderBrowser() {
     return shaders
   }, [search, activeCategory, favorites, recent])
 
+  useEffect(() => {
+    if (browserOpen && filteredShaders.length > 0) {
+      const manager = getShaderPreviewManager()
+      manager.enqueue(filteredShaders)
+    }
+  }, [browserOpen, filteredShaders])
+
   if (!browserOpen) return null
 
   return (
@@ -42,129 +59,185 @@ export function ShaderBrowser() {
         initial={{ x: '-100%', opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: '-100%', opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        transition={animation.spring.panel}
         style={{
           position: 'absolute',
           top: 0, left: 0, bottom: 0,
-          width: '420px', maxWidth: '90vw',
+          width: '460px', maxWidth: '92vw',
           zIndex: 25,
-          background: 'rgba(10,10,14,0.92)',
-          backdropFilter: 'blur(24px)',
-          borderRight: '1px solid rgba(255,255,255,0.06)',
+          background: colors.surface.panel,
+          backdropFilter: 'blur(32px) saturate(1.2)',
+          borderRight: `1px solid ${colors.surface.secondary}`,
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
         }}
       >
         {/* Header */}
         <div style={{
-          padding: '16px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          padding: `${spacing.scale[4]}px ${spacing.scale[5]}px`,
+          borderBottom: `1px solid ${colors.surface.secondary}`,
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{
-              fontFamily: '"JetBrains Mono", monospace',
-              fontSize: '14px', fontWeight: 600,
-              color: 'rgba(255,255,255,0.92)',
-            }}>Shader Library</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: `${spacing.scale[3]}px` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: `${spacing.scale[2]}px` }}>
+              <span style={{
+                fontFamily: typography.families.mono,
+                fontSize: typography.scale.xl.size,
+                fontWeight: typography.scale.xl.weight,
+                color: colors.text.primary,
+                letterSpacing: typography.scale.xl.tracking,
+              }}>Shader Library</span>
+              <span style={{
+                fontSize: 10,
+                color: colors.text.disabled,
+                fontFamily: typography.families.mono,
+                background: colors.surface.primary,
+                padding: '2px 6px',
+                borderRadius: radii.xs,
+              }}>{SHADER_LIBRARY.length}</span>
+            </div>
             <button onClick={toggleBrowser} style={{
-              padding: '4px 8px',
-              background: 'rgba(255,255,255,0.06)',
-              border: 'none', borderRadius: '4px',
-              color: 'rgba(255,255,255,0.5)',
-              fontSize: '11px', cursor: 'pointer',
-            }}>ESC</button>
-          </div>
-          <input
-            type="text"
-            placeholder="Search shaders..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '6px',
-              color: 'rgba(255,255,255,0.92)',
-              fontSize: '12px',
-              fontFamily: '"Inter", sans-serif',
-              outline: 'none',
+              padding: '4px 10px',
+              background: colors.surface.primary,
+              border: `1px solid ${colors.surface.secondary}`,
+              borderRadius: radii.xs,
+              color: colors.text.tertiary,
+              fontSize: 10,
+              fontFamily: typography.families.mono,
+              fontWeight: 500,
+              transition: 'all 0.15s ease',
             }}
-          />
+              onMouseEnter={e => { e.currentTarget.style.background = colors.surface.hover; e.currentTarget.style.color = colors.text.secondary }}
+              onMouseLeave={e => { e.currentTarget.style.background = colors.surface.primary; e.currentTarget.style.color = colors.text.tertiary }}
+            >ESC</button>
+          </div>
+
+          {/* Search */}
+          <div style={{ position: 'relative' }}>
+            <span style={{
+              position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+              color: colors.text.disabled, fontSize: 13,
+            }}>⌕</span>
+            <input
+              type="text"
+              placeholder="Search shaders by name, tag, or category..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '9px 12px 9px 30px',
+                background: colors.surface.primary,
+                border: `1px solid ${colors.surface.secondary}`,
+                borderRadius: radii.sm,
+                color: colors.text.primary,
+                fontSize: typography.scale.sm.size,
+                fontFamily: typography.families.sans,
+                outline: 'none',
+                transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+              }}
+            />
+            {search && (
+              <button onClick={() => setSearch('')} style={{
+                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                color: colors.text.disabled, fontSize: 14, padding: '2px 4px',
+              }}>×</button>
+            )}
+          </div>
         </div>
 
         {/* Category tabs */}
         <div style={{
-          display: 'flex', gap: '4px', padding: '8px 16px',
-          overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex', gap: '3px', padding: `${spacing.scale[2]}px ${spacing.scale[4]}px`,
+          overflowX: 'auto', borderBottom: `1px solid ${colors.surface.secondary}`,
           flexShrink: 0,
         }}>
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              style={{
-                padding: '4px 10px',
-                background: activeCategory === cat ? 'rgba(99,102,241,0.15)' : 'transparent',
-                border: `1px solid ${activeCategory === cat ? 'rgba(99,102,241,0.3)' : 'transparent'}`,
-                borderRadius: '4px',
-                color: activeCategory === cat ? '#818CF8' : 'rgba(255,255,255,0.5)',
-                fontSize: '10px',
-                fontFamily: '"Inter", sans-serif',
-                fontWeight: 500,
-                textTransform: 'capitalize',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {cat === 'all' ? 'All' : cat === 'favorites' ? '★ Fav' : cat === 'recent' ? 'Recent' : (CATEGORY_LABELS[cat] || cat)}
-            </button>
-          ))}
+          {CATEGORIES.map(cat => {
+            const isActive = activeCategory === cat
+            const icon = CATEGORY_ICONS[cat] || '◈'
+            return (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                style={{
+                  padding: '5px 10px',
+                  background: isActive ? colors.accent.subtle : 'transparent',
+                  border: `1px solid ${isActive ? colors.accent.glow.replace('0.4', '0.25') : 'transparent'}`,
+                  borderRadius: radii.xs,
+                  color: isActive ? colors.accent.hover : colors.text.tertiary,
+                  fontSize: 11,
+                  fontFamily: typography.families.sans,
+                  fontWeight: isActive ? 500 : 400,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                  display: 'flex', alignItems: 'center', gap: '4px',
+                }}
+              >
+                <span style={{ fontSize: 10 }}>{icon}</span>
+                {cat === 'all' ? 'All' : cat === 'favorites' ? 'Fav' : cat === 'recent' ? 'Recent' : (CATEGORY_LABELS[cat] || cat)}
+              </button>
+            )
+          })}
         </div>
 
         {/* Shader grid */}
-        <div style={{
-          flex: 1, overflow: 'auto', padding: '12px 16px',
+        <div ref={gridRef} style={{
+          flex: 1, overflow: 'auto', padding: `${spacing.scale[3]}px ${spacing.scale[4]}px`,
           display: 'grid',
           gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '8px',
+          gap: `${spacing.scale[2]}px`,
           alignContent: 'start',
         }}>
-          {filteredShaders.map((shader, i) => (
-            <ShaderCard
-              key={shader.id}
-              shader={shader}
-              isActive={activeShader?.id === shader.id}
-              isFavorite={favorites.includes(shader.id)}
-              onClick={() => setActiveShader(shader)}
-              onToggleFavorite={() => toggleFavorite(shader.id)}
-              index={i}
-            />
-          ))}
+          <AnimatePresence mode="popLayout">
+            {filteredShaders.map((shader, i) => (
+              <ShaderCard
+                key={shader.id}
+                shader={shader}
+                isActive={activeShader?.id === shader.id}
+                isFavorite={favorites.includes(shader.id)}
+                isHovered={hoveredId === shader.id}
+                onClick={() => setActiveShader(shader)}
+                onToggleFavorite={() => toggleFavorite(shader.id)}
+                onHover={() => setHoveredId(shader.id)}
+                onLeave={() => setHoveredId(null)}
+                index={i}
+              />
+            ))}
+          </AnimatePresence>
           {filteredShaders.length === 0 && (
             <div style={{
               gridColumn: '1 / -1',
               textAlign: 'center',
-              padding: '40px 0',
-              color: 'rgba(255,255,255,0.3)',
-              fontSize: '12px',
-              fontFamily: '"Inter", sans-serif',
+              padding: `${spacing.scale[10]}px 0`,
+              color: colors.text.disabled,
+              fontSize: typography.scale.sm.size,
+              fontFamily: typography.families.sans,
             }}>
+              <div style={{ fontSize: 24, marginBottom: 8, opacity: 0.3 }}>◈</div>
               No shaders found
             </div>
           )}
         </div>
 
-        {/* Footer count */}
+        {/* Footer */}
         <div style={{
-          padding: '8px 16px',
-          borderTop: '1px solid rgba(255,255,255,0.06)',
-          fontSize: '10px',
-          color: 'rgba(255,255,255,0.3)',
-          fontFamily: '"JetBrains Mono", monospace',
+          padding: `${spacing.scale[2]}px ${spacing.scale[4]}px`,
+          borderTop: `1px solid ${colors.surface.secondary}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
-          {filteredShaders.length} shaders
+          <span style={{
+            fontSize: 10,
+            color: colors.text.disabled,
+            fontFamily: typography.families.mono,
+          }}>
+            {filteredShaders.length} shader{filteredShaders.length !== 1 ? 's' : ''}
+          </span>
+          <span style={{
+            fontSize: 10,
+            color: colors.text.disabled,
+            fontFamily: typography.families.mono,
+          }}>
+            B browse · ↑↓ navigate · Enter select
+          </span>
         </div>
       </motion.div>
     </AnimatePresence>
@@ -172,110 +245,160 @@ export function ShaderBrowser() {
 }
 
 function ShaderCard({
-  shader, isActive, isFavorite, onClick, onToggleFavorite, index
+  shader, isActive, isFavorite, isHovered, onClick, onToggleFavorite, onHover, onLeave, index
 }: {
   shader: ShaderDefinition
   isActive: boolean
   isFavorite: boolean
+  isHovered: boolean
   onClick: () => void
   onToggleFavorite: () => void
+  onHover: () => void
+  onLeave: () => void
   index: number
 }) {
-  const [hovered, setHovered] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const previewRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const manager = getShaderPreviewManager()
+    const cached = manager.getCached(shader.id)
+    if (cached) {
+      setPreviewUrl(cached)
+      return
+    }
+    const unsub = manager.subscribe(shader.id, (url) => {
+      setPreviewUrl(url)
+    })
+    return unsub
+  }, [shader.id])
 
   const tierColor = {
-    low: '#22C55E', medium: '#F59E0B', high: '#EF4444', ultra: '#A855F7',
+    low: colors.state.success,
+    medium: colors.state.warning,
+    high: colors.state.error,
+    ultra: '#A855F7',
   }[shader.performanceTier]
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.02, duration: 0.2 }}
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ delay: Math.min(index * 0.02, 0.3), duration: 0.2 }}
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
       style={{
         background: isActive
-          ? 'rgba(99,102,241,0.12)'
-          : hovered ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)',
-        border: `1px solid ${isActive ? 'rgba(99,102,241,0.3)' : hovered ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)'}`,
-        borderRadius: '8px',
+          ? 'rgba(99,102,241,0.10)'
+          : isHovered ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
+        border: `1px solid ${isActive ? 'rgba(99,102,241,0.3)' : isHovered ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)'}`,
+        borderRadius: radii.md,
         cursor: 'pointer',
         overflow: 'hidden',
-        transition: 'all 0.15s ease',
-        transform: hovered ? 'translateY(-1px)' : 'none',
-        boxShadow: isActive ? '0 0 20px rgba(99,102,241,0.15)' : 'none',
+        transition: 'background 0.15s ease, border-color 0.15s ease',
+        transform: isHovered ? 'translateY(-1px)' : 'none',
+        boxShadow: isActive ? '0 0 24px rgba(99,102,241,0.12), inset 0 1px 0 rgba(99,102,241,0.1)' : 'none',
       }}
     >
-      {/* Preview placeholder */}
+      {/* Preview area */}
       <div style={{
-        height: '90px',
-        background: `linear-gradient(135deg, 
-          ${shader.category === 'fractals' ? 'rgba(99,102,241,0.3), rgba(168,85,247,0.2)' :
-            shader.category === 'cosmic' ? 'rgba(30,10,60,0.8), rgba(80,20,120,0.4)' :
-            shader.category === 'synthwave' ? 'rgba(255,50,100,0.3), rgba(100,0,200,0.4)' :
-            shader.category === 'liquid' ? 'rgba(20,100,180,0.3), rgba(180,40,120,0.3)' :
-            shader.category === 'minimal' ? 'rgba(30,30,40,0.8), rgba(50,50,70,0.6)' :
-            'rgba(20,20,30,0.8), rgba(40,20,60,0.4)'
-          })`,
+        height: '110px',
+        background: previewUrl
+          ? `url(${previewUrl}) center/cover`
+          : `linear-gradient(135deg, rgba(20,20,30,0.9), rgba(30,20,50,0.6))`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative',
+        overflow: 'hidden',
       }}>
-        <span style={{
-          fontFamily: '"JetBrains Mono", monospace',
-          fontSize: '20px',
-          color: 'rgba(255,255,255,0.15)',
-          fontWeight: 700,
-        }}>
-          {shader.name.charAt(0)}
-        </span>
+        {!previewUrl && (
+          <div style={{
+            width: '100%', height: '100%',
+            background: 'linear-gradient(135deg, rgba(20,20,30,0.9), rgba(30,20,50,0.6))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{
+              fontFamily: typography.families.mono,
+              fontSize: 18,
+              color: 'rgba(255,255,255,0.08)',
+              fontWeight: 700,
+            }}>{shader.name.charAt(0)}</span>
+          </div>
+        )}
+
+        {/* Shimmer loading overlay */}
+        {!previewUrl && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent)',
+            backgroundSize: '200% 100%',
+            animation: 'shimmer 2s infinite',
+          }} />
+        )}
 
         {/* Tier badge */}
         <div style={{
-          position: 'absolute', top: '6px', left: '6px',
-          width: '6px', height: '6px', borderRadius: '50%',
+          position: 'absolute', top: 6, left: 6,
+          width: 7, height: 7, borderRadius: '50%',
           background: tierColor,
           boxShadow: `0 0 6px ${tierColor}`,
+          border: '1px solid rgba(0,0,0,0.3)',
         }} />
 
         {/* Favorite button */}
         <button
           onClick={(e) => { e.stopPropagation(); onToggleFavorite() }}
           style={{
-            position: 'absolute', top: '4px', right: '4px',
-            width: '24px', height: '24px',
+            position: 'absolute', top: 4, right: 4,
+            width: 24, height: 24,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: isFavorite ? 'rgba(99,102,241,0.3)' : 'rgba(0,0,0,0.3)',
-            border: 'none', borderRadius: '4px',
-            color: isFavorite ? '#818CF8' : 'rgba(255,255,255,0.3)',
-            fontSize: '12px', cursor: 'pointer',
+            background: isFavorite ? 'rgba(99,102,241,0.35)' : 'rgba(0,0,0,0.35)',
+            border: 'none', borderRadius: radii.xs,
+            color: isFavorite ? '#818CF8' : 'rgba(255,255,255,0.25)',
+            fontSize: 11, cursor: 'pointer',
             transition: 'all 0.15s ease',
+            backdropFilter: 'blur(4px)',
           }}
         >
           {isFavorite ? '★' : '☆'}
         </button>
+
+        {/* Active indicator */}
+        {isActive && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            height: 2,
+            background: 'linear-gradient(90deg, #6366F1, #A855F7)',
+          }} />
+        )}
       </div>
 
       {/* Info */}
-      <div style={{ padding: '8px 10px' }}>
+      <div style={{ padding: `${spacing.scale[2]}px ${spacing.scale[3]}px` }}>
         <div style={{
-          fontFamily: '"JetBrains Mono", monospace',
-          fontSize: '11px', fontWeight: 600,
-          color: 'rgba(255,255,255,0.92)',
-          marginBottom: '2px',
+          fontFamily: typography.families.mono,
+          fontSize: typography.scale.sm.size,
+          fontWeight: 600,
+          color: colors.text.primary,
+          marginBottom: 3,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          lineHeight: '16px',
         }}>
           {shader.name}
         </div>
         <div style={{
-          fontSize: '10px',
-          color: 'rgba(255,255,255,0.4)',
-          display: 'flex', gap: '6px', alignItems: 'center',
+          fontSize: 10,
+          color: colors.text.tertiary,
+          display: 'flex', gap: 5, alignItems: 'center',
         }}>
-          <span style={{ textTransform: 'capitalize' }}>{shader.category}</span>
-          <span>·</span>
-          <span>{shader.tags[0]}</span>
+          <span style={{
+            textTransform: 'capitalize',
+            color: isActive ? colors.accent.hover : colors.text.tertiary,
+          }}>{shader.category}</span>
+          <span style={{ opacity: 0.4 }}>·</span>
+          <span style={{ opacity: 0.7 }}>{shader.tags[0]}</span>
         </div>
       </div>
     </motion.div>

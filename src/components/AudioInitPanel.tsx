@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import { connectAudio } from '../audio/audioSingleton'
 import type { AudioSourceType } from '../audio/AudioEngine'
+import { colors, typography, spacing, radii } from '../ui/tokens'
 
 export function AudioInitBar() {
   const [show, setShow] = useState(false)
@@ -28,95 +30,119 @@ export function AudioInitBar() {
 
   if (!show) {
     return (
-      <button
+      <motion.button
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.4 }}
         onClick={() => setShow(true)}
         style={{
-          position: 'absolute', bottom: '72px', left: '50%',
+          position: 'absolute', bottom: 68, left: '50%',
           transform: 'translateX(-50%)',
-          padding: '8px 20px',
-          background: 'rgba(99,102,241,0.12)',
-          border: '1px solid rgba(99,102,241,0.25)',
-          borderRadius: '20px',
-          color: '#818CF8',
-          fontSize: '11px',
-          fontFamily: '"Inter", sans-serif',
+          padding: `${spacing.scale[2] + 1}px ${spacing.scale[5]}px`,
+          background: colors.accent.subtle,
+          border: `1px solid rgba(99,102,241,0.2)`,
+          borderRadius: 20,
+          color: colors.accent.hover,
+          fontSize: typography.scale.sm.size,
+          fontFamily: typography.families.sans,
           fontWeight: 500,
           cursor: 'pointer',
           zIndex: 15,
           backdropFilter: 'blur(12px)',
           transition: 'all 0.2s ease',
-          animation: 'pulse-glow 2s ease-in-out infinite',
+          animation: 'pulse-glow 2.5s ease-in-out infinite',
+          display: 'flex', alignItems: 'center', gap: 6,
         }}
       >
-        ▶ Connect Audio Source
-      </button>
+        <span style={{ fontSize: 10 }}>▶</span>
+        Connect Audio Source
+      </motion.button>
     )
   }
 
-  const sources: { type: AudioSourceType; label: string; icon: string }[] = [
-    { type: 'demo', label: 'Demo', icon: '♪' },
-    { type: 'mic', label: 'Microphone', icon: '🎤' },
-    { type: 'system', label: 'System Audio', icon: '🔊' },
-    { type: 'file', label: 'Audio File', icon: '📁' },
+  const sources: { type: AudioSourceType; label: string; icon: string; desc: string }[] = [
+    { type: 'demo', label: 'Demo', icon: '♪', desc: 'Built-in oscillator' },
+    { type: 'mic', label: 'Mic', icon: '🎤', desc: 'Microphone input' },
+    { type: 'system', label: 'System', icon: '🔊', desc: 'System audio' },
+    { type: 'file', label: 'File', icon: '📄', desc: 'Audio file' },
   ]
 
   return (
-    <div style={{
-      position: 'absolute', bottom: '72px', left: '50%',
-      transform: 'translateX(-50%)',
-      display: 'flex', gap: '6px',
-      padding: '10px 14px',
-      background: 'rgba(10,10,14,0.92)',
-      border: '1px solid rgba(255,255,255,0.08)',
-      borderRadius: '12px',
-      zIndex: 15,
-      backdropFilter: 'blur(16px)',
-    }}>
-      {sources.map(s => (
-        <button
+    <motion.div
+      initial={{ opacity: 0, y: 12, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 12, scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+      style={{
+        position: 'absolute', bottom: 68, left: '50%',
+        transform: 'translateX(-50%)',
+        display: 'flex', gap: 6,
+        padding: `${spacing.scale[3]}px ${spacing.scale[3]}px`,
+        background: colors.surface.panel,
+        border: `1px solid ${colors.surface.secondary}`,
+        borderRadius: radii.lg,
+        zIndex: 15,
+        backdropFilter: 'blur(24px) saturate(1.1)',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+      }}
+    >
+      {sources.map((s, i) => (
+        <motion.button
           key={s.type}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.05 }}
           onClick={() => handleConnect(s.type)}
           disabled={connecting}
           style={{
-            padding: '8px 14px',
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: '6px',
-            color: 'rgba(255,255,255,0.7)',
-            fontSize: '11px',
-            fontFamily: '"Inter", sans-serif',
+            padding: `${spacing.scale[2]}px ${spacing.scale[3] + 2}px`,
+            background: colors.surface.primary,
+            border: `1px solid ${colors.surface.secondary}`,
+            borderRadius: radii.sm,
+            color: colors.text.secondary,
+            fontSize: 11,
+            fontFamily: typography.families.sans,
+            fontWeight: 500,
             cursor: connecting ? 'wait' : 'pointer',
-            opacity: connecting ? 0.5 : 1,
+            opacity: connecting ? 0.4 : 1,
             transition: 'all 0.15s ease',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+            minWidth: 64,
           }}
           onMouseEnter={e => {
             if (!connecting) {
-              e.currentTarget.style.background = 'rgba(99,102,241,0.15)'
-              e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'
+              e.currentTarget.style.background = colors.accent.subtle
+              e.currentTarget.style.borderColor = colors.accent.glow.replace('0.4', '0.25')
+              e.currentTarget.style.color = colors.text.primary
             }
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
+            e.currentTarget.style.background = colors.surface.primary
+            e.currentTarget.style.borderColor = colors.surface.secondary
+            e.currentTarget.style.color = colors.text.secondary
           }}
         >
-          <span style={{ marginRight: '4px' }}>{s.icon}</span>
-          {s.label}
-        </button>
+          <span style={{ fontSize: 14 }}>{s.icon}</span>
+          <span>{s.label}</span>
+        </motion.button>
       ))}
       <button
         onClick={() => setShow(false)}
         style={{
-          padding: '8px 10px',
+          padding: `0 ${spacing.scale[1]}px`,
           background: 'transparent',
           border: 'none',
-          color: 'rgba(255,255,255,0.3)',
-          fontSize: '14px',
+          color: colors.text.disabled,
+          fontSize: 16,
           cursor: 'pointer',
+          alignSelf: 'flex-start',
+          transition: 'color 0.15s ease',
         }}
+        onMouseEnter={e => { e.currentTarget.style.color = colors.text.secondary }}
+        onMouseLeave={e => { e.currentTarget.style.color = colors.text.disabled }}
       >
         ×
       </button>
-    </div>
+    </motion.div>
   )
 }

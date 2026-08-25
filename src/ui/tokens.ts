@@ -15,6 +15,7 @@ export const colors = {
     glow: 'rgba(99,102,241,0.4)',
     subtle: 'rgba(99,102,241,0.12)',
   },
+  borderHover: 'rgba(255,255,255,0.12)',
   text: {
     primary: 'rgba(255,255,255,0.92)',
     secondary: 'rgba(255,255,255,0.64)',

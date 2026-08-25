@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore } from '../state/stores'
 import { SHADER_LIBRARY, searchShaders } from '../shaders/library'
+import { colors, typography, spacing, radii } from '../ui/tokens'
 
 interface CommandItem {
   label: string
@@ -19,26 +20,30 @@ export function CommandPalette() {
   const setActiveShader = useShaderStore(s => s.setActiveShader)
 
   const [query, setQuery] = useState('')
+  const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (open && inputRef.current) {
       inputRef.current.focus()
       setQuery('')
+      setSelectedIndex(0)
     }
   }, [open])
 
   const commands: CommandItem[] = useMemo(() => {
     const shaderCmds: CommandItem[] = SHADER_LIBRARY.map(s => ({
       label: s.name,
-      category: 'Shaders',
+      category: s.category,
       action: () => { setActiveShader(s); toggle() },
     }))
 
     return [
       { label: 'Toggle Shader Browser', shortcut: 'B', category: 'Panels', action: () => { toggleBrowser(); toggle() } },
       { label: 'Create New Shader', shortcut: 'N', category: 'Panels', action: () => { toggleCreator(); toggle() } },
-      { label: 'Toggle Immersive Mode', shortcut: 'F', category: 'Panels', action: () => { toggleImmersive(); toggle() } },
+      { label: 'Toggle Fullscreen', shortcut: 'F', category: 'Panels', action: () => { toggleImmersive(); toggle() } },
+      { label: 'Open Command Palette', shortcut: '⌘K', category: 'Panels', action: () => {} },
       ...shaderCmds,
     ]
   }, [setActiveShader, toggle, toggleBrowser, toggleCreator, toggleImmersive])
@@ -46,8 +51,14 @@ export function CommandPalette() {
   const filtered = useMemo(() => {
     if (!query) return commands
     const q = query.toLowerCase()
-    return commands.filter(c => c.label.toLowerCase().includes(q))
+    return commands.filter(c =>
+      c.label.toLowerCase().includes(q) || c.category.toLowerCase().includes(q)
+    )
   }, [query, commands])
+
+  useEffect(() => {
+    setSelectedIndex(0)
+  }, [query])
 
   if (!open) return null
 
@@ -56,82 +67,158 @@ export function CommandPalette() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
       style={{
         position: 'absolute', inset: 0, zIndex: 40,
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        paddingTop: '20vh',
-        background: 'rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(4px)',
+        paddingTop: '18vh',
+        background: 'rgba(0,0,0,0.55)',
+        backdropFilter: 'blur(8px)',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) toggle() }}
     >
       <motion.div
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
+        initial={{ y: -16, opacity: 0, scale: 0.98 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         style={{
-          width: '480px', maxWidth: '90vw',
-          background: 'rgba(15,15,20,0.95)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: '12px',
+          width: 520, maxWidth: '92vw',
+          background: 'rgba(12,12,16,0.96)',
+          border: `1px solid ${colors.surface.secondary}`,
+          borderRadius: radii.lg,
           overflow: 'hidden',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 1px rgba(99,102,241,0.2)',
         }}
       >
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder="Type a command or shader name..."
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Escape') toggle()
-            if (e.key === 'Enter' && filtered.length > 0) {
-              filtered[0].action()
-            }
-          }}
-          style={{
-            width: '100%',
-            padding: '16px 20px',
-            background: 'transparent',
-            border: 'none',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-            color: 'rgba(255,255,255,0.92)',
-            fontSize: '14px',
-            fontFamily: '"Inter", sans-serif',
-            outline: 'none',
-          }}
-        />
-        <div style={{ maxHeight: '300px', overflow: 'auto', padding: '4px' }}>
-          {filtered.slice(0, 12).map((item, i) => (
-            <button
-              key={i}
-              onClick={item.action}
-              style={{
-                width: '100%',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '10px 16px',
-                background: 'transparent',
-                border: 'none', borderRadius: '6px',
-                color: 'rgba(255,255,255,0.8)',
-                fontSize: '13px',
-                fontFamily: '"Inter", sans-serif',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-              onMouseEnter={(e: React.MouseEvent) => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'}
-              onMouseLeave={(e: React.MouseEvent) => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-            >
-              <span>{item.label}</span>
-              {item.shortcut && (
-                <span style={{
-                  fontSize: '10px', color: 'rgba(255,255,255,0.3)',
-                  fontFamily: '"JetBrains Mono", monospace',
-                }}>
-                  {item.shortcut}
-                </span>
-              )}
-            </button>
-          ))}
+        {/* Search input */}
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          padding: `${spacing.scale[4]}px ${spacing.scale[5]}px`,
+          borderBottom: `1px solid ${colors.surface.secondary}`,
+          gap: 10,
+        }}>
+          <span style={{ color: colors.text.disabled, fontSize: 16 }}>⌕</span>
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search shaders, commands..."
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Escape') toggle()
+              if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, filtered.length - 1)) }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, 0)) }
+              if (e.key === 'Enter' && filtered.length > 0) {
+                filtered[selectedIndex].action()
+              }
+            }}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              color: colors.text.primary,
+              fontSize: typography.scale.md.size,
+              fontFamily: typography.families.sans,
+              outline: 'none',
+            }}
+          />
+          <kbd style={{
+            fontSize: 9,
+            fontFamily: typography.families.mono,
+            color: colors.text.disabled,
+            background: colors.surface.primary,
+            padding: '2px 6px',
+            borderRadius: radii.xs,
+            border: `1px solid ${colors.surface.secondary}`,
+          }}>ESC</kbd>
+        </div>
+
+        {/* Results */}
+        <div ref={listRef} style={{ maxHeight: 340, overflow: 'auto', padding: spacing.scale[1] }}>
+          {filtered.length === 0 && (
+            <div style={{
+              padding: `${spacing.scale[6]}px`,
+              textAlign: 'center',
+              color: colors.text.disabled,
+              fontSize: typography.scale.sm.size,
+            }}>
+              No results found
+            </div>
+          )}
+          {filtered.map((item, i) => {
+            const isSelected = i === selectedIndex
+            return (
+              <button
+                key={i}
+                onClick={item.action}
+                onMouseEnter={() => setSelectedIndex(i)}
+                style={{
+                  width: '100%',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: `${spacing.scale[2] + 2}px ${spacing.scale[3]}px`,
+                  background: isSelected ? 'rgba(99,102,241,0.1)' : 'transparent',
+                  border: 'none',
+                  borderRadius: radii.sm,
+                  color: isSelected ? colors.text.primary : colors.text.secondary,
+                  fontSize: typography.scale.base.size,
+                  fontFamily: typography.families.sans,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background 0.08s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{
+                    fontSize: 10, color: isSelected ? colors.accent.hover : colors.text.disabled,
+                    fontFamily: typography.families.mono,
+                    minWidth: 18,
+                  }}>
+                    {item.shortcut ? '⌨' : '◈'}
+                  </span>
+                  <span>{item.label}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{
+                    fontSize: 9,
+                    color: colors.text.disabled,
+                    fontFamily: typography.families.sans,
+                  }}>
+                    {item.category}
+                  </span>
+                  {item.shortcut && (
+                    <kbd style={{
+                      fontSize: 9,
+                      color: colors.text.disabled,
+                      fontFamily: typography.families.mono,
+                      background: colors.surface.primary,
+                      padding: '1px 5px',
+                      borderRadius: 3,
+                      border: `1px solid ${colors.surface.secondary}`,
+                    }}>
+                      {item.shortcut}
+                    </kbd>
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Footer hint */}
+        <div style={{
+          padding: `${spacing.scale[2]}px ${spacing.scale[4]}px`,
+          borderTop: `1px solid ${colors.surface.secondary}`,
+          display: 'flex', gap: 12,
+        }}>
+          <span style={{ fontSize: 9, color: colors.text.disabled, fontFamily: typography.families.mono }}>
+            ↑↓ navigate
+          </span>
+          <span style={{ fontSize: 9, color: colors.text.disabled, fontFamily: typography.families.mono }}>
+            ↵ select
+          </span>
+          <span style={{ fontSize: 9, color: colors.text.disabled, fontFamily: typography.families.mono }}>
+            esc close
+          </span>
         </div>
       </motion.div>
     </motion.div>
