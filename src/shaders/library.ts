@@ -215,7 +215,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'bass', param: 'distortion', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }],
     'low'
   ),
 
@@ -246,7 +246,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }],
     'low'
   ),
 
@@ -271,7 +271,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }],
     'low'
   ),
 
@@ -301,7 +301,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }],
     'low'
   ),
 
@@ -328,7 +328,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }],
     'low'
   ),
 
@@ -364,7 +364,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }],
     'medium'
   ),
 
@@ -389,7 +389,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 3, default: 1, step: 0.1, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }],
     'medium'
   ),
 
@@ -424,7 +424,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }],
     'medium'
   ),
 
@@ -454,7 +454,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }],
     'medium'
   ),
 
@@ -483,7 +483,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 3, default: 1, step: 0.1, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }],
     'high'
   ),
 
@@ -519,7 +519,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }],
     'low'
   ),
 
@@ -546,7 +546,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 3, default: 1, step: 0.1, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }],
     'medium'
   ),
 
@@ -575,7 +575,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }],
     'low'
   ),
 
@@ -600,7 +600,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }],
     'low'
   ),
 
@@ -625,7 +625,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }],
     'low'
   ),
 
@@ -658,7 +658,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
     {},
-    [],
+    [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'intensity', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }],
     'high'
   ),
 
@@ -703,7 +703,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'high'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'high'
   ),
 
   createShader(
@@ -729,7 +729,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   // ── Additional VJ ──
@@ -756,7 +756,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -779,7 +779,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'low'
   ),
 
   // ── Additional GEOMETRIC ──
@@ -808,7 +808,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -841,7 +841,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   // ── Additional LIQUID ──
@@ -869,7 +869,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 3, default: 1, step: 0.1, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -891,7 +891,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   // ── Additional COSMIC ──
@@ -917,7 +917,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -942,7 +942,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   // ── Additional SYNTHWAVE ──
@@ -982,7 +982,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1005,7 +1005,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   // ── Additional ABSTRACT ──
@@ -1029,7 +1029,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 3, default: 1, step: 0.1, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1052,7 +1052,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -1079,7 +1079,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   // ── Additional PARTICLE ──
@@ -1117,7 +1117,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'high'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'intensity', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'high'
   ),
 
   createShader(
@@ -1147,7 +1147,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'high'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'intensity', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'high'
   ),
 
   // ── Additional MINIMAL ──
@@ -1170,7 +1170,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -1194,7 +1194,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -1218,7 +1218,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 2, default: 0, step: 0.05, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   // ── More VJ ──
@@ -1240,7 +1240,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 3, default: 1.5, step: 0.1, group: 'audio' },
      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'low'
   ),
 
   // ── 100+ NEW SHADERS ──
@@ -1299,7 +1299,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'zoom', label: 'Zoom', min: 0, max: 5, default: 1, step: 0.1, group: 'transform' },
      { id: 'blend', label: 'Blend', min: 0, max: 1, default: 0.1, step: 0.01, group: 'audio' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1322,7 +1322,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'rate', label: 'Growth Rate', min: 2.5, max: 4, default: 3.5, step: 0.01, group: 'chaos' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -1352,7 +1352,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'iterations', label: 'Iterations', min: 10, max: 50, default: 20, step: 1, group: 'quality' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1494,7 +1494,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'rate', label: 'Growth Rate', min: 2.5, max: 4, default: 3.5, step: 0.01, group: 'chaos' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1551,7 +1551,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'power', label: 'Power', min: 2, max: 8, default: 3, step: 0.1, group: 'shape' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1575,7 +1575,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'intensity', label: 'Intensity', min: 0, max: 2, default: 1, step: 0.1, group: 'glitch' },
      { id: 'scanlines', label: 'Scanlines', min: 0, max: 1, default: 0.5, step: 0.1, group: 'glitch' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -1600,7 +1600,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'segments', label: 'Segments', min: 3, max: 12, default: 6, step: 1, group: 'shape' },
      { id: 'depth', label: 'Depth', min: 0.5, max: 3, default: 1, step: 0.1, group: 'transform' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1625,7 +1625,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'speed', label: 'Speed', min: 0, max: 3, default: 1, step: 0.1, group: 'animation' },
      { id: 'complexity', label: 'Complexity', min: 4, max: 16, default: 8, step: 1, group: 'shape' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1650,7 +1650,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'feedback', label: 'Feedback', min: 0, max: 1, default: 0.5, step: 0.01, group: 'feedback' },
      { id: 'zoom', label: 'Zoom', min: 0.8, max: 1.2, default: 1, step: 0.01, group: 'transform' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1674,7 +1674,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'lines', label: 'Lines', min: 8, max: 64, default: 32, step: 1, group: 'shape' },
      { id: 'burst', label: 'Burst', min: 0, max: 2, default: 1, step: 0.1, group: 'audio' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -1698,7 +1698,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'radius', label: 'Radius', min: 0.1, max: 0.5, default: 0.3, step: 0.01, group: 'transform' },
      { id: 'thickness', label: 'Thickness', min: 0.01, max: 0.1, default: 0.03, step: 0.005, group: 'shape' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1720,7 +1720,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'distortion', label: 'Distortion', min: 0, max: 0.1, default: 0.02, step: 0.005, group: 'crt' },
      { id: 'vignette', label: 'Vignette', min: 0, max: 1, default: 0.5, step: 0.1, group: 'crt' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -1741,7 +1741,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'density', label: 'Density', min: 2, max: 20, default: 5, step: 1, group: 'shape' },
      { id: 'pulse', label: 'Pulse', min: 0, max: 2, default: 1, step: 0.1, group: 'audio' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -1766,7 +1766,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'scale', label: 'Scale', min: 2, max: 10, default: 4, step: 0.5, group: 'shape' },
      { id: 'reactivity', label: 'Reactivity', min: 0, max: 2, default: 1, step: 0.1, group: 'audio' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1786,7 +1786,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'split', label: 'Split', min: 0, max: 0.05, default: 0.01, step: 0.001, group: 'chromatic' },
      { id: 'pattern', label: 'Pattern', min: 5, max: 50, default: 20, step: 1, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -1810,7 +1810,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'opening', label: 'Opening', min: 0, max: 0.5, default: 0.1, step: 0.01, group: 'shape' },
      { id: 'feather', label: 'Feather', min: 0, max: 0.1, default: 0.01, step: 0.005, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.25, curve: 'linear' }], 'low'
   ),
 
 
@@ -1835,7 +1835,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'scale', label: 'Scale', min: 2, max: 15, default: 5, step: 0.5, group: 'shape' },
      { id: 'edge', label: 'Edge', min: 0.4, max: 0.5, default: 0.45, step: 0.01, group: 'shape' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1856,7 +1856,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'scale', label: 'Scale', min: 1, max: 10, default: 3, step: 0.5, group: 'shape' },
      { id: 'rotation', label: 'Rotation', min: 0, max: 6.28, default: 0, step: 0.1, group: 'transform' }],
-    {}, [], 'high'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'high'
   ),
 
   createShader(
@@ -1881,7 +1881,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'circles', label: 'Circles', min: 3, max: 12, default: 6, step: 1, group: 'shape' },
      { id: 'scale', label: 'Scale', min: 1, max: 5, default: 3, step: 0.1, group: 'transform' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1904,7 +1904,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'density', label: 'Density', min: 1, max: 10, default: 2, step: 0.5, group: 'shape' },
      { id: 'depth', label: 'Depth', min: 3, max: 10, default: 5, step: 1, group: 'transform' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1926,7 +1926,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'scale', label: 'Scale', min: 2, max: 15, default: 5, step: 0.5, group: 'shape' },
      { id: 'animation', label: 'Animation', min: 0, max: 5, default: 2, step: 0.1, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -1951,7 +1951,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'scale', label: 'Scale', min: 2, max: 10, default: 4, step: 0.5, group: 'shape' },
      { id: 'inner', label: 'Inner Pattern', min: 0, max: 1, default: 0.5, step: 0.1, group: 'detail' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -1971,7 +1971,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'tightness', label: 'Tightness', min: 0.1, max: 1, default: 0.5, step: 0.05, group: 'shape' },
      { id: 'rings', label: 'Rings', min: 5, max: 30, default: 10, step: 1, group: 'detail' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2001,7 +2001,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'scale', label: 'Scale', min: 2, max: 15, default: 5, step: 0.5, group: 'shape' },
      { id: 'complexity', label: 'Complexity', min: 1, max: 4, default: 2, step: 1, group: 'detail' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2023,7 +2023,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'thickness', label: 'Thickness', min: 0.05, max: 0.2, default: 0.1, step: 0.01, group: 'shape' },
      { id: 'scale', label: 'Scale', min: 2, max: 10, default: 4, step: 0.5, group: 'transform' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2048,7 +2048,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'vertices', label: 'Vertices', min: 4, max: 20, default: 12, step: 1, group: 'shape' },
      { id: 'rotation', label: 'Rotation Speed', min: 0, max: 2, default: 0.3, step: 0.1, group: 'animation' }],
-    {}, [], 'high'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'high'
   ),
 
   createShader(
@@ -2068,7 +2068,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'complexity', label: 'Complexity', min: 1, max: 5, default: 3, step: 1, group: 'shape' },
      { id: 'interlace', label: 'Interlace', min: 0, max: 1, default: 0.5, step: 0.1, group: 'detail' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'distortion', amount: 0.3, curve: 'linear' }, { signal: 'mid', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   // ── LIQUID SHADERS ──
@@ -2090,7 +2090,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'thickness', label: 'Thickness', min: 5, max: 20, default: 10, step: 1, group: 'detail' },
      { id: 'distortion', label: 'Distortion', min: 0, max: 5, default: 2, step: 0.1, group: 'distortion' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2109,7 +2109,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'scale', label: 'Scale', min: 5, max: 30, default: 20, step: 1, group: 'shape' },
      { id: 'vein', label: 'Vein Intensity', min: 0, max: 5, default: 3, step: 0.1, group: 'detail' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2130,7 +2130,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'speed', label: 'Speed', min: 0.1, max: 2, default: 0.5, step: 0.1, group: 'animation' },
      { id: 'complexity', label: 'Complexity', min: 2, max: 8, default: 4, step: 1, group: 'shape' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2150,7 +2150,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'speed', label: 'Speed', min: 0.1, max: 2, default: 0.3, step: 0.1, group: 'animation' },
      { id: 'complexity', label: 'Complexity', min: 2, max: 8, default: 4, step: 1, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2170,7 +2170,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'temperature', label: 'Temperature', min: 0.5, max: 2, default: 1, step: 0.1, group: 'color' },
      { id: 'flow', label: 'Flow Speed', min: 0.05, max: 0.5, default: 0.1, step: 0.01, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2191,7 +2191,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'curtains', label: 'Curtains', min: 3, max: 10, default: 5, step: 1, group: 'shape' },
      { id: 'brightness', label: 'Brightness', min: 0.5, max: 2, default: 1, step: 0.1, group: 'color' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2209,7 +2209,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'sheen', label: 'Sheen', min: 0, max: 1, default: 0.5, step: 0.1, group: 'material' },
      { id: 'flow', label: 'Flow', min: 0.1, max: 1, default: 0.2, step: 0.05, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2229,7 +2229,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'smoothness', label: 'Smoothness', min: 0, max: 1, default: 0.8, step: 0.1, group: 'material' },
      { id: 'environment', label: 'Environment', min: 1, max: 10, default: 5, step: 1, group: 'detail' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2250,7 +2250,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'layers', label: 'Layers', min: 3, max: 10, default: 5, step: 1, group: 'detail' },
      { id: 'iridescence', label: 'Iridescence', min: 0, max: 2, default: 1, step: 0.1, group: 'color' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2273,7 +2273,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'sources', label: 'Sources', min: 1, max: 5, default: 3, step: 1, group: 'shape' },
      { id: 'frequency', label: 'Frequency', min: 10, max: 40, default: 20, step: 1, group: 'detail' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2292,7 +2292,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'viscosity', label: 'Viscosity', min: 0.01, max: 0.2, default: 0.05, step: 0.01, group: 'physics' },
      { id: 'distortion', label: 'Distortion', min: 1, max: 5, default: 3, step: 0.1, group: 'distortion' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   // ── COSMIC SHADERS ──
@@ -2315,7 +2315,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'depth', label: 'Depth', min: 0.5, max: 3, default: 1, step: 0.1, group: 'transform' },
      { id: 'speed', label: 'Speed', min: 0.1, max: 2, default: 0.5, step: 0.1, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2334,7 +2334,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'expansion', label: 'Expansion', min: 0.1, max: 1, default: 0.5, step: 0.05, group: 'animation' },
      { id: 'brightness', label: 'Brightness', min: 0.5, max: 2, default: 1, step: 0.1, group: 'color' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2357,7 +2357,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'density', label: 'Density', min: 0.1, max: 1, default: 0.5, step: 0.05, group: 'structure' },
      { id: 'filaments', label: 'Filaments', min: 3, max: 10, default: 5, step: 1, group: 'shape' }],
-    {}, [], 'high'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'high'
   ),
 
   createShader(
@@ -2378,7 +2378,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'speed', label: 'Rotation Speed', min: 0.5, max: 5, default: 2, step: 0.1, group: 'animation' },
      { id: 'beamWidth', label: 'Beam Width', min: 8, max: 64, default: 32, step: 4, group: 'shape' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2400,7 +2400,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'nodes', label: 'Nodes', min: 4, max: 12, default: 8, step: 1, group: 'structure' },
      { id: 'connections', label: 'Connections', min: 0.5, max: 3, default: 1, step: 0.1, group: 'detail' }],
-    {}, [], 'high'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'high'
   ),
 
   createShader(
@@ -2423,7 +2423,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'diskSize', label: 'Disk Size', min: 0.1, max: 0.5, default: 0.3, step: 0.01, group: 'shape' },
      { id: 'spin', label: 'Spin', min: 0.1, max: 2, default: 0.5, step: 0.1, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2448,7 +2448,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'fieldLines', label: 'Field Lines', min: 3, max: 12, default: 6, step: 1, group: 'shape' },
      { id: 'intensity', label: 'Intensity', min: 0.5, max: 2, default: 1, step: 0.1, group: 'color' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2469,7 +2469,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'tailLength', label: 'Tail Length', min: 0.5, max: 3, default: 1.5, step: 0.1, group: 'shape' },
      { id: 'speed', label: 'Speed', min: 0.1, max: 1, default: 0.5, step: 0.05, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2491,7 +2491,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'starCount', label: 'Star Count', min: 10, max: 50, default: 20, step: 1, group: 'shape' },
      { id: 'twinkle', label: 'Twinkle', min: 0, max: 1, default: 0.5, step: 0.1, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2516,7 +2516,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'expansionRate', label: 'Expansion Rate', min: 0.05, max: 0.5, default: 0.2, step: 0.01, group: 'cosmology' },
      { id: 'filaments', label: 'Filaments', min: 5, max: 20, default: 10, step: 1, group: 'structure' }],
-    {}, [], 'high'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'high'
   ),
 
   createShader(
@@ -2536,7 +2536,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'density', label: 'Density', min: 0.5, max: 3, default: 1, step: 0.1, group: 'structure' },
      { id: 'emission', label: 'Emission', min: 0, max: 1, default: 0.5, step: 0.1, group: 'color' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.3, curve: 'log' }, { signal: 'mid', param: 'brightness', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'distortion', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   // ── SYNTHWAVE SHADERS ──
@@ -2559,7 +2559,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'speed', label: 'Speed', min: 0.5, max: 5, default: 2, step: 0.1, group: 'animation' },
      { id: 'density', label: 'Density', min: 3, max: 15, default: 5, step: 1, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2577,7 +2577,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'smoothness', label: 'Smoothness', min: 0, max: 1, default: 0.8, step: 0.1, group: 'material' },
      { id: 'reflection', label: 'Reflection', min: 0, max: 1, default: 0.5, step: 0.1, group: 'detail' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2598,7 +2598,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'sunSize', label: 'Sun Size', min: 0.1, max: 0.5, default: 0.3, step: 0.01, group: 'shape' },
      { id: 'palmCount', label: 'Palm Count', min: 1, max: 5, default: 2, step: 1, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2617,7 +2617,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'scanlines', label: 'Scanlines', min: 0, max: 0.1, default: 0.03, step: 0.01, group: 'crt' },
      { id: 'warmth', label: 'Warmth', min: 0.5, max: 2, default: 1, step: 0.1, group: 'color' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2638,7 +2638,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'speed', label: 'Reel Speed', min: 0.5, max: 4, default: 2, step: 0.1, group: 'animation' },
      { id: 'glow', label: 'Glow', min: 0, max: 1, default: 0.5, step: 0.1, group: 'color' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2663,7 +2663,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'speed', label: 'Speed', min: 0.5, max: 5, default: 2, step: 0.1, group: 'animation' },
      { id: 'perspective', label: 'Perspective', min: 0.05, max: 0.3, default: 0.1, step: 0.01, group: 'transform' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2685,7 +2685,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'tracking', label: 'Tracking', min: 0, max: 1, default: 0.5, step: 0.1, group: 'glitch' },
      { id: 'noise', label: 'Noise', min: 0, max: 0.2, default: 0.05, step: 0.01, group: 'glitch' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2708,7 +2708,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'speed', label: 'Speed', min: 5, max: 30, default: 10, step: 1, group: 'animation' },
      { id: 'glow', label: 'Glow', min: 0, max: 1, default: 0.5, step: 0.1, group: 'color' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2727,7 +2727,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'flicker', label: 'Flicker', min: 0, max: 1, default: 0.5, step: 0.1, group: 'animation' },
      { id: 'glow', label: 'Glow', min: 0.5, max: 2, default: 1, step: 0.1, group: 'color' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2748,7 +2748,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'smoothness', label: 'Smoothness', min: 0, max: 1, default: 0.9, step: 0.1, group: 'material' },
      { id: 'environment', label: 'Environment', min: 1, max: 10, default: 5, step: 1, group: 'detail' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2766,7 +2766,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'noise', label: 'Noise', min: 0, max: 0.5, default: 0.3, step: 0.05, group: 'glitch' },
      { id: 'pattern', label: 'Pattern', min: 0, max: 1, default: 0.5, step: 0.1, group: 'detail' }],
-    {}, [], 'low'
+    {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   // ── ABSTRACT SHADERS ──
@@ -2789,7 +2789,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'frequency', label: 'Frequency', min: 10, max: 50, default: 30, step: 1, group: 'shape' },
      { id: 'rotation', label: 'Rotation', min: 0, max: 1, default: 0.1, step: 0.01, group: 'animation' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2809,7 +2809,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'frequency', label: 'Frequency', min: 10, max: 40, default: 20, step: 1, group: 'shape' },
      { id: 'distortion', label: 'Distortion', min: 0, max: 5, default: 3, step: 0.1, group: 'distortion' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2830,7 +2830,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'corruption', label: 'Corruption', min: 0, max: 1, default: 0.5, step: 0.1, group: 'glitch' },
      { id: 'blockSize', label: 'Block Size', min: 5, max: 20, default: 10, step: 1, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2850,7 +2850,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'density', label: 'Density', min: 0.5, max: 3, default: 1, step: 0.1, group: 'structure' },
      { id: 'flow', label: 'Flow', min: 0.05, max: 0.3, default: 0.1, step: 0.01, group: 'animation' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2874,7 +2874,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'layers', label: 'Layers', min: 4, max: 15, default: 8, step: 1, group: 'shape' },
      { id: 'crystal', label: 'Crystal Detail', min: 4, max: 20, default: 12, step: 1, group: 'detail' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2893,7 +2893,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'contours', label: 'Contour Density', min: 10, max: 40, default: 30, step: 1, group: 'detail' },
      { id: 'elevation', label: 'Elevation', min: 1, max: 5, default: 3, step: 0.1, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2917,7 +2917,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'branches', label: 'Branches', min: 3, max: 12, default: 6, step: 1, group: 'shape' },
      { id: 'growth', label: 'Growth', min: 0.05, max: 0.3, default: 0.1, step: 0.01, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -2939,7 +2939,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'gridSize', label: 'Grid Size', min: 10, max: 40, default: 20, step: 1, group: 'shape' },
      { id: 'contrast', label: 'Contrast', min: 0.5, max: 2, default: 1, step: 0.1, group: 'color' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -2959,7 +2959,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'smoothness', label: 'Smoothness', min: 0, max: 1, default: 0.8, step: 0.1, group: 'material' },
      { id: 'distortion', label: 'Distortion', min: 0, max: 5, default: 2, step: 0.1, group: 'distortion' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }], 'medium'
   ),
 
   // ── PARTICLE SHADERS ──
@@ -2983,7 +2983,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'count', label: 'Count', min: 10, max: 60, default: 30, step: 1, group: 'particle' },
      { id: 'glow', label: 'Glow', min: 5, max: 20, default: 10, step: 1, group: 'material' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'intensity', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -3006,7 +3006,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'count', label: 'Count', min: 20, max: 80, default: 40, step: 1, group: 'particle' },
      { id: 'speed', label: 'Speed', min: 1, max: 5, default: 3, step: 0.5, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'intensity', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -3030,7 +3030,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'count', label: 'Count', min: 20, max: 100, default: 50, step: 1, group: 'particle' },
      { id: 'wind', label: 'Wind', min: 0, max: 1, default: 0.3, step: 0.05, group: 'physics' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'intensity', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -3055,7 +3055,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'count', label: 'Count', min: 10, max: 60, default: 30, step: 1, group: 'particle' },
      { id: 'gravity', label: 'Gravity', min: 0.1, max: 1, default: 0.3, step: 0.05, group: 'physics' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'intensity', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -3081,7 +3081,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'count', label: 'Count', min: 10, max: 50, default: 25, step: 1, group: 'particle' },
      { id: 'speed', label: 'Speed', min: 0.2, max: 2, default: 1, step: 0.1, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'intensity', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -3105,7 +3105,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'particles', label: 'Particles', min: 10, max: 60, default: 30, step: 1, group: 'particle' },
      { id: 'field', label: 'Field Strength', min: 1, max: 5, default: 3, step: 0.5, group: 'physics' }],
-    {}, [], 'high'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'intensity', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'high'
   ),
 
   createShader(
@@ -3131,7 +3131,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'count', label: 'Count', min: 5, max: 30, default: 15, step: 1, group: 'particle' },
      { id: 'speed', label: 'Speed', min: 0.5, max: 3, default: 1, step: 0.1, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'intensity', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -3158,7 +3158,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'count', label: 'Count', min: 5, max: 40, default: 20, step: 1, group: 'particle' },
      { id: 'iridescence', label: 'Iridescence', min: 0, max: 2, default: 1, step: 0.1, group: 'color' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'intensity', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   createShader(
@@ -3183,7 +3183,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'count', label: 'Count', min: 20, max: 80, default: 40, step: 1, group: 'particle' },
      { id: 'wave', label: 'Wave Amplitude', min: 0.1, max: 0.6, default: 0.3, step: 0.05, group: 'animation' }],
-    {}, [], 'medium'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'intensity', amount: 0.4, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
   ),
 
   // ── MINIMAL SHADERS ──
@@ -3203,7 +3203,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'speed', label: 'Speed', min: 0.1, max: 2, default: 0.5, step: 0.1, group: 'animation' },
      { id: 'size', label: 'Size', min: 0.1, max: 0.5, default: 0.3, step: 0.01, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -3220,7 +3220,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'flow', label: 'Flow', min: 0.05, max: 0.3, default: 0.1, step: 0.01, group: 'animation' },
      { id: 'brightness', label: 'Brightness', min: 0.2, max: 1, default: 0.5, step: 0.1, group: 'color' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -3238,7 +3238,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'density', label: 'Density', min: 5, max: 20, default: 10, step: 1, group: 'shape' },
      { id: 'dotSize', label: 'Dot Size', min: 0.05, max: 0.25, default: 0.15, step: 0.01, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -3254,7 +3254,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'skyColor', label: 'Sky Brightness', min: 0.05, max: 0.3, default: 0.15, step: 0.01, group: 'color' },
      { id: 'lineWidth', label: 'Line Width', min: 0.005, max: 0.05, default: 0.01, step: 0.005, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -3273,7 +3273,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'spread', label: 'Spread', min: 0.5, max: 4, default: 2, step: 0.1, group: 'shape' },
      { id: 'animation', label: 'Animation', min: 0, max: 0.3, default: 0.1, step: 0.01, group: 'animation' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -3291,7 +3291,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'size', label: 'Size', min: 0.1, max: 0.5, default: 0.3, step: 0.01, group: 'shape' },
      { id: 'thickness', label: 'Thickness', min: 0.001, max: 0.01, default: 0.005, step: 0.001, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -3308,7 +3308,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'frequency', label: 'Frequency', min: 1, max: 6, default: 3, step: 0.5, group: 'shape' },
      { id: 'amplitude', label: 'Amplitude', min: 0.02, max: 0.2, default: 0.1, step: 0.01, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -3326,7 +3326,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'rings', label: 'Ring Count', min: 5, max: 25, default: 10, step: 1, group: 'shape' },
      { id: 'speed', label: 'Speed', min: 0.1, max: 2, default: 0.5, step: 0.1, group: 'animation' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -3344,7 +3344,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'speed', label: 'Speed', min: 0.05, max: 1, default: 0.2, step: 0.05, group: 'animation' },
      { id: 'length', label: 'Length', min: 0.2, max: 0.8, default: 0.5, step: 0.05, group: 'shape' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -3361,7 +3361,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'speed', label: 'Speed', min: 0.1, max: 1, default: 0.3, step: 0.05, group: 'animation' },
      { id: 'brightness', label: 'Brightness', min: 0.05, max: 0.3, default: 0.15, step: 0.01, group: 'color' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -3381,7 +3381,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'density', label: 'Density', min: 4, max: 16, default: 8, step: 1, group: 'shape' },
      { id: 'animation', label: 'Animation', min: 0, max: 0.5, default: 0.1, step: 0.05, group: 'animation' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   createShader(
@@ -3402,7 +3402,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
 }`,
     [{ id: 'dotCount', label: 'Dot Count', min: 6, max: 24, default: 12, step: 1, group: 'shape' },
      { id: 'radius', label: 'Radius', min: 0.1, max: 0.5, default: 0.3, step: 0.01, group: 'transform' }],
-    {}, [], 'low'
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
   ...MILKDROP_PRESETS,
