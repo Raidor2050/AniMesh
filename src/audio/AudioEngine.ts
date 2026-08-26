@@ -256,12 +256,17 @@ export class AudioEngine {
 
     this.systemStream = stream
     this.source = this.ctx.createMediaStreamSource(stream)
-    this.source.connect(this.masterGain)
+    // Route the system audio DIRECTLY into the analyser.
+    // This guarantees AniMesh reads the incoming sound data from the PC /
+    // other Chrome tabs, independent of the (muted) playback path below.
+    // The analyser taps the source before it reaches outputGain.
+    if (this.analyser) this.source.connect(this.analyser)
     this.sourceType = 'system'
-    // System audio: outputGain=0 — analysis only, no playback.
+    // outputGain=0 — analysis only, no audible playback.
     // The user hears audio from the original source (YouTube, Spotify, etc.).
     // We MUST NOT play it back through speakers or it doubles/echoes.
-    // The analyser still gets the audio via masterGain → analyser (before outputGain).
+    // The analyser still gets the audio because we connected source→analyser
+    // directly above.
     this.outputGain?.gain.setValueAtTime(0, this.ctx.currentTime)
 
     if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
@@ -401,9 +406,11 @@ export class AudioEngine {
       this.systemStream.getTracks().forEach(t => t.stop())
       this.systemStream = null
     }
-    // Only disconnect source nodes from masterGain — analyser chain stays intact
+    // Only disconnect source nodes — analyser chain stays intact
     if (this.source) {
-      try { if (this.masterGain) this.source.disconnect(this.masterGain); else this.source.disconnect() } catch { try { this.source.disconnect() } catch {} }
+      try { if (this.masterGain) this.source.disconnect(this.masterGain) } catch {}
+      try { if (this.analyser) this.source.disconnect(this.analyser) } catch {}
+      try { this.source.disconnect() } catch {}
       this.source = null
     }
     if (this.masterGain) {
