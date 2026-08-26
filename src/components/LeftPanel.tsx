@@ -41,15 +41,51 @@ function hashString(str: string): number {
   return Math.abs(hash)
 }
 
+function hslToHex(h: number, s: number, l: number): string {
+  h = ((h % 360) + 360) % 360
+  s = Math.max(0, Math.min(100, s)) / 100
+  l = Math.max(0, Math.min(100, l)) / 100
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1))
+  const m = l - c / 2
+  let r = 0, g = 0, b = 0
+  if (h < 60) { r = c; g = x } else if (h < 120) { r = x; g = c }
+  else if (h < 180) { g = c; b = x } else if (h < 240) { g = x; b = c }
+  else if (h < 300) { r = x; b = c } else { r = c; b = x }
+  const toHex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0')
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+}
+
+function hexToHsl(hex: string): [number, number, number] {
+  const r = parseInt(hex.slice(1, 3), 16) / 255
+  const g = parseInt(hex.slice(3, 5), 16) / 255
+  const b = parseInt(hex.slice(5, 7), 16) / 255
+  const max = Math.max(r, g, b), min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  if (max === min) return [0, 0, l * 100]
+  const d = max - min
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  let h = 0
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60
+  else if (max === g) h = ((b - r) / d + 2) * 60
+  else h = ((r - g) / d + 4) * 60
+  return [h, s * 100, l * 100]
+}
+
+function shiftHue(hex: string, degrees: number): string {
+  const [h, s, l] = hexToHsl(hex)
+  return hslToHex(h + degrees, s, l)
+}
+
 function shaderPreviewGradient(shader: ShaderDefinition): string {
   const cat = CATEGORY_GRADIENTS[shader.category] || CATEGORY_GRADIENTS.abstract
   const h = hashString(shader.id)
-  const hueShift = (h % 60) - 30
-  const angle = 120 + (h % 120)
-  const c1 = cat[0]
-  const c2 = cat[1]
-  const c3 = cat[2]
-  return `linear-gradient(${angle}deg, ${c1} 0%, ${c2} 45%, ${c3} 100%)`
+  const hueShift = (h % 90) - 45
+  const angle = 100 + (h % 160)
+  const c1 = shiftHue(cat[0], hueShift)
+  const c2 = shiftHue(cat[1], hueShift * 0.7)
+  const c3 = shiftHue(cat[2], hueShift * 1.3)
+  return `linear-gradient(${angle}deg, ${c1} 0%, ${c2} ${35 + (h % 20)}%, ${c3} 100%)`
 }
 
 function ShaderCard({ shader, isActive, isFav, onSelect, onToggleFavorite }: {
