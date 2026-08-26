@@ -106,12 +106,10 @@ export class AudioEngine {
     this.prevSpectrum = new Uint8Array(this.analyser.frequencyBinCount)
     this.masterGain = this.ctx.createGain()
     this.outputGain = this.ctx.createGain()
-    // Fixed audio graph: masterGain → analyser → outputGain → destination (established once)
+    // Audio graph: masterGain → analyser → outputGain → destination (established once)
     this.masterGain.connect(this.analyser)
     this.analyser.connect(this.outputGain)
     this.outputGain.connect(this.ctx.destination)
-    // Mute output for all sources — analyser still processes audio for shader reactivity
-    this.outputGain.gain.setValueAtTime(0, this.ctx.currentTime)
     this.startTime = performance.now()
   }
 
@@ -153,6 +151,8 @@ export class AudioEngine {
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.masterGain)
     this.sourceType = 'mic'
+    // Mic audio plays through our speakers
+    this.outputGain?.gain.setValueAtTime(1, this.ctx.currentTime)
     return true
   }
 
@@ -223,6 +223,9 @@ export class AudioEngine {
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.masterGain)
     this.sourceType = 'system'
+    // System audio: Chrome plays through speakers directly, we just analyse
+    // outputGain=0 prevents our graph from doubling the audio (echo)
+    this.outputGain?.gain.setValueAtTime(0, this.ctx.currentTime)
 
     if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
       try { await this.ctx.resume() } catch {}
@@ -244,6 +247,8 @@ export class AudioEngine {
     source.start(0)
     this.source = source
     this.sourceType = 'file'
+    // File audio plays through our speakers
+    this.outputGain?.gain.setValueAtTime(1, this.ctx.currentTime)
     return true
   }
 
@@ -334,6 +339,8 @@ export class AudioEngine {
 
     this.demoNodes = nodes
     this.sourceType = 'demo'
+    // Demo audio plays through our speakers
+    this.outputGain?.gain.setValueAtTime(1, this.ctx.currentTime)
     return true
   }
 
