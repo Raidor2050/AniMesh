@@ -93,7 +93,7 @@ export function AudioInitBar() {
         onClick={() => setShow(true)}
         style={{
           position: 'absolute',
-          bottom: 20,
+          bottom: 24,
           left: '50%',
           transform: 'translateX(-50%)',
           padding: '5px 14px',
@@ -165,13 +165,13 @@ export function AudioInitBar() {
         onMouseEnter={e => {
           e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.14))'
           e.currentTarget.style.borderColor = 'rgba(99,102,241,0.35)'
-          e.currentTarget.style.transform = 'translateX(-50%) scale(1.03)'
+          e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.03)'
           e.currentTarget.style.boxShadow = '0 6px 32px rgba(0,0,0,0.4), 0 0 20px rgba(99,102,241,0.1)'
         }}
         onMouseLeave={e => {
           e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))'
           e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)'
-          e.currentTarget.style.transform = 'translateX(-50%) scale(1)'
+          e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)'
           e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(99,102,241,0.05)'
         }}
       >
@@ -199,9 +199,9 @@ export function AudioInitBar() {
       transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       style={{
         position: 'absolute',
-        bottom: 24,
+        top: '50%',
         left: '50%',
-        transform: 'translateX(-50%)',
+        transform: 'translate(-50%, -50%)',
         background: colors.surface.panel,
         border: `1px solid ${colors.surface.secondary}`,
         borderRadius: radii.lg,
