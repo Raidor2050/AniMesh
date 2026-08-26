@@ -169,7 +169,6 @@ export class AudioEngine {
       stream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: {
-          suppressLocalAudioPlayback: true,
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
