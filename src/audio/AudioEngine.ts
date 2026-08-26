@@ -151,8 +151,8 @@ export class AudioEngine {
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.masterGain)
     this.sourceType = 'mic'
-    // Mic audio plays through our speakers
-    this.outputGain?.gain.setValueAtTime(1, this.ctx.currentTime)
+    // Mic: analyser sees the signal, outputGain=0 prevents echo through speakers
+    this.outputGain?.gain.setValueAtTime(0, this.ctx.currentTime)
     return true
   }
 
@@ -169,13 +169,14 @@ export class AudioEngine {
       stream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: {
+          suppressLocalAudioPlayback: true,
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
           sampleRate: { ideal: 44100 },
         } as any,
         systemAudio: 'include' as any,
-        selfBrowserSurface: 'include' as any,
+        selfBrowserSurface: 'exclude' as any,
       } as any)
     } catch (err: any) {
       if (err?.name === 'NotAllowedError') {
@@ -223,11 +224,9 @@ export class AudioEngine {
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.masterGain)
     this.sourceType = 'system'
-    // Disconnect analyser→outputGain for system audio: Chrome plays through speakers
-    // independently; we just need the analyser to see the signal
-    try { this.analyser?.disconnect(this.outputGain!) } catch {}
-    // Reconnect analyser directly to destination so data still flows
-    try { this.analyser?.connect(this.ctx.destination) } catch {}
+    // System audio: Chrome plays via suppressLocalAudioPlayback (no speakers)
+    // Analyser chain stays intact — masterGain → analyser → outputGain(0) → destination
+    this.outputGain?.gain.setValueAtTime(0, this.ctx.currentTime)
 
     if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
       try { await this.ctx.resume() } catch {}
@@ -366,15 +365,10 @@ export class AudioEngine {
       this.systemStream.getTracks().forEach(t => t.stop())
       this.systemStream = null
     }
-    // Only disconnect source nodes from masterGain — never tear down masterGain→analyser→destination
+    // Only disconnect source nodes from masterGain — analyser chain stays intact
     if (this.source) {
       try { if (this.masterGain) this.source.disconnect(this.masterGain); else this.source.disconnect() } catch { try { this.source.disconnect() } catch {} }
       this.source = null
-    }
-    // Restore analyser→outputGain chain (system audio disconnects it)
-    if (this.analyser && this.outputGain) {
-      try { this.analyser.disconnect(this.ctx!.destination) } catch {}
-      try { this.analyser.connect(this.outputGain) } catch {}
     }
     if (this.masterGain) {
       this.masterGain.gain.setValueAtTime(1, this.ctx?.currentTime ?? 0)

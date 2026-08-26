@@ -565,6 +565,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
         d += sin(r * (10.0 + fi*5.0) - uTime * (1.0 + fi*0.3) * speed);
       }
       d = d * 0.25 + 0.5;
+      d = max(d, 0.0);
       vec3 col = vec3(0.0);
       col.r = pow(d, 2.0 + uBass);
       col.g = pow(d, 3.0);
@@ -1110,7 +1111,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
         float trail=uBass*0.5;
         float p=particle(uv,pos,size,trail);
         vec3 c=mix(vec3(0.2,0.5,1.0),vec3(1.0,0.3,0.8),fi);
-        col+=c*p*0.01;
+        col+=c*p*0.5;
       }
       col*=intensity;
       fragColor=vec4(clamp(col,0.0,1.0),1.0);
@@ -1140,7 +1141,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
         float brightness=0.001/(d*d+0.001);
         float twinkle=0.5+0.5*sin(uTime*3.0+fi*20.0);
         vec3 c=mix(vec3(1.0,0.9,0.7),vec3(0.7,0.8,1.0),fi);
-        col+=c*brightness*twinkle*0.0005;
+        col+=c*brightness*twinkle*0.01;
       }
       col*=intensity;
       fragColor=vec4(col,1.0);
@@ -1340,7 +1341,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   for (int i = 0; i < 20; i++) {
     vec2 z2 = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y);
     vec2 z3 = vec2(z2.x * z.x - z2.y * z.y, z2.x * z.y + z2.y * z.x);
-    z = z - (z3 - vec2(1.0, 0.0)) / (3.0 * z2 + vec2(0.001, 0.0));
+    z = z - (z3 - vec2(1.0, 0.0)) * vec2(3.0 * z2.x + 0.001, -(3.0 * z2.y)) / max(dot(3.0 * z2, 3.0 * z2) + 0.001, 0.001);
     float d0 = distance(z, roots[0]);
     float d1 = distance(z, roots[1]);
     float d2 = distance(z, roots[2]);
@@ -1374,7 +1375,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   col.r = sin(t * 3.14 * 2.0 + uTime * 0.5 + uBass * 0.4);
   col.g = sin(t * 3.14 * 2.0 + uTime * 0.5 + 2.094 + uBeat * 0.3);
   col.b = sin(t * 3.14 * 2.0 + uTime * 0.5 + 4.188 + uTreble * 0.5);
-  col = pow(col, vec3(2.0));
+  col = col * col;
   col *= 0.7 + 0.5 * uBeat;
   fragColor = vec4(col, 1.0);
 }`,
@@ -1686,7 +1687,8 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float radius = length(uv);
   float band = (angle + 3.14159) / 6.28318;
   float spectrum = sin(band * 3.14159 * 8.0 + uTime) * 0.5 + 0.5;
-  spectrum *= uBass * 0.5 + uMid * 0.3 + uTreble * 0.2;
+  spectrum = max(spectrum, 0.1);
+  spectrum *= uBass * 0.5 + uMid * 0.3 + uTreble * 0.2 + 0.15;
   float ring = smoothstep(0.3, 0.31, radius) - smoothstep(0.31 + spectrum * 0.2, 0.32 + spectrum * 0.2, radius);
   vec3 col = vec3(
     spectrum * sin(angle * 2.0 + uTime),
@@ -1755,7 +1757,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   vec2 cell = vec2(floor(hexX), floor(hexY));
   float dist = length(fract(hex) - 0.5);
   float beat = sin(dot(cell, vec2(12.9898, 78.233)) + uTime * 3.0) * 0.5 + 0.5;
-  beat *= uBass;
+  beat *= 0.5 + 0.5 * uBass;
   float hexShape = smoothstep(0.5, 0.45, dist);
   vec3 col = vec3(
     hexShape * beat * 0.8,
@@ -3403,6 +3405,170 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'dotCount', label: 'Dot Count', min: 6, max: 24, default: 12, step: 1, group: 'shape' },
      { id: 'radius', label: 'Radius', min: 0.1, max: 0.5, default: 0.3, step: 0.01, group: 'transform' }],
     {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
+  ),
+
+  // ── OPEN SOURCE ADAPTATIONS ──
+
+  // IQ Domain Warping (Inigo Quilez, MIT)
+  createShader(
+    'oss-iq-warp', 'Domain Warp', 'abstract',
+    'Double-warped FBM nebula by Inigo Quilez (MIT)',
+    ['iq', 'warp', 'fbm', 'nebula', 'organic'],
+    `
+    void main() {
+      vec2 uv = (gl_FragCoord.xy - 0.5*uResolution) / min(uResolution.x, uResolution.y);
+      float t = uTime * 0.15 * speed;
+      vec2 q = vec2(fbm(uv + t*0.1), fbm(uv + vec2(5.2,1.3) + t*0.12));
+      vec2 r = vec2(fbm(uv + 4.0*q + vec2(1.7,9.2) + t*0.15), fbm(uv + 4.0*q + vec2(8.3,2.8) + t*0.18));
+      float f = fbm(uv + 4.0*r);
+      vec3 col = mix(vec3(0.1,0.2,0.4), vec3(0.8,0.3,0.1), clamp(f*f*4.0, 0.0, 1.0));
+      col = mix(col, vec3(0.9,0.9,0.6), clamp(length(q), 0.0, 1.0));
+      col = mix(col, vec3(0.1,0.3,0.5), clamp(length(r.x), 0.0, 1.0));
+      f = f*f*f*(f*(f*6.0-15.0)+10.0);
+      col *= f;
+      col *= 0.5 + 0.5*cos(6.28*(f*0.5 + uTime*0.1 + vec3(0.0,0.1,0.2) + uBass*0.3));
+      col *= intensity * (0.7 + 0.5*uBeat);
+      fragColor = vec4(col, 1.0);
+    }`,
+    [{ id: 'distortion', label: 'Distortion', min: 0, max: 3, default: 1, step: 0.1, group: 'audio' },
+     { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
+    {},
+    [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }],
+    'medium'
+  ),
+
+  // Curl Noise Fluid (adapted from Shadertoy CC BY-NC-SA, procedural)
+  createShader(
+    'oss-curl-fluid', 'Curl Fluid', 'liquid',
+    'Audio-reactive curl noise fluid simulation',
+    ['fluid', 'curl', 'noise', 'organic', 'flow'],
+    `
+    vec2 curlNoise(vec2 p) {
+      float e = 0.01;
+      float n1 = noise(p + vec2(0.0, e));
+      float n2 = noise(p - vec2(0.0, e));
+      float a = (n1 - n2) / (2.0*e);
+      n1 = noise(p + vec2(e, 0.0));
+      n2 = noise(p - vec2(e, 0.0));
+      float b = (n1 - n2) / (2.0*e);
+      return vec2(a, -b);
+    }
+    void main() {
+      vec2 uv = (gl_FragCoord.xy - 0.5*uResolution) / min(uResolution.x, uResolution.y);
+      float t = uTime * 0.3 * speed;
+      vec2 p = uv * 2.0;
+      vec2 q = vec2(0.0);
+      for(int i = 0; i < 6; i++) {
+        q += curlNoise(p + t*0.5 + float(i)*0.5) * 0.3 * (1.0 + uBass*0.5);
+      }
+      float f = fbm(p + q*2.0);
+      vec3 col = 0.5 + 0.5*cos(6.28*(f*2.0 + vec3(0.0,0.1,0.2) + uTime*0.05));
+      col *= 1.0 - 0.5*length(q);
+      col *= intensity * (0.6 + 0.6*uBeat);
+      fragColor = vec4(col, 1.0);
+    }`,
+    [{ id: 'distortion', label: 'Distortion', min: 0, max: 3, default: 1, step: 0.1, group: 'audio' },
+     { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
+    {},
+    [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }],
+    'medium'
+  ),
+
+  // Kaleidoscope (adapted from GL Transitions, MIT)
+  createShader(
+    'oss-kaleidoscope', 'Kaleidoscope', 'geometric',
+    'Audio-reactive kaleidoscope folding pattern',
+    ['kaleidoscope', 'mirror', 'geometric', 'folding'],
+    `
+    void main() {
+      vec2 uv = (gl_FragCoord.xy - 0.5*uResolution) / min(uResolution.x, uResolution.y);
+      vec2 p = uv;
+      float t = uTime * speed * 0.5 + uBeat * 0.3;
+      float angle = 3.14159 / (3.0 + uBass);
+      for(int i = 0; i < 7; i++) {
+        p = vec2(sin(t)*p.x + cos(t)*p.y, sin(t)*p.y - cos(t)*p.x);
+        t += angle;
+        p = abs(mod(p, 2.0) - 1.0);
+      }
+      float f = fbm(p*3.0 + uTime*0.1);
+      vec3 col = 0.5 + 0.5*cos(6.28*(f + vec3(0.0,0.33,0.67) + uTime*0.05 + uBass*0.4));
+      col *= intensity * (0.8 + 0.4*uBeat);
+      fragColor = vec4(col, 1.0);
+    }`,
+    [{ id: 'distortion', label: 'Distortion', min: 0, max: 3, default: 1, step: 0.1, group: 'audio' },
+     { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
+    {},
+    [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'beat', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }],
+    'medium'
+  ),
+
+  // Smooth Voronoi (Inigo Quilez, MIT)
+  createShader(
+    'oss-voronoi-pulse', 'Voronoi Pulse', 'geometric',
+    'Audio-reactive smooth voronoi cells with pulse animation',
+    ['voronoi', 'cells', 'geometric', 'pulse', 'iq'],
+    `
+    vec2 hash2(vec2 p) {
+      p = vec2(dot(p, vec2(127.1,311.7)), dot(p, vec2(269.5,183.3)));
+      return -1.0 + 2.0*fract(sin(p)*43758.5453123);
+    }
+    float voronoi(vec2 p) {
+      vec2 n = floor(p);
+      vec2 f = fract(p);
+      float md = 8.0;
+      for(int j = -1; j <= 1; j++) {
+        for(int i = -1; i <= 1; i++) {
+          vec2 g = vec2(float(i), float(j));
+          vec2 o = hash2(n + g);
+          o = 0.5 + 0.5*sin(uTime*0.3*speed + 6.2831*o);
+          vec2 r = g + o - f;
+          float d = dot(r, r);
+          md = min(md, d);
+        }
+      }
+      return sqrt(md);
+    }
+    void main() {
+      vec2 uv = (gl_FragCoord.xy - 0.5*uResolution) / min(uResolution.x, uResolution.y);
+      float f = voronoi(uv * 4.0 * scale + uBass*0.5);
+      vec3 col = vec3(0.0);
+      col += 0.5 + 0.5*cos(6.28*(f*2.0 + vec3(0.0,0.33,0.67) + uTime*0.1*speed));
+      col *= smoothstep(0.0, 0.1, f) * (1.0 - f);
+      col *= intensity * (0.6 + 0.6*uBeat);
+      fragColor = vec4(col, 1.0);
+    }`,
+    [{ id: 'scale', label: 'Scale', min: 1, max: 8, default: 4, step: 0.5, group: 'shape' },
+     { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
+    {},
+    [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }],
+    'medium'
+  ),
+
+  // Fractal Plasma Tunnel (plasmafractal-gl + Book of Shaders, MIT)
+  createShader(
+    'oss-plasma-tunnel', 'Plasma Tunnel', 'fractals',
+    'Fractal plasma tunnel with FBM distortion and IQ cosine palette',
+    ['tunnel', 'plasma', 'fractal', 'fbm', 'palette'],
+    `
+    void main() {
+      vec2 uv = (gl_FragCoord.xy - 0.5*uResolution) / min(uResolution.x, uResolution.y);
+      float angle = atan(uv.y, uv.x);
+      float radius = length(uv);
+      float tunnel = 1.0 / (radius + 0.01);
+      float tunnelAngle = angle / 3.14159;
+      float t = uTime * speed;
+      float pattern = fbm(vec2(tunnelAngle*3.0 + t*0.2, tunnel + t*0.5));
+      pattern += 0.5*fbm(vec2(angle*2.0 + t*0.1, radius*5.0 - t*0.3));
+      vec3 col = palette(pattern + uBass*0.2, vec3(0.5,0.5,0.5), vec3(0.5,0.5,0.5), vec3(1.0,1.0,1.0), vec3(0.0,0.33,0.67));
+      col *= 1.0 - radius*0.8;
+      col *= intensity * (0.7 + 0.5*uBeat);
+      fragColor = vec4(max(col, vec3(0.0)), 1.0);
+    }`,
+    [{ id: 'distortion', label: 'Distortion', min: 0, max: 3, default: 1, step: 0.1, group: 'audio' },
+     { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: 1, step: 0.05, group: 'audio' }],
+    {},
+    [{ signal: 'bass', param: 'distortion', amount: 0.5, curve: 'log' }, { signal: 'mid', param: 'scale', amount: 0.3, curve: 'linear' }, { signal: 'treble', param: 'brightness', amount: 0.2, curve: 'linear' }],
+    'medium'
   ),
 
   ...MILKDROP_PRESETS,

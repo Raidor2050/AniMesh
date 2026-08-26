@@ -15,6 +15,7 @@ import { PanelToggleButton } from './PanelToggleButton'
 import { ImmersiveMode } from './ImmersiveMode'
 import { MinimizedBar } from './MinimizedBar'
 import { LeftToolbar } from './LeftToolbar'
+import { ShaderCarousel } from './ShaderCarousel'
 import { getAudioEngine } from '../audio/audioSingleton'
 
 function randomShader() {
@@ -49,6 +50,7 @@ export function App() {
       if (e.key === 'Escape') {
         if (store.commandPaletteOpen) store.toggleCommandPalette()
         else if (store.creatorOpen) store.toggleCreator()
+        else if (store.carouselOpen) store.toggleCarousel()
         else if (store.browserOpen) store.toggleBrowser()
         else if (store.immersive) store.toggleImmersive()
       }
@@ -77,6 +79,7 @@ export function App() {
       // Global shortcuts (not in input fields)
       if (!isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (e.key === '?') store.toggleBrowser()
+        if (e.key === 'c') store.toggleCarousel()
         if (e.key === 'n') store.toggleCreator()
         if (e.key === 'f') store.toggleImmersive()
         if (e.key === 'p') store.togglePanelsVisible()
@@ -111,6 +114,7 @@ export function App() {
       <ImmersiveMode />
       {bootComplete && !immersive && <TopBar />}
       {bootComplete && <LeftToolbar />}
+      {bootComplete && !immersive && <ShaderCarousel />}
       {bootComplete && !immersive && <LeftPanel />}
       {bootComplete && !immersive && <StreamGraph />}
       {bootComplete && !immersive && <ParameterPanel />}

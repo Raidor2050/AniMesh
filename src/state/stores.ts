@@ -21,6 +21,7 @@ interface UIStore {
   bootComplete: boolean
   immersive: boolean
   browserOpen: boolean
+  carouselOpen: boolean
   creatorOpen: boolean
   commandPaletteOpen: boolean
   panelsVisible: boolean
@@ -32,6 +33,7 @@ interface UIStore {
   setBootComplete: (v: boolean) => void
   toggleImmersive: () => void
   toggleBrowser: () => void
+  toggleCarousel: () => void
   toggleCreator: () => void
   toggleCommandPalette: () => void
   togglePanelsVisible: () => void
@@ -51,6 +53,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   bootComplete: false,
   immersive: false,
   browserOpen: false,
+  carouselOpen: false,
   creatorOpen: false,
   commandPaletteOpen: false,
   panelsVisible: true,
@@ -61,8 +64,9 @@ export const useUIStore = create<UIStore>((set, get) => ({
   streamPreset: 'stream',
   setBootComplete: (v) => set({ bootComplete: v }),
   toggleImmersive: () => set((s) => ({ immersive: !s.immersive, browserOpen: false, creatorOpen: false })),
-  toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, creatorOpen: false, panelTab: s.browserOpen ? null : 'browser' })),
-  toggleCreator: () => set((s) => ({ creatorOpen: !s.creatorOpen, browserOpen: false, panelTab: s.creatorOpen ? null : 'creator' })),
+  toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, carouselOpen: false, creatorOpen: false, panelTab: s.browserOpen ? null : 'browser' })),
+  toggleCarousel: () => set((s) => ({ carouselOpen: !s.carouselOpen, browserOpen: false, creatorOpen: false, panelTab: null })),
+  toggleCreator: () => set((s) => ({ creatorOpen: !s.creatorOpen, browserOpen: false, carouselOpen: false, panelTab: s.creatorOpen ? null : 'creator' })),
   toggleCommandPalette: () => set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
   togglePanelsVisible: () => set((s) => ({ panelsVisible: !s.panelsVisible })),
   setPanelTab: (tab) => set({ panelTab: tab }),
