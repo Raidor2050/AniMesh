@@ -186,7 +186,7 @@ export class Renderer {
 
   getLastError(): string | null { return this.lastError }
 
-  render(audio: AudioSnapshot, time: number, mouse: [number, number], customMappings?: AudioMapping[]) {
+  render(audio: AudioSnapshot, time: number, mouse: [number, number], customMappings?: AudioMapping[], userParams?: Record<string, number>) {
     const { gl, width, height } = this
     if (!this.program || width === 0 || height === 0 || !this.vao) return
 
@@ -202,10 +202,12 @@ export class Renderer {
       ...(customMappings ?? []),
     ]
 
+    const mergedBase = userParams ? { ...this.baseParams, ...userParams } : this.baseParams
+
     const mapped = this.mappingEngine.applyMappings(
       audio,
       allMappings,
-      this.baseParams,
+      mergedBase,
       dt
     )
 

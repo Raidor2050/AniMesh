@@ -223,9 +223,11 @@ export class AudioEngine {
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.masterGain)
     this.sourceType = 'system'
-    // System audio: Chrome plays through speakers directly, we just analyse
-    // outputGain=0 prevents our graph from doubling the audio (echo)
-    this.outputGain?.gain.setValueAtTime(0, this.ctx.currentTime)
+    // Disconnect analyser→outputGain for system audio: Chrome plays through speakers
+    // independently; we just need the analyser to see the signal
+    try { this.analyser?.disconnect(this.outputGain!) } catch {}
+    // Reconnect analyser directly to destination so data still flows
+    try { this.analyser?.connect(this.ctx.destination) } catch {}
 
     if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
       try { await this.ctx.resume() } catch {}
@@ -368,6 +370,11 @@ export class AudioEngine {
     if (this.source) {
       try { if (this.masterGain) this.source.disconnect(this.masterGain); else this.source.disconnect() } catch { try { this.source.disconnect() } catch {} }
       this.source = null
+    }
+    // Restore analyser→outputGain chain (system audio disconnects it)
+    if (this.analyser && this.outputGain) {
+      try { this.analyser.disconnect(this.ctx!.destination) } catch {}
+      try { this.analyser.connect(this.outputGain) } catch {}
     }
     if (this.masterGain) {
       this.masterGain.gain.setValueAtTime(1, this.ctx?.currentTime ?? 0)

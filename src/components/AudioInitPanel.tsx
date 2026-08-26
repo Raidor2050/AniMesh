@@ -87,99 +87,95 @@ export function AudioInitBar() {
   // Compact mode: show source badge when connected
   if (!show && sourceType !== 'none') {
     return (
-      <motion.button
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        onClick={() => setShow(true)}
-        style={{
-          position: 'absolute',
-          bottom: 24,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          padding: '5px 14px',
-          background: 'rgba(34,197,94,0.08)',
-          border: '1px solid rgba(34,197,94,0.18)',
-          borderRadius: 20,
-          color: '#22C55E',
-          fontSize: 10,
-          fontFamily: typography.families.mono,
-          fontWeight: 500,
-          cursor: 'pointer',
-          zIndex: 15,
-          backdropFilter: 'blur(12px)',
-          display: 'flex', alignItems: 'center', gap: 6,
-          transition: 'all 0.15s ease',
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'rgba(34,197,94,0.14)'
-          e.currentTarget.style.borderColor = 'rgba(34,197,94,0.3)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'rgba(34,197,94,0.08)'
-          e.currentTarget.style.borderColor = 'rgba(34,197,94,0.18)'
-        }}
-      >
-        <span style={{
-          width: 5, height: 5, borderRadius: '50%',
-          background: '#22C55E',
-          boxShadow: '0 0 6px rgba(34,197,94,0.5)',
-        }} />
-        {sourceType === 'demo' && '♪ Demo'}
-        {sourceType === 'mic' && '🎤 Mic'}
-        {sourceType === 'system' && '🔊 System'}
-        {sourceType === 'file' && '📄 File'}
-        <span style={{ opacity: 0.5, fontSize: 8 }}>click to change</span>
-      </motion.button>
+      <div style={{ position: 'absolute', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 15, pointerEvents: 'none' }}>
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={() => setShow(true)}
+          style={{
+            pointerEvents: 'auto',
+            padding: '5px 14px',
+            background: 'rgba(34,197,94,0.08)',
+            border: '1px solid rgba(34,197,94,0.18)',
+            borderRadius: 20,
+            color: '#22C55E',
+            fontSize: 10,
+            fontFamily: typography.families.mono,
+            fontWeight: 500,
+            cursor: 'pointer',
+            backdropFilter: 'blur(12px)',
+            display: 'flex', alignItems: 'center', gap: 6,
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(34,197,94,0.14)'
+            e.currentTarget.style.borderColor = 'rgba(34,197,94,0.3)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'rgba(34,197,94,0.08)'
+            e.currentTarget.style.borderColor = 'rgba(34,197,94,0.18)'
+          }}
+        >
+          <span style={{
+            width: 5, height: 5, borderRadius: '50%',
+            background: '#22C55E',
+            boxShadow: '0 0 6px rgba(34,197,94,0.5)',
+          }} />
+          {sourceType === 'demo' && '♪ Demo'}
+          {sourceType === 'mic' && '🎤 Mic'}
+          {sourceType === 'system' && '🔊 System'}
+          {sourceType === 'file' && '📄 File'}
+          <span style={{ opacity: 0.5, fontSize: 8 }}>click to change</span>
+        </motion.button>
+      </div>
     )
   }
 
   // Collapsed state: show "Connect Audio Source" button
   if (!show && sourceType === 'none') {
     return (
-      <motion.button
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5, duration: 0.4 }}
-        onClick={() => setShow(true)}
-        style={{
-          position: 'absolute',
-          bottom: 24,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          padding: '8px 22px',
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))',
-          border: '1px solid rgba(99,102,241,0.2)',
-          borderRadius: 24,
-          color: colors.accent.hover,
-          fontSize: 13,
-          fontFamily: typography.families.sans,
-          fontWeight: 500,
-          cursor: 'pointer',
-          zIndex: 15,
-          backdropFilter: 'blur(16px) saturate(1.1)',
-          transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
-          display: 'flex', alignItems: 'center', gap: 8,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(99,102,241,0.05)',
-          letterSpacing: '0.01em',
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.14))'
-          e.currentTarget.style.borderColor = 'rgba(99,102,241,0.35)'
-          e.currentTarget.style.transform = 'translateX(-50%) scale(1.03)'
-          e.currentTarget.style.boxShadow = '0 6px 32px rgba(0,0,0,0.4), 0 0 20px rgba(99,102,241,0.1)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))'
-          e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)'
-          e.currentTarget.style.transform = 'translateX(-50%) scale(1)'
-          e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(99,102,241,0.05)'
-        }}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polygon points="5 3 19 12 5 21 5 3"/>
-        </svg>
-        Connect Audio Source
-      </motion.button>
+      <div style={{ position: 'absolute', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 15, pointerEvents: 'none' }}>
+        <motion.button
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.4 }}
+          onClick={() => setShow(true)}
+          style={{
+            pointerEvents: 'auto',
+            padding: '8px 22px',
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))',
+            border: '1px solid rgba(99,102,241,0.2)',
+            borderRadius: 24,
+            color: colors.accent.hover,
+            fontSize: 13,
+            fontFamily: typography.families.sans,
+            fontWeight: 500,
+            cursor: 'pointer',
+            backdropFilter: 'blur(16px) saturate(1.1)',
+            transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
+            display: 'flex', alignItems: 'center', gap: 8,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(99,102,241,0.05)',
+            letterSpacing: '0.01em',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.14))'
+            e.currentTarget.style.borderColor = 'rgba(99,102,241,0.35)'
+            e.currentTarget.style.transform = 'scale(1.03)'
+            e.currentTarget.style.boxShadow = '0 6px 32px rgba(0,0,0,0.4), 0 0 20px rgba(99,102,241,0.1)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))'
+            e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)'
+            e.currentTarget.style.transform = 'scale(1)'
+            e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(99,102,241,0.05)'
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          Connect Audio Source
+        </motion.button>
+      </div>
     )
   }
 
@@ -192,20 +188,17 @@ export function AudioInitBar() {
   ]
 
   return (
+    <div style={{ position: 'absolute', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 15, pointerEvents: 'none' }}>
     <motion.div
       initial={{ opacity: 0, y: 12, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 12, scale: 0.96 }}
       transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       style={{
-        position: 'absolute',
-        bottom: 24,
-        left: '50%',
-        transform: 'translateX(-50%)',
+        pointerEvents: 'auto',
         background: colors.surface.panel,
         border: `1px solid ${colors.surface.secondary}`,
         borderRadius: radii.lg,
-        zIndex: 15,
         backdropFilter: 'blur(24px) saturate(1.1)',
         boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
         overflow: 'hidden',
@@ -309,5 +302,6 @@ export function AudioInitBar() {
         )}
       </AnimatePresence>
     </motion.div>
+    </div>
   )
 }

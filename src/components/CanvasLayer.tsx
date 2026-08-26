@@ -65,7 +65,8 @@ export function CanvasLayer() {
         }
 
         const customMappings = useShaderStore.getState().customAudioMappings
-        rendererRef.current.render(audioSnapshot, audioSnapshot.time, mouseRef.current, customMappings)
+        const userParams = useShaderStore.getState().params
+        rendererRef.current.render(audioSnapshot, audioSnapshot.time, mouseRef.current, customMappings, userParams)
         audioDataBridge.fps = rendererRef.current.getFPS()
 
         animFrameRef.current = requestAnimationFrame(tick)
