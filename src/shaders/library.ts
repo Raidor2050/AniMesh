@@ -261,7 +261,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
       float a = atan(uv.y, uv.x);
       float rays = 12.0 + uBeat * 6.0;
       float pattern = sin(a * rays + uTime * speed) * 0.5 + 0.5;
-      pattern *= pow(1.0 - r, 2.0);
+      pattern *= pow(max(1.0 - r, 0.0), 2.0);
       float burst = uBeat * exp(-r * 3.0) * 2.0;
       pattern += burst;
       vec3 col = vec3(1.0, 0.6, 0.2) * pattern * intensity;
@@ -469,7 +469,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
       float a = atan(uv.y, uv.x);
       float gravity = 0.15 + uBass * 0.1;
       float warp = gravity / (r + 0.01);
-      vec2 warped = uv + normalize(uv) * warp * 0.1;
+      vec2 warped = uv + normalize(uv + 0.0001) * warp * 0.1;
       float disk = exp(-abs(length(warped) - 0.3 - sin(uTime*0.3*speed)*0.05) * 30.0);
       float accretion = disk * (0.5 + 0.5*sin(a*8.0 + uTime*2.0*speed));
       vec3 col = vec3(0.0);
@@ -1139,7 +1139,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
         pos+=vec2(sin(uTime*0.2+fi*10.0),cos(uTime*0.15+fi*8.0))*0.05;
         float d=length(uv-pos);
         float brightness=0.001/(d*d+0.001);
-        float twinkle=0.5+0.5*sin(uTime*3.0+fi*20.0);
+        float twinkle=0.5+0.5*sin(uTime*3.0+fi*20.0)+uBass*0.2;
         vec3 c=mix(vec3(1.0,0.9,0.7),vec3(0.7,0.8,1.0),fi);
         col+=c*brightness*twinkle*0.01;
       }
@@ -1535,7 +1535,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   uv *= 2.5;
   vec2 c = uv;
   vec2 z = vec2(0.0);
-  float power = 3.0 + sin(uTime * 0.2) * 0.5;
+  float power = 3.0 + sin(uTime * 0.2) * 0.5 + uBass * 0.3;
   float iter = 0.0;
   for (int i = 0; i < 60; i++) {
     float r = length(z);
@@ -1611,7 +1611,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
   float angle = atan(uv.y, uv.x);
   float radius = length(uv);
-  float segments = 8.0;
+  float segments = 8.0 + floor(uBeat * 4.0);
   angle = mod(angle, 6.28 / segments);
   angle = abs(angle - 3.14 / segments);
   float spiral = radius + uTime * 0.5;
@@ -1622,6 +1622,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     pattern * sin(spiral * 2.0 + uTime + 4.188)
   );
   col *= 1.0 / (1.0 + radius * 3.0);
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'speed', label: 'Speed', min: 0, max: 3, default: 1, step: 0.1, group: 'animation' },
@@ -1853,6 +1854,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float dart = smoothstep(0.1, 0.0, abs(theta - 3.14159 / 5.0) - 0.03);
   float pattern = kite + dart * 0.5;
   pattern *= sin(radius * 5.0 + uTime * 0.5) * 0.3 + 0.7;
+  pattern *= 0.7 + 0.3 * uBass;
   vec3 col = vec3(pattern * 0.6, pattern * 0.8, pattern);
   fragColor = vec4(col, 1.0);
 }`,
@@ -1944,10 +1946,11 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float edge = smoothstep(0.5, 0.45, diamond);
   float inner = smoothstep(0.3, 0.25, diamond);
   float pattern = sin(cell.x * 2.0 + cell.y * 2.0 + uTime) * 0.5 + 0.5;
+  float pulse = 0.7 + 0.3 * uBeat;
   vec3 col = vec3(
-    edge * pattern * 0.5 + inner * 0.3,
-    edge * pattern * 0.3 + inner * 0.6,
-    edge * pattern * 0.8 + inner * 0.4
+    edge * pattern * 0.5 * pulse + inner * 0.3,
+    edge * pattern * 0.3 * pulse + inner * 0.6,
+    edge * pattern * 0.8 * pulse + inner * 0.4
   );
   fragColor = vec4(col, 1.0);
 }`,
@@ -1969,6 +1972,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float combined = pattern * rings;
   vec3 col = vec3(combined * 0.8, combined * 0.4, combined * 0.9);
   col *= 1.0 / (1.0 + radius * 2.0);
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'tightness', label: 'Tightness', min: 0.1, max: 1, default: 0.5, step: 0.05, group: 'shape' },
@@ -2227,6 +2231,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   vec3 col = vec3(env * 0.8 + 0.2);
   col *= vec3(1.0, 0.95, 0.9);
   col += pow(env, 8.0) * 0.3;
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'smoothness', label: 'Smoothness', min: 0, max: 1, default: 0.8, step: 0.1, group: 'material' },
@@ -2308,11 +2313,12 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float dist = length(uv);
   float tunnel = 1.0 / (dist + 0.1);
   float angle = atan(uv.y, uv.x);
-  vec2 tiledUv = vec2(angle / 3.14159, tunnel + t);
+  vec2 tiledUv = vec2(angle / 3.14159, tunnel + t + uBass * 0.5);
   float pattern = sin(tiledUv.x * 20.0) * sin(tiledUv.y * 5.0) * 0.5 + 0.5;
   vec3 col = vec3(pattern * 0.2, pattern * 0.5, pattern * 0.8);
   col *= exp(-dist * 2.0);
   col += vec3(0.1, 0.05, 0.2) * (1.0 - exp(-dist * 3.0));
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'depth', label: 'Depth', min: 0.5, max: 3, default: 1, step: 0.1, group: 'transform' },
@@ -2397,6 +2403,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     web += exp(-d * 2.0) * 0.5;
   }
   web = min(web, 1.0);
+  web *= 0.7 + 0.3 * uBass;
   vec3 col = vec3(web * 0.1, web * 0.3, web * 0.6);
   fragColor = vec4(col, 1.0);
 }`,
@@ -2421,6 +2428,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   vec3 col = vec3(disk * 0.8 + horizon * 0.0, disk * 0.4 + horizon * 0.0, disk * 0.2 + horizon * 0.0);
   col *= lensing;
   col += vec3(0.05, 0.02, 0.1) * (1.0 - horizon);
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'diskSize', label: 'Disk Size', min: 0.1, max: 0.5, default: 0.3, step: 0.01, group: 'shape' },
@@ -2467,6 +2475,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float dustTrail = exp(-abs(sin(angle + 0.5)) * 3.0) * exp(-dist * 1.0) * 0.5;
   float nucleus = exp(-dist * 20.0);
   vec3 col = vec3(nucleus + ionTail * 0.2, nucleus * 0.8 + ionTail * 0.5, nucleus * 0.6 + dustTrail * 0.8);
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'tailLength', label: 'Tail Length', min: 0.5, max: 3, default: 1.5, step: 0.1, group: 'shape' },
@@ -2487,7 +2496,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     float brightness = fract(sin(fi * 43.5) * 43758.5453);
     float twinkle = sin(t * (1.0 + brightness) + fi) * 0.3 + 0.7;
     float d = length(uv - star);
-    col += exp(-d * 50.0) * twinkle * brightness;
+    col += exp(-d * 50.0) * twinkle * brightness * (0.7 + 0.3 * uBass);
   }
   fragColor = vec4(col, 1.0);
 }`,
@@ -2514,6 +2523,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   density = min(density, 1.0);
   vec3 col = vec3(density * 0.1, density * 0.05, density * 0.3);
   col *= 1.0 / expansion;
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'expansionRate', label: 'Expansion Rate', min: 0.05, max: 0.5, default: 0.2, step: 0.01, group: 'cosmology' },
@@ -2557,6 +2567,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float horizon = exp(-uv.y * 3.0);
   vec3 col = vec3(gridPattern * horizon * 0.8, gridPattern * horizon * 0.2, gridPattern * horizon * 0.9);
   col += vec3(0.1, 0.0, 0.2) * (1.0 - horizon);
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'speed', label: 'Speed', min: 0.5, max: 5, default: 2, step: 0.1, group: 'animation' },
@@ -2596,6 +2607,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float palm = smoothstep(0.02, 0.0, abs(uv.x - sin(uv.y * 5.0 + t) * 0.1 - 0.5));
   palm *= step(uv.y, 0.0);
   col = mix(col, vec3(0.0), palm);
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'sunSize', label: 'Sun Size', min: 0.1, max: 0.5, default: 0.3, step: 0.01, group: 'shape' },
@@ -2636,6 +2648,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   vec3 col = vec3(tape * 0.3, tape * 0.3, tape * 0.3);
   col += reel * spin * vec3(0.5, 0.3, 0.2);
   col += smoothstep(0.5, 0.49, abs(uv.y)) * 0.1;
+  col *= 0.7 + 0.3 * uBeat;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'speed', label: 'Reel Speed', min: 0.5, max: 4, default: 2, step: 0.1, group: 'animation' },
@@ -2657,6 +2670,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     float gridPattern = lineX + lineY;
     float fade = exp(uv.y * 3.0);
     vec3 col = vec3(gridPattern * fade * 0.9, gridPattern * fade * 0.1, gridPattern * fade * 0.8);
+    col *= 0.7 + 0.3 * uBass;
     fragColor = vec4(col, 1.0);
   } else {
     vec3 col = vec3(0.05, 0.0, 0.1);
@@ -2683,6 +2697,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   col -= scanline;
   col += noise * 0.05;
   col *= 1.0 + glitch * 0.5;
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'tracking', label: 'Tracking', min: 0, max: 1, default: 0.5, step: 0.1, group: 'glitch' },
@@ -2706,6 +2721,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   col += horizon * vec3(0.3, 0.0, 0.5);
   float sun = smoothstep(0.15, 0.14, length(uv - vec2(0.0, 0.5)));
   col += sun * vec3(1.0, 0.3, 0.5) * 0.5;
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'speed', label: 'Speed', min: 5, max: 30, default: 10, step: 1, group: 'animation' },
@@ -2725,6 +2741,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float core = smoothstep(0.02, 0.0, abs(uv.y)) * glow;
   vec3 col = vec3(glow * 0.8 * flicker, glow * 0.2 * flicker, glow * 0.9 * flicker);
   col += core * vec3(1.0, 0.5, 1.0) * 0.5;
+  col *= 0.7 + 0.3 * uBeat;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'flicker', label: 'Flicker', min: 0, max: 1, default: 0.5, step: 0.1, group: 'animation' },
@@ -2746,6 +2763,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   vec3 col = vec3(env * 0.8 + 0.2);
   col *= sphere;
   col += exp(-dist * 2.0) * 0.1;
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'smoothness', label: 'Smoothness', min: 0, max: 1, default: 0.9, step: 0.1, group: 'material' },
@@ -3022,9 +3040,9 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     float fi = float(i);
     float x = fract(sin(fi * 127.1) * 43758.5453) * 2.0 - 1.0;
     float size = 0.01 + fract(sin(fi * 311.7) * 43758.5453) * 0.02;
-    float speed = 0.2 + fract(sin(fi * 543.2) * 43758.5453) * 0.3;
-    float drift = sin(t * 0.5 + fi * 0.1) * 0.3;
-    float y = fract(t * speed + fi * 0.05) * 2.0 - 1.0;
+    float spd = 0.2 + fract(sin(fi * 543.2) * 43758.5453) * 0.3;
+    float drift = sin(t * 0.5 + fi * 0.1) * 0.3 + uBass * 0.1;
+    float y = fract(t * spd + fi * 0.05) * 2.0 - 1.0;
     float d = length(uv - vec2(x + drift, y));
     col += exp(-d / size * 10.0) * vec3(0.9, 0.95, 1.0) * 0.3;
   }
@@ -3196,7 +3214,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
   float t = uTime * 0.5;
-  float pulse = sin(t) * 0.5 + 0.5;
+  float pulse = sin(t) * 0.5 + 0.5 + uBeat * 0.3;
   float d = length(uv);
   float circle = smoothstep(0.3 + pulse * 0.1, 0.29 + pulse * 0.1, d);
   float ring = smoothstep(0.01, 0.0, abs(d - 0.3 - pulse * 0.1));
@@ -3218,6 +3236,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   aurora = pow(aurora, 0.5);
   vec3 col = vec3(aurora * 0.1, aurora * 0.4, aurora * 0.3);
   col *= 1.0 - length(uv) * 0.3;
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'flow', label: 'Flow', min: 0.05, max: 0.3, default: 0.1, step: 0.01, group: 'animation' },
@@ -3235,7 +3254,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float d = length(local);
   float dot = smoothstep(0.15, 0.1, d);
   float alpha = 1.0 - length(uv) * 0.5;
-  vec3 col = vec3(dot * 0.2 * alpha);
+  vec3 col = vec3(dot * 0.2 * alpha * (0.7 + 0.3 * uBeat));
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'density', label: 'Density', min: 5, max: 20, default: 10, step: 1, group: 'shape' },
@@ -3251,7 +3270,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float horizon = smoothstep(0.01, 0.0, abs(uv.y));
   float sky = max(0.0, uv.y) * 0.15;
   float ground = max(0.0, -uv.y) * 0.05;
-  vec3 col = vec3(sky + ground + horizon * 0.4);
+  vec3 col = vec3(sky + ground + horizon * (0.4 + 0.2 * uBeat));
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'skyColor', label: 'Sky Brightness', min: 0.05, max: 0.3, default: 0.15, step: 0.01, group: 'color' },
@@ -3271,6 +3290,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   vec2 offsetUv = uv + vec2(shift, shift * 0.5);
   float shifted = exp(-length(offsetUv) * 2.0);
   vec3 col = vec3(gradient * 0.15 + shifted * 0.05);
+  col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'spread', label: 'Spread', min: 0.5, max: 4, default: 2, step: 0.1, group: 'shape' },
@@ -3287,7 +3307,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float h = smoothstep(0.005, 0.0, abs(uv.y)) * smoothstep(0.3, 0.0, abs(uv.x));
   float v = smoothstep(0.005, 0.0, abs(uv.x)) * smoothstep(0.3, 0.0, abs(uv.y));
   float cross = h + v;
-  float pulse = sin(t) * 0.3 + 0.7;
+  float pulse = sin(t) * 0.3 + 0.7 + uBeat * 0.2;
   vec3 col = vec3(cross * 0.2 * pulse);
   fragColor = vec4(col, 1.0);
 }`,
@@ -3302,7 +3322,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
   float t = uTime;
-  float wave = sin(uv.x * 6.28318 * 3.0 + t * 2.0) * 0.1;
+  float wave = sin(uv.x * 6.28318 * 3.0 + t * 2.0) * (0.1 + uBass * 0.05);
   float line = smoothstep(0.005, 0.0, abs(uv.y - wave));
   float fade = smoothstep(1.0, 0.0, abs(uv.x));
   vec3 col = vec3(line * 0.2 * fade);
@@ -3323,7 +3343,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float rings = sin(d * 20.0 - t * 2.0) * 0.5 + 0.5;
   rings = smoothstep(0.4, 0.5, rings);
   float fade = exp(-d * 2.0);
-  vec3 col = vec3(rings * 0.15 * fade);
+  vec3 col = vec3(rings * 0.15 * fade * (0.7 + 0.3 * uBeat));
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'rings', label: 'Ring Count', min: 5, max: 25, default: 10, step: 1, group: 'shape' },
@@ -3337,7 +3357,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
   float t = uTime * 0.2;
-  float angle = t;
+  float angle = t + uBass * 0.2;
   vec2 rotUv = vec2(uv.x * cos(angle) - uv.y * sin(angle), uv.x * sin(angle) + uv.y * cos(angle));
   float line = smoothstep(0.003, 0.0, abs(rotUv.x)) * smoothstep(0.5, 0.0, abs(rotUv.y));
   float fade = 1.0 - length(uv) * 0.8;
@@ -3355,7 +3375,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
   float t = uTime * 0.3;
-  float fade = sin(t) * 0.5 + 0.5;
+  float fade = sin(t) * 0.5 + 0.5 + uBeat * 0.2;
   float d = length(uv);
   float shape = smoothstep(0.2 + fade * 0.1, 0.19 + fade * 0.1, d);
   vec3 col = vec3(shape * 0.15 * fade);
@@ -3377,7 +3397,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float lineY = smoothstep(0.02, 0.0, abs(fract(grid.y) - 0.5));
   float lines = lineX + lineY;
   float fade = 1.0 - length(uv) * 0.6;
-  float pulse = sin(t) * 0.1 + 0.9;
+  float pulse = sin(t) * 0.1 + 0.9 + uBass * 0.1;
   vec3 col = vec3(lines * 0.1 * fade * pulse);
   fragColor = vec4(col, 1.0);
 }`,
@@ -3399,7 +3419,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   dots = smoothstep(0.3, 0.7, dots);
   float shape = ring * dots;
   float fade = 1.0 - d * 0.5;
-  vec3 col = vec3(shape * 0.15 * max(0.0, fade));
+  vec3 col = vec3(shape * 0.15 * max(0.0, fade) * (0.7 + 0.3 * uBeat));
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'dotCount', label: 'Dot Count', min: 6, max: 24, default: 12, step: 1, group: 'shape' },
