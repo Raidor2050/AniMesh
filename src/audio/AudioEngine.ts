@@ -110,6 +110,8 @@ export class AudioEngine {
     this.masterGain.connect(this.analyser)
     this.analyser.connect(this.outputGain)
     this.outputGain.connect(this.ctx.destination)
+    // Mute output for all sources — analyser still processes audio for shader reactivity
+    this.outputGain.gain.setValueAtTime(0, this.ctx.currentTime)
     this.startTime = performance.now()
   }
 
@@ -222,8 +224,6 @@ export class AudioEngine {
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.masterGain)
     this.sourceType = 'system'
-    // Mute playback for system audio — analyser still gets data via masterGain
-    if (this.outputGain) this.outputGain.gain.setValueAtTime(0, this.ctx.currentTime)
 
     if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
       try { await this.ctx.resume() } catch {}
@@ -365,9 +365,6 @@ export class AudioEngine {
     }
     if (this.masterGain) {
       this.masterGain.gain.setValueAtTime(1, this.ctx?.currentTime ?? 0)
-    }
-    if (this.outputGain) {
-      this.outputGain.gain.setValueAtTime(1, this.ctx?.currentTime ?? 0)
     }
   }
 

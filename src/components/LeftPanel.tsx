@@ -16,6 +16,165 @@ const CATEGORY_ICONS: Record<string, string> = {
   favorites: '★', recent: '◷', milkdrop: '≋',
 }
 
+const CATEGORY_GRADIENTS: Record<string, [string, string, string]> = {
+  fractals: ['#312e81', '#4338ca', '#6366f1'],
+  vj: ['#1e1b4b', '#581c87', '#7c3aed'],
+  geometric: ['#0c4a6e', '#0369a1', '#0ea5e9'],
+  liquid: ['#164e63', '#0891b2', '#22d3ee'],
+  cosmic: ['#3b0764', '#9333ea', '#c084fc'],
+  synthwave: ['#831843', '#db2777', '#f472b6'],
+  abstract: ['#1c1917', '#44403c', '#a8a29e'],
+  minimal: ['#18181b', '#27272a', '#71717a'],
+  particle: ['#14532d', '#16a34a', '#4ade80'],
+  milkdrop: ['#1a1a2e', '#16213e', '#0f3460'],
+  favorites: ['#78350f', '#d97706', '#fbbf24'],
+  recent: ['#1e293b', '#475569', '#94a3b8'],
+}
+
+function hashString(str: string): number {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash |= 0
+  }
+  return Math.abs(hash)
+}
+
+function shaderPreviewGradient(shader: ShaderDefinition): string {
+  const cat = CATEGORY_GRADIENTS[shader.category] || CATEGORY_GRADIENTS.abstract
+  const h = hashString(shader.id)
+  const hueShift = (h % 60) - 30
+  const angle = 120 + (h % 120)
+  const c1 = cat[0]
+  const c2 = cat[1]
+  const c3 = cat[2]
+  return `linear-gradient(${angle}deg, ${c1} 0%, ${c2} 45%, ${c3} 100%)`
+}
+
+function ShaderCard({ shader, isActive, isFav, onSelect, onToggleFavorite }: {
+  shader: ShaderDefinition
+  isActive: boolean
+  isFav: boolean
+  onSelect: () => void
+  onToggleFavorite: () => void
+}) {
+  const tierColor = TIER_COLORS[shader.performanceTier] || colors.text.disabled
+  const gradient = useMemo(() => shaderPreviewGradient(shader), [shader])
+
+  return (
+    <button
+      onClick={onSelect}
+      title={shader.name}
+      style={{
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        background: isActive ? colors.accent.subtle : 'rgba(255,255,255,0.02)',
+        border: `1px solid ${isActive ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.04)'}`,
+        borderRadius: radii.sm,
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+        overflow: 'hidden',
+        textAlign: 'left',
+      }}
+      onMouseEnter={e => {
+        if (!isActive) {
+          e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+          e.currentTarget.style.transform = 'scale(1.02)'
+        }
+      }}
+      onMouseLeave={e => {
+        if (!isActive) {
+          e.currentTarget.style.background = 'rgba(255,255,255,0.02)'
+          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'
+          e.currentTarget.style.transform = 'scale(1)'
+        }
+      }}
+    >
+      {/* Preview area */}
+      <div style={{
+        width: '100%',
+        height: 56,
+        background: gradient,
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        {/* Overlay pattern for visual interest */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: `radial-gradient(circle at ${30 + (hashString(shader.id) % 40)}% ${20 + (hashString(shader.id + 'y') % 60)}%, rgba(255,255,255,0.08) 0%, transparent 60%)`,
+        }} />
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: `radial-gradient(circle at ${70 - (hashString(shader.id + 'x') % 40)}% ${80 - (hashString(shader.id + 'z') % 40)}%, rgba(255,255,255,0.05) 0%, transparent 50%)`,
+        }} />
+        {/* Tier badge */}
+        <div style={{
+          position: 'absolute', top: 4, left: 4,
+          width: 5, height: 5, borderRadius: '50%',
+          background: tierColor,
+          boxShadow: `0 0 6px ${tierColor}`,
+        }} />
+        {/* Favorite star */}
+        <button
+          onClick={e => { e.stopPropagation(); onToggleFavorite() }}
+          aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
+          style={{
+            position: 'absolute', top: 2, right: 2,
+            width: 18, height: 18,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.3)',
+            border: 'none',
+            borderRadius: 4,
+            color: isFav ? '#fbbf24' : 'rgba(255,255,255,0.3)',
+            fontSize: 9,
+            cursor: 'pointer',
+            backdropFilter: 'blur(4px)',
+            opacity: isFav ? 1 : 0,
+            transition: 'opacity 0.15s ease',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '1' }}
+          onMouseLeave={e => { if (!isFav) e.currentTarget.style.opacity = '0' }}
+        >★</button>
+      </div>
+
+      {/* Info area */}
+      <div style={{
+        padding: '5px 6px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+      }}>
+        <span style={{
+          fontFamily: typography.families.sans,
+          fontSize: 10,
+          fontWeight: isActive ? 600 : 400,
+          color: isActive ? colors.accent.hover : colors.text.secondary,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          flex: 1,
+          textAlign: 'left',
+          lineHeight: '13px',
+        }}>{shader.name}</span>
+        {shader.performanceTier === 'low' && (
+          <span style={{
+            fontSize: 7,
+            fontFamily: typography.families.mono,
+            color: colors.state.success,
+            background: 'rgba(34,197,94,0.1)',
+            padding: '0 3px',
+            borderRadius: 3,
+            flexShrink: 0,
+          }}>L</span>
+        )}
+      </div>
+    </button>
+  )
+}
+
 interface CategorySectionProps {
   category: ShaderCategory | 'favorites' | 'recent'
   shaders: ShaderDefinition[]
@@ -84,72 +243,22 @@ function CategorySection({ category, shaders, activeShader, favorites, onSelect,
             transition={{ duration: 0.18, ease: 'easeOut' }}
             style={{ overflow: 'hidden' }}
           >
-            <div style={{ padding: '2px 0 4px 0' }}>
-              {shaders.map(shader => {
-                const isActive = activeShader?.id === shader.id
-                const isFav = favorites.includes(shader.id)
-                const tierColor = TIER_COLORS[shader.performanceTier] || colors.text.disabled
-
-                return (
-                  <button
-                    key={shader.id}
-                    onClick={() => onSelect(shader)}
-                    title={shader.name}
-                    style={{
-                      width: '100%',
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '4px 8px 4px 24px',
-                      background: isActive ? colors.accent.subtle : 'transparent',
-                      border: 'none',
-                      borderRadius: radii.xs,
-                      cursor: 'pointer',
-                      transition: 'background 0.1s ease',
-                    }}
-                    onMouseEnter={e => {
-                      if (!isActive) e.currentTarget.style.background = colors.surface.primary
-                    }}
-                    onMouseLeave={e => {
-                      if (!isActive) e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    <span style={{
-                      width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
-                      background: tierColor,
-                      boxShadow: `0 0 4px ${tierColor}`,
-                    }} />
-                    <span style={{
-                      fontFamily: typography.families.sans,
-                      fontSize: 13,
-                      color: isActive ? colors.accent.hover : colors.text.secondary,
-                      fontWeight: isActive ? 600 : 400,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      flex: 1,
-                      textAlign: 'left',
-                    }}>{shader.name}</span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onToggleFavorite(shader.id) }}
-                      aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
-                      style={{
-                        width: 16, height: 16,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: 'transparent',
-                        border: 'none',
-                        borderRadius: 3,
-                        color: isFav ? colors.accent.hover : colors.text.disabled,
-                        fontSize: 9,
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                        opacity: isFav ? 1 : 0,
-                        transition: 'opacity 0.12s ease',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.opacity = '1' }}
-                      onMouseLeave={e => { if (!isFav) e.currentTarget.style.opacity = '0' }}
-                    >★</button>
-                  </button>
-                )
-              })}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 5,
+              padding: '4px 4px 6px',
+            }}>
+              {shaders.map(shader => (
+                <ShaderCard
+                  key={shader.id}
+                  shader={shader}
+                  isActive={activeShader?.id === shader.id}
+                  isFav={favorites.includes(shader.id)}
+                  onSelect={() => onSelect(shader)}
+                  onToggleFavorite={() => onToggleFavorite(shader.id)}
+                />
+              ))}
             </div>
           </motion.div>
         )}
@@ -229,7 +338,7 @@ export function LeftPanel() {
           style={{
             position: 'absolute',
             top: 52, left: 0, bottom: 0,
-            width: 320, maxWidth: '85vw',
+            width: 340, maxWidth: '85vw',
             zIndex: 25,
             background: colors.surface.panel,
             backdropFilter: 'blur(32px) saturate(1.2)',
@@ -332,14 +441,34 @@ export function LeftPanel() {
             </div>
           </div>
 
-          {/* Category list */}
+          {/* Category list with card grid */}
           <div style={{
             flex: 1, minHeight: 0,
             overflow: 'auto',
-            padding: '4px 4px',
+            padding: '4px 0',
             scrollbarWidth: 'thin' as any,
           }}>
-            {CATEGORIES.map(cat => (
+            {search && filteredShaders.length > 0 && (
+              <div style={{
+                padding: '2px 8px 6px',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 5,
+              }}>
+                {filteredShaders.slice(0, 50).map(shader => (
+                  <ShaderCard
+                    key={shader.id}
+                    shader={shader}
+                    isActive={activeShader?.id === shader.id}
+                    isFav={favorites.includes(shader.id)}
+                    onSelect={() => setActiveShader(shader)}
+                    onToggleFavorite={() => toggleFavorite(shader.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {!search && CATEGORIES.map(cat => (
               <CategorySection
                 key={cat}
                 category={cat}
@@ -402,7 +531,7 @@ export function LeftPanel() {
               fontSize: 10,
               color: colors.text.disabled,
               fontFamily: typography.families.mono,
-            }}>B close · ★ save</span>
+            }}>ESC close · ★ save</span>
           </div>
         </motion.div>
       )}
