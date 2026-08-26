@@ -359,8 +359,6 @@ export function StreamGraph() {
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       style={{
         position: 'absolute',
-        left: position.x,
-        top: position.y,
         width: 240,
         height: 360,
         zIndex: 15,

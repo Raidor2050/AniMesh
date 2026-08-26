@@ -28,6 +28,7 @@ export class AudioEngine {
   private analyser: AnalyserNode | null = null
   private source: AudioNode | null = null
   private masterGain: GainNode | null = null
+  private outputGain: GainNode | null = null
   private sourceType: AudioSourceType = 'none'
   private generation = 0
 
@@ -104,9 +105,11 @@ export class AudioEngine {
     this.timeData = new Float32Array(this.analyser.fftSize)
     this.prevSpectrum = new Uint8Array(this.analyser.frequencyBinCount)
     this.masterGain = this.ctx.createGain()
-    // Fixed audio graph: masterGain → analyser → destination (established once)
+    this.outputGain = this.ctx.createGain()
+    // Fixed audio graph: masterGain → analyser → outputGain → destination (established once)
     this.masterGain.connect(this.analyser)
-    this.analyser.connect(this.ctx.destination)
+    this.analyser.connect(this.outputGain)
+    this.outputGain.connect(this.ctx.destination)
     this.startTime = performance.now()
   }
 
@@ -219,6 +222,8 @@ export class AudioEngine {
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.masterGain)
     this.sourceType = 'system'
+    // Mute playback for system audio — analyser still gets data via masterGain
+    if (this.outputGain) this.outputGain.gain.setValueAtTime(0, this.ctx.currentTime)
 
     if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
       try { await this.ctx.resume() } catch {}
@@ -360,6 +365,9 @@ export class AudioEngine {
     }
     if (this.masterGain) {
       this.masterGain.gain.setValueAtTime(1, this.ctx?.currentTime ?? 0)
+    }
+    if (this.outputGain) {
+      this.outputGain.gain.setValueAtTime(1, this.ctx?.currentTime ?? 0)
     }
   }
 

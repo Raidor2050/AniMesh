@@ -60,8 +60,6 @@ export function ParameterPanel() {
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         style={{
           position: 'absolute',
-          left: position.x,
-          top: position.y,
           width: collapsed ? 36 : 232,
           minHeight: collapsed ? 40 : 48,
           maxHeight: collapsed ? undefined : 'calc(100vh - 80px)',

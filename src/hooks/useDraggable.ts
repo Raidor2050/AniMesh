@@ -29,6 +29,10 @@ export function useDraggable(options: DraggableOptions = {}) {
 
   const containerRef = useCallback((node: HTMLDivElement | null) => {
     liveRef.current.el = node
+    if (node) {
+      node.style.left = `${liveRef.current.x}px`
+      node.style.top = `${liveRef.current.y}px`
+    }
   }, [])
 
   const clampVal = (val: number, min?: number, max?: number) => {
@@ -89,7 +93,8 @@ export function useDraggable(options: DraggableOptions = {}) {
     liveRef.current.y = newY
 
     if (el) {
-      el.style.transform = `translate3d(${newX}px, ${newY}px, 0)`
+      el.style.left = `${newX}px`
+      el.style.top = `${newY}px`
     }
   }, [bounds, dragThreshold])
 

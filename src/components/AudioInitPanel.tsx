@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { connectAudio } from '../audio/audioSingleton'
 import type { AudioSourceType } from '../audio/AudioEngine'
@@ -52,7 +52,7 @@ export function AudioInitBar() {
           const labels: Record<string, string> = {
             demo: 'Demo mode active — synthetic audio running',
             mic: 'Microphone connected — speak or play audio nearby',
-            system: 'System audio captured — play music or video to see reactivity',
+            system: 'System audio captured — audio analysis only, no playback',
           }
           setStatus({ type: 'success', msg: labels[type] || 'Connected' })
           setTimeout(() => setShow(false), 1200)
@@ -76,20 +76,30 @@ export function AudioInitBar() {
     }
   }, [setSourceType])
 
+  // Auto-dismiss after successful connection
+  useEffect(() => {
+    if (status?.type === 'success') {
+      const t = setTimeout(() => setShow(false), 2000)
+      return () => clearTimeout(t)
+    }
+  }, [status])
+
   // Compact mode: show source badge when connected
   if (!show && sourceType !== 'none') {
     return (
       <motion.button
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         onClick={() => setShow(true)}
         style={{
-          position: 'absolute', bottom: 24, left: '50%',
+          position: 'absolute',
+          bottom: 20,
+          left: '50%',
           transform: 'translateX(-50%)',
           padding: '5px 14px',
-          background: 'rgba(34,197,94,0.1)',
-          border: '1px solid rgba(34,197,94,0.2)',
-          borderRadius: 16,
+          background: 'rgba(34,197,94,0.08)',
+          border: '1px solid rgba(34,197,94,0.18)',
+          borderRadius: 20,
           color: '#22C55E',
           fontSize: 10,
           fontFamily: typography.families.mono,
@@ -98,6 +108,15 @@ export function AudioInitBar() {
           zIndex: 15,
           backdropFilter: 'blur(12px)',
           display: 'flex', alignItems: 'center', gap: 6,
+          transition: 'all 0.15s ease',
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = 'rgba(34,197,94,0.14)'
+          e.currentTarget.style.borderColor = 'rgba(34,197,94,0.3)'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'rgba(34,197,94,0.08)'
+          e.currentTarget.style.borderColor = 'rgba(34,197,94,0.18)'
         }}
       >
         <span style={{
@@ -118,30 +137,47 @@ export function AudioInitBar() {
   if (!show && sourceType === 'none') {
     return (
       <motion.button
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.4 }}
         onClick={() => setShow(true)}
         style={{
-          position: 'absolute', bottom: 24, left: '50%',
+          position: 'absolute',
+          bottom: 24,
+          left: '50%',
           transform: 'translateX(-50%)',
-          padding: `${spacing.scale[2] + 1}px ${spacing.scale[5]}px`,
-          background: colors.accent.subtle,
-          border: `1px solid rgba(99,102,241,0.2)`,
-          borderRadius: 20,
+          padding: '8px 22px',
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))',
+          border: '1px solid rgba(99,102,241,0.2)',
+          borderRadius: 24,
           color: colors.accent.hover,
-          fontSize: typography.scale.sm.size,
+          fontSize: 13,
           fontFamily: typography.families.sans,
           fontWeight: 500,
           cursor: 'pointer',
           zIndex: 15,
-          backdropFilter: 'blur(12px)',
-          transition: 'all 0.2s ease',
-          animation: 'pulse-glow 2.5s ease-in-out infinite',
-          display: 'flex', alignItems: 'center', gap: 6,
+          backdropFilter: 'blur(16px) saturate(1.1)',
+          transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
+          display: 'flex', alignItems: 'center', gap: 8,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(99,102,241,0.05)',
+          letterSpacing: '0.01em',
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.14))'
+          e.currentTarget.style.borderColor = 'rgba(99,102,241,0.35)'
+          e.currentTarget.style.transform = 'translateX(-50%) scale(1.03)'
+          e.currentTarget.style.boxShadow = '0 6px 32px rgba(0,0,0,0.4), 0 0 20px rgba(99,102,241,0.1)'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))'
+          e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)'
+          e.currentTarget.style.transform = 'translateX(-50%) scale(1)'
+          e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(99,102,241,0.05)'
         }}
       >
-        <span style={{ fontSize: 10 }}>▶</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
         Connect Audio Source
       </motion.button>
     )
@@ -162,7 +198,9 @@ export function AudioInitBar() {
       exit={{ opacity: 0, y: 12, scale: 0.96 }}
       transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       style={{
-        position: 'absolute', bottom: 24, left: '50%',
+        position: 'absolute',
+        bottom: 24,
+        left: '50%',
         transform: 'translateX(-50%)',
         background: colors.surface.panel,
         border: `1px solid ${colors.surface.secondary}`,

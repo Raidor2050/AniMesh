@@ -7,13 +7,13 @@ import { colors, typography, spacing, radii, animation } from '../ui/tokens'
 
 const CATEGORIES: (ShaderCategory | 'favorites' | 'recent')[] = [
   'favorites', 'recent', 'fractals', 'vj', 'geometric', 'liquid',
-  'cosmic', 'synthwave', 'abstract', 'minimal', 'particle',
+  'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'milkdrop',
 ]
 
 const CATEGORY_ICONS: Record<string, string> = {
   fractals: '✦', vj: '◎', geometric: '◇', liquid: '≈',
   cosmic: '✧', synthwave: '▶', abstract: '◆', minimal: '○', particle: '∴',
-  favorites: '★', recent: '◷',
+  favorites: '★', recent: '◷', milkdrop: '≋',
 }
 
 interface CategorySectionProps {
@@ -198,11 +198,30 @@ export function LeftPanel() {
     }
   }, [browserOpen])
 
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!browserOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        toggleBrowser()
+      }
+    }
+    const t = setTimeout(() => {
+      document.addEventListener('pointerdown', handleClickOutside)
+    }, 100)
+    return () => {
+      clearTimeout(t)
+      document.removeEventListener('pointerdown', handleClickOutside)
+    }
+  }, [browserOpen, toggleBrowser])
+
   return (
     <>
       <AnimatePresence>
       {browserOpen && (
         <motion.div
+          ref={panelRef}
           initial={{ x: '-100%', opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: '-100%', opacity: 0 }}
