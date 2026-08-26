@@ -160,31 +160,41 @@ export class AudioEngine {
     if (!this.ctx || !this.masterGain) return false
 
     if (!navigator.mediaDevices?.getDisplayMedia) {
-      console.warn('System audio: getDisplayMedia not supported in this browser')
+      console.warn('[AudioEngine] System audio: getDisplayMedia not supported')
       return false
     }
 
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        // video is REQUIRED by getDisplayMedia — we keep it alive at minimal
+        // frameRate so the capture session stays open for the audio track.
+        // CRITICAL: disabling or stopping this track kills the entire capture session.
+        video: {
+          cursor: 'never',
+          frameRate: { ideal: 1, max: 5 },
+        },
         audio: {
           suppressLocalAudioPlayback: true,
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
+          channelCount: { ideal: 2 },
           sampleRate: { ideal: 44100 },
-        } as any,
+        },
+        // Chrome 105+ on Windows: hints to offer system audio (WASAPI loopback) in the picker.
+        // User MUST share "Entire Screen" (not a window) AND check "Share audio".
         systemAudio: 'include' as any,
+        // Chrome 107+: prevents offering our own tab (avoids hall-of-mirrors).
         selfBrowserSurface: 'exclude' as any,
       } as any)
     } catch (err: any) {
       if (err?.name === 'NotAllowedError') {
-        console.warn('System audio: user cancelled the picker or denied permission')
+        console.warn('[AudioEngine] System audio: user cancelled the picker or denied permission')
       } else if (err?.name === 'NotReadableError') {
-        console.warn('System audio: selected source is not readable')
+        console.warn('[AudioEngine] System audio: selected source is not readable')
       } else {
-        console.warn('System audio: getDisplayMedia failed:', err)
+        console.warn('[AudioEngine] System audio: getDisplayMedia failed:', err)
       }
       return false
     }
@@ -193,39 +203,60 @@ export class AudioEngine {
 
     const audioTrack = stream.getAudioTracks()[0]
     if (!audioTrack) {
-      const isMac = navigator.platform?.includes('Mac')
       console.warn(
-        'System audio: no audio track in display media stream. ' +
-        (isMac
-          ? 'System audio is not supported on macOS. Install BlackHole or Loopback for system audio capture.'
-          : 'In Chrome, check "Share audio" in the picker dialog.')
+        '[AudioEngine] System audio: no audio track returned. ' +
+        'Requirements: (1) Share "Entire Screen", not a window. ' +
+        '(2) Check "Share audio" in Chrome picker. ' +
+        '(3) macOS/Linux do not support system audio natively — use BlackHole/Loopback.'
       )
       stream.getTracks().forEach(t => t.stop())
       return false
     }
 
-    // Wider bandwidth for music content
+    // Wider bandwidth hint for music content (widens Opus encoder bandwidth)
     try { audioTrack.contentHint = 'music' } catch {}
 
-    // Mute video track — stopping it can kill the audio track
-    const videoTrack = stream.getVideoTracks()[0]
-    if (videoTrack) {
-      videoTrack.enabled = false
-    }
+    // ─── CRITICAL: Do NOT disable or stop the video track ───
+    // Chrome ties the display capture session lifecycle to the video track.
+    // Setting videoTrack.enabled = false causes Chrome to pause the underlying
+    // OS capture session (WASAPI loopback on Windows), which silently kills
+    // the audio track too. The video runs at ~1fps (set above) and since we
+    // never attach it to a <video> element, the frames are discarded with
+    // negligible overhead. The blue "sharing" indicator is unavoidable.
 
+    // Log audio track state for debugging
+    const settings = audioTrack.getSettings()
+    console.log(
+      '[AudioEngine] System audio connected — ' +
+      `readyState=${audioTrack.readyState}, enabled=${audioTrack.enabled}, ` +
+      `channels=${settings.channelCount ?? '?'}, sampleRate=${settings.sampleRate ?? '?'}, ` +
+      `suppressLocalAudioPlayback=${(settings as any).suppressLocalAudioPlayback ?? 'unsupported'}`
+    )
+
+    // Monitor audio track lifecycle events
     audioTrack.onended = () => {
       if (this.sourceType === 'system') {
+        console.log('[AudioEngine] System audio track ended (user stopped sharing)')
         this.disconnect()
         this.sourceType = 'none'
       }
+    }
+
+    audioTrack.onmute = () => {
+      console.warn('[AudioEngine] System audio track muted — capture may have been paused by the OS or Chrome')
+    }
+
+    audioTrack.onunmute = () => {
+      console.log('[AudioEngine] System audio track unmuted — capture resumed')
     }
 
     this.systemStream = stream
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.masterGain)
     this.sourceType = 'system'
-    // System audio: Chrome plays via suppressLocalAudioPlayback (no speakers)
-    // Analyser chain stays intact — masterGain → analyser → outputGain(0) → destination
+    // outputGain=0 prevents audio going to speakers.
+    // suppressLocalAudioPlayback only works for browser surfaces (per W3C spec),
+    // so outputGain is the real safety net for system/monitor audio.
     this.outputGain?.gain.setValueAtTime(0, this.ctx.currentTime)
 
     if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {

@@ -4,6 +4,7 @@ import { useUIStore, useShaderStore } from '../state/stores'
 import { SHADER_LIBRARY } from '../shaders/library'
 import { ShaderCategory, ShaderDefinition, CATEGORY_LABELS } from '../utils/types'
 import { colors, typography, spacing, radii } from '../ui/tokens'
+import { useShaderPreview, requestPreviews } from '../hooks/useShaderPreview'
 
 const CATEGORIES: (ShaderCategory | 'favorites' | 'recent')[] = [
   'favorites', 'recent', 'fractals', 'vj', 'geometric', 'liquid',
@@ -78,6 +79,104 @@ function hexToHsl(hex: string): [number, number, number] {
   else if (max === g) h = ((b - r) / d + 2) / 6
   else h = ((r - g) / d + 4) / 6
   return [h * 360, s * 100, l * 100]
+}
+
+function CarouselCard({ shader, offset, isActive, isCenter, absOffset, onClick }: {
+  shader: ShaderDefinition
+  offset: number
+  isActive: boolean
+  isCenter: boolean
+  absOffset: number
+  onClick: () => void
+}) {
+  const previewUrl = useShaderPreview(shader.id)
+  const angle = offset * ANGLE_STEP
+  const scale = isCenter ? 1.08 : Math.max(0.65, 1 - absOffset * 0.12)
+  const opacity = absOffset > 2 ? 0 : isCenter ? 1 : Math.max(0.2, 1 - absOffset * 0.25)
+  const brightness = isCenter ? 1.0 : Math.max(0.4, 1 - absOffset * 0.15)
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        position: 'absolute',
+        width: CARD_W,
+        height: CARD_H,
+        left: 0,
+        top: 0,
+        transformStyle: 'preserve-3d',
+        transform: `rotateY(${angle}deg) translateZ(${RADIUS}px)`,
+        opacity,
+        filter: `brightness(${brightness})`,
+        zIndex: 10 - absOffset,
+        cursor: isCenter ? 'pointer' : 'default',
+        borderRadius: radii.md,
+        overflow: 'hidden',
+        border: isActive
+          ? `2px solid ${colors.accent.hover}`
+          : isCenter
+            ? `1px solid rgba(255,255,255,0.15)`
+            : `1px solid rgba(255,255,255,0.05)`,
+        boxShadow: isActive
+          ? `0 0 24px rgba(99,102,241,0.3), 0 0 60px rgba(99,102,241,0.1)`
+          : isCenter
+            ? `0 8px 32px rgba(0,0,0,0.5)`
+            : `0 4px 16px rgba(0,0,0,0.4)`,
+        transition: 'transform 0.5s cubic-bezier(0.23,1,0.32,1), opacity 0.4s ease, filter 0.4s ease',
+        willChange: 'transform',
+      }}
+    >
+      <div style={{
+        width: '100%', height: '70%',
+        background: previewUrl ? 'rgba(0,0,0,0.9)' : getShaderGradient(shader),
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        {previewUrl ? (
+          <img
+            src={previewUrl}
+            alt={shader.name}
+            style={{
+              width: '100%', height: '100%',
+              objectFit: 'cover', display: 'block',
+            }}
+            draggable={false}
+          />
+        ) : (
+          <div style={{
+            width: '100%', height: '100%',
+            background: getShaderGradient(shader),
+          }} />
+        )}
+        {isActive && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'radial-gradient(circle at 50% 50%, rgba(99,102,241,0.15), transparent 70%)',
+          }} />
+        )}
+      </div>
+
+      <div style={{
+        height: '30%', padding: '6px 8px',
+        background: 'rgba(8,8,14,0.95)',
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+      }}>
+        <div style={{
+          fontSize: 10, fontFamily: typography.families.sans,
+          color: colors.text.primary, fontWeight: 500,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {shader.name}
+        </div>
+        <div style={{
+          fontSize: 8, fontFamily: typography.families.mono,
+          color: colors.text.disabled, marginTop: 2,
+        }}>
+          {CATEGORY_ICONS[shader.category]} {shader.category}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 const VISIBLE_COUNT = 9
@@ -156,6 +255,11 @@ export function ShaderCarousel() {
     }
     return cards
   }, [centerIndex, filteredShaders, total])
+
+  useEffect(() => {
+    if (!carouselOpen || getVisibleCards.length === 0) return
+    requestPreviews(getVisibleCards.map(c => c.shader), true)
+  }, [carouselOpen, getVisibleCards])
 
   return (
     <AnimatePresence>
@@ -279,85 +383,24 @@ export function ShaderCarousel() {
               transformStyle: 'preserve-3d',
               transition: 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1)',
             }}>
-              {getVisibleCards.map(({ shader, offset, index }) => {
+              {getVisibleCards.map(({ shader, offset }) => {
                 const isActive = activeShader?.id === shader.id
                 const isCenter = offset === 0
                 const absOffset = Math.abs(offset)
-                const angle = offset * ANGLE_STEP
-                const scale = isCenter ? 1.08 : Math.max(0.65, 1 - absOffset * 0.12)
-                const opacity = absOffset > 2 ? 0 : isCenter ? 1 : Math.max(0.2, 1 - absOffset * 0.25)
-                const brightness = isCenter ? 1.0 : Math.max(0.4, 1 - absOffset * 0.15)
 
                 return (
-                  <div
+                  <CarouselCard
                     key={`${shader.id}-${offset}`}
+                    shader={shader}
+                    offset={offset}
+                    isActive={isActive}
+                    isCenter={isCenter}
+                    absOffset={absOffset}
                     onClick={() => {
                       if (isCenter) selectShader(shader)
-                      else setCenterIndex(index)
+                      else setCenterIndex((offset > 0 ? 1 : -1) * (offset > 0 ? 1 : -1))
                     }}
-                    style={{
-                      position: 'absolute',
-                      width: CARD_W,
-                      height: CARD_H,
-                      left: 0,
-                      top: 0,
-                      transformStyle: 'preserve-3d',
-                      transform: `rotateY(${angle}deg) translateZ(${RADIUS}px)`,
-                      opacity,
-                      filter: `brightness(${brightness})`,
-                      zIndex: 10 - absOffset,
-                      cursor: isCenter ? 'pointer' : 'default',
-                      borderRadius: radii.md,
-                      overflow: 'hidden',
-                      border: isActive
-                        ? `2px solid ${colors.accent.hover}`
-                        : isCenter
-                          ? `1px solid rgba(255,255,255,0.15)`
-                          : `1px solid rgba(255,255,255,0.05)`,
-                      boxShadow: isActive
-                        ? `0 0 24px rgba(99,102,241,0.3), 0 0 60px rgba(99,102,241,0.1)`
-                        : isCenter
-                          ? `0 8px 32px rgba(0,0,0,0.5)`
-                          : `0 4px 16px rgba(0,0,0,0.4)`,
-                      transition: 'transform 0.5s cubic-bezier(0.23,1,0.32,1), opacity 0.4s ease, filter 0.4s ease',
-                      willChange: 'transform',
-                    }}
-                  >
-                    {/* Gradient preview */}
-                    <div style={{
-                      width: '100%', height: '70%',
-                      background: getShaderGradient(shader),
-                      position: 'relative',
-                    }}>
-                      {isActive && (
-                        <div style={{
-                          position: 'absolute', inset: 0,
-                          background: 'radial-gradient(circle at 50% 50%, rgba(99,102,241,0.15), transparent 70%)',
-                        }} />
-                      )}
-                    </div>
-
-                    {/* Label */}
-                    <div style={{
-                      height: '30%', padding: '6px 8px',
-                      background: 'rgba(8,8,14,0.95)',
-                      display: 'flex', flexDirection: 'column', justifyContent: 'center',
-                    }}>
-                      <div style={{
-                        fontSize: 10, fontFamily: typography.families.sans,
-                        color: colors.text.primary, fontWeight: 500,
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}>
-                        {shader.name}
-                      </div>
-                      <div style={{
-                        fontSize: 8, fontFamily: typography.families.mono,
-                        color: colors.text.disabled, marginTop: 2,
-                      }}>
-                        {CATEGORY_ICONS[shader.category]} {shader.category}
-                      </div>
-                    </div>
-                  </div>
+                  />
                 )
               })}
             </div>

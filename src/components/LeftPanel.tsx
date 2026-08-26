@@ -4,6 +4,7 @@ import { useUIStore, useShaderStore } from '../state/stores'
 import { SHADER_LIBRARY, searchShaders } from '../shaders/library'
 import { ShaderCategory, ShaderDefinition, CATEGORY_LABELS, TIER_COLORS } from '../utils/types'
 import { colors, typography, spacing, radii, animation } from '../ui/tokens'
+import { useShaderPreview, requestPreviews } from '../hooks/useShaderPreview'
 
 const CATEGORIES: (ShaderCategory | 'favorites' | 'recent')[] = [
   'favorites', 'recent', 'fractals', 'vj', 'geometric', 'liquid',
@@ -97,6 +98,7 @@ function ShaderCard({ shader, isActive, isFav, onSelect, onToggleFavorite }: {
 }) {
   const tierColor = TIER_COLORS[shader.performanceTier] || colors.text.disabled
   const gradient = useMemo(() => shaderPreviewGradient(shader), [shader])
+  const previewUrl = useShaderPreview(shader.id)
 
   return (
     <button
@@ -133,19 +135,32 @@ function ShaderCard({ shader, isActive, isFav, onSelect, onToggleFavorite }: {
       <div style={{
         width: '100%',
         height: 56,
-        background: gradient,
+        background: previewUrl ? 'rgba(0,0,0,0.9)' : gradient,
         position: 'relative',
         overflow: 'hidden',
       }}>
-        {/* Overlay pattern for visual interest */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: `radial-gradient(circle at ${30 + (hashString(shader.id) % 40)}% ${20 + (hashString(shader.id + 'y') % 60)}%, rgba(255,255,255,0.08) 0%, transparent 60%)`,
-        }} />
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: `radial-gradient(circle at ${70 - (hashString(shader.id + 'x') % 40)}% ${80 - (hashString(shader.id + 'z') % 40)}%, rgba(255,255,255,0.05) 0%, transparent 50%)`,
-        }} />
+        {previewUrl ? (
+          <img
+            src={previewUrl}
+            alt={shader.name}
+            style={{
+              width: '100%', height: '100%',
+              objectFit: 'cover', display: 'block',
+            }}
+            draggable={false}
+          />
+        ) : (
+          <>
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: `radial-gradient(circle at ${30 + (hashString(shader.id) % 40)}% ${20 + (hashString(shader.id + 'y') % 60)}%, rgba(255,255,255,0.08) 0%, transparent 60%)`,
+            }} />
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: `radial-gradient(circle at ${70 - (hashString(shader.id + 'x') % 40)}% ${80 - (hashString(shader.id + 'z') % 40)}%, rgba(255,255,255,0.05) 0%, transparent 50%)`,
+            }} />
+          </>
+        )}
         {/* Tier badge */}
         <div style={{
           position: 'absolute', top: 4, left: 4,
@@ -226,6 +241,12 @@ function CategorySection({ category, shaders, activeShader, favorites, onSelect,
   const count = shaders.length
   const label = category === 'favorites' ? 'Favorites' : category === 'recent' ? 'Recent' : (CATEGORY_LABELS[category as ShaderCategory] || category)
   const icon = CATEGORY_ICONS[category] || '◈'
+
+  useEffect(() => {
+    if (open && shaders.length > 0) {
+      requestPreviews(shaders)
+    }
+  }, [open, shaders])
 
   return (
     <div style={{ marginBottom: 2 }}>
@@ -342,6 +363,12 @@ export function LeftPanel() {
       return () => clearTimeout(t)
     }
   }, [browserOpen])
+
+  useEffect(() => {
+    if (search && filteredShaders.length > 0) {
+      requestPreviews(filteredShaders.slice(0, 50))
+    }
+  }, [search, filteredShaders])
 
   const panelRef = useRef<HTMLDivElement>(null)
 

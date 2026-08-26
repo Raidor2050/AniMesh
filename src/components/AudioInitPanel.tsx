@@ -59,7 +59,7 @@ export function AudioInitBar() {
         } else {
           let errorMsg = 'Connection failed'
           if (type === 'system') {
-            errorMsg = 'No audio captured. In Chrome, check "Share audio" in the picker. Use Chrome for best results.'
+            errorMsg = 'No audio captured. In Chrome: (1) Share "Entire Screen", not a window (2) Check "Share audio" in the picker dialog'
           } else if (type === 'mic') {
             errorMsg = 'Microphone access denied or unavailable'
           } else if (type === 'demo') {
