@@ -175,7 +175,11 @@ export class AudioEngine {
           frameRate: { ideal: 1, max: 5 },
         },
         audio: {
-          suppressLocalAudioPlayback: true,
+          // Do NOT set suppressLocalAudioPlayback: true.
+          // For system audio capture, this mutes the captured audio at the WASAPI
+          // level, which can interfere with the original audio source. It's only
+          // useful for tab capture to prevent echo. For system capture, the source
+          // is external (other apps), so there's no echo risk.
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
@@ -254,10 +258,10 @@ export class AudioEngine {
     this.source = this.ctx.createMediaStreamSource(stream)
     this.source.connect(this.masterGain)
     this.sourceType = 'system'
-    // outputGain=0 prevents audio going to speakers.
-    // suppressLocalAudioPlayback only works for browser surfaces (per W3C spec),
-    // so outputGain is the real safety net for system/monitor audio.
-    this.outputGain?.gain.setValueAtTime(0, this.ctx.currentTime)
+    // System audio: outputGain=1 lets captured audio play through speakers.
+    // The source is external (other apps), so there's no echo risk.
+    // Our analyser still sees the audio via masterGain → analyser.
+    this.outputGain?.gain.setValueAtTime(1, this.ctx.currentTime)
 
     if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
       try { await this.ctx.resume() } catch {}
