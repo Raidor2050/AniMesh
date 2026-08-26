@@ -52,7 +52,7 @@ export function AudioInitBar() {
           const labels: Record<string, string> = {
             demo: 'Demo mode active — synthetic audio running',
             mic: 'Microphone connected — speak or play audio nearby',
-            system: 'System audio captured — audio analysis only, no playback',
+            system: 'System audio captured — analysis only, no output',
           }
           setStatus({ type: 'success', msg: labels[type] || 'Connected' })
           setTimeout(() => setShow(false), 1200)

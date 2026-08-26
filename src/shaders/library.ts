@@ -1250,8 +1250,8 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     ['🔥'],
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
-  uv *= 2.5 - uZoom * 0.5 + uBass * 0.15;
-  uv += uOffset;
+  uv *= 2.5 - scale * 0.5 + uBass * 0.15;
+  uv += vec2(offsetX, offsetY);
   vec2 c = vec2(-0.745, 0.186);
   vec2 z = uv;
   float iter = 0.0;
@@ -1270,7 +1270,8 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     [{ id: 'zoom', label: 'Zoom', min: 0, max: 5, default: 1, step: 0.1, group: 'transform' },
      { id: 'offsetX', label: 'Offset X', min: -2, max: 2, default: -0.745, step: 0.01, group: 'transform' },
      { id: 'offsetY', label: 'Offset Y', min: -2, max: 2, default: 0.186, step: 0.01, group: 'transform' }],
-    {}, [{ signal: 'bass', param: 'distortion', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium'
+    {}, [{ signal: 'bass', param: 'distortion', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium',
+    'uniform float offsetX;\nuniform float offsetY;\n'
   ),
 
   createShader(
@@ -1386,7 +1387,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     ['🔥'],
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
-  float zoom = pow(1.5, uZoom * 3.0 + uBass * 0.5);
+  float zoom = pow(1.5, scale * 3.0 + uBass * 0.5);
   uv *= zoom;
   uv += vec2(-0.745, 0.186);
   vec2 c = vec2(-0.745, 0.186);

@@ -308,8 +308,6 @@ export class Renderer {
     set('uLowMid', audio.lowMid)
     set('uHighMid', audio.highMid)
     set('uSpectralCentroid', audio.spectralCentroid)
-    set('uHueShift', mapped.uHueShift ?? 0)
-    set('uSaturation', mapped.uSaturation ?? 1.0)
 
     for (const [key, value] of Object.entries(mapped)) {
       set(key, value)
