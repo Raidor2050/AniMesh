@@ -131,10 +131,6 @@ export function resizeFBO(
   gl.bindTexture(gl.TEXTURE_2D, null)
 }
 
-export function disposeProgram(gl: WebGL2RenderingContext, program: WebGLProgram | null) {
-  if (program) gl.deleteProgram(program)
-}
-
 export function disposeFBO(gl: WebGL2RenderingContext, fbo: { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null) {
   if (!fbo) return
   gl.deleteFramebuffer(fbo.framebuffer)

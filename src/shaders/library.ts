@@ -40,51 +40,9 @@ float fbm(vec2 p) {
   for(int i = 0; i < 5; i++) { f += a*noise(p); p *= 2.01; a *= 0.5; }
   return f;
 }
-float turbulence(vec2 p) {
-  float f = 0.0; float a = 0.5;
-  for(int i = 0; i < 5; i++) { f += a*abs(noise(p)); p *= 2.0; a *= 0.5; }
-  return f;
-}
 // IQ cosine palette: 3 base colors + palette parameter t ∈ [0,1]
 vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
   return a + b * cos(6.28318 * (c * t + d));
-}
-// Rotated FBM — adds directional flow to noise
-float fbmRotated(vec2 p, float angle) {
-  float s = sin(angle), c = cos(angle);
-  mat2 rot = mat2(c, -s, s, c);
-  float f = 0.0, a = 0.5;
-  for(int i = 0; i < 5; i++) { f += a * noise(p); p = rot * p * 2.01; a *= 0.5; }
-  return f;
-}
-// Ridged FBM — sharp ridges, good for terrain/veins
-float ridgedFBM(vec2 p) {
-  float f = 0.0, a = 0.5;
-  for(int i = 0; i < 5; i++) {
-    float n = 1.0 - abs(noise(p) * 2.0 - 1.0);
-    f += a * n * n;
-    p *= 2.01; a *= 0.5;
-  }
-  return f;
-}
-// Domain warping — distorts UVs with noise for organic shapes
-vec2 warp(vec2 p, float amount) {
-  return p + amount * vec2(noise(p + 1.7), noise(p + 4.2));
-}
-// Smooth minimum for SDF unions
-float smin(float a, float b, float k) {
-  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
-  return mix(b, a, h) - k * h * (1.0 - h);
-}
-// Angular radial gradient — useful for spirals/rings
-float radialGrad(vec2 uv, float n) {
-  float a = atan(uv.y, uv.x) / 6.28318 + 0.5;
-  return fract(a * n);
-}
-// Soft glow — fast approximate glow without blur passes
-float softGlow(vec2 uv, vec2 center, float radius) {
-  float d = length(uv - center);
-  return exp(-d * d / (radius * radius));
 }
 `
 
@@ -119,7 +77,15 @@ function createShader(
       ...filteredUniversal,
       ...params,
     ],
-    defaults: { speed: 1, intensity: 1, distortion: 0, scale: 1, brightness: 1, hueShift: 0, saturation: 1, ...defaults },
+    defaults: (() => {
+      // Base universal defaults, then each param schema's default, then any
+      // explicit defaults override — so every declared param gets a base value
+      // (fixes custom params like offsetX/offsetY silently defaulting to 0).
+      const d: Record<string, number> = { speed: 1, intensity: 1, distortion: 0, scale: 1, brightness: 1, hueShift: 0, saturation: 1 }
+      for (const p of params) d[p.id] = p.default
+      Object.assign(d, defaults)
+      return d
+    })(),
     audioMappings: [
       // Proven universal mapping set (MilkDrop/Butterchurn) — all target
       // universal params, so every shader reacts even via the composite pass:
@@ -779,12 +745,12 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
       vec2 uv=gl_FragCoord.xy/uResolution;
       float gate=step(0.5,fract(uTime*uBPM/60.0*0.5));
       float beat=smoothstep(0.0,0.05,uBeat);
-      float strobe=gate*beat;
-      vec3 col=vec3(0.0);
-      col.r=strobe*smoothstep(0.0,0.33,uv.x)*uBass;
-      col.g=strobe*smoothstep(0.33,0.66,uv.x)*uMid;
-      col.b=strobe*smoothstep(0.66,1.0,uv.x)*uTreble;
-      col+=vec3(0.02,0.01,0.03);
+      float strobe=mix(0.06,1.0,gate*beat);
+      vec3 base=vec3(smoothstep(0.0,0.33,uv.x),smoothstep(0.33,0.66,uv.x),smoothstep(0.66,1.0,uv.x));
+      vec3 col=strobe*(base*0.35+vec3(0.15,0.08,0.12));
+      col.r+=strobe*smoothstep(0.0,0.33,uv.x)*uBass*0.8;
+      col.g+=strobe*smoothstep(0.33,0.66,uv.x)*uMid*0.8;
+      col.b+=strobe*smoothstep(0.66,1.0,uv.x)*uTreble*0.8;
       col*=intensity*2.0;
       fragColor=vec4(col,1.0);
     }`,
@@ -1278,8 +1244,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   col *= 0.8 + uTreble * 0.4;
   fragColor = vec4(col, 1.0);
 }`,
-    [{ id: 'zoom', label: 'Zoom', min: 0, max: 5, default: 1, step: 0.1, group: 'transform' },
-     { id: 'offsetX', label: 'Offset X', min: -2, max: 2, default: -0.745, step: 0.01, group: 'transform' },
+    [{ id: 'offsetX', label: 'Offset X', min: -2, max: 2, default: -0.745, step: 0.01, group: 'transform' },
      { id: 'offsetY', label: 'Offset Y', min: -2, max: 2, default: 0.186, step: 0.01, group: 'transform' }],
     {}, [{ signal: 'bass', param: 'distortion', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'medium',
     'uniform float offsetX;\nuniform float offsetY;\n'
@@ -2177,7 +2142,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float t = uTime * 0.1;
   float flow = sin(uv.x * 5.0 + sin(uv.y * 3.0 + t) * 2.0) * 0.5 + 0.5;
   flow = pow(flow, 2.0);
-  float crack = smoothstep(0.4, 0.39, flow);
+  float crack = 1.0 - smoothstep(0.39, 0.4, flow);
   float glow = exp(-flow * 3.0) * 0.5;
   vec3 col = vec3(flow * 0.8 + glow, flow * 0.2, flow * 0.1);
   col += crack * vec3(1.0, 0.8, 0.2) * 0.5;
@@ -2433,9 +2398,9 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float disk = smoothstep(0.3, 0.25, dist) - smoothstep(0.15, 0.1, dist);
   float spiral = sin(angle * 3.0 - dist * 10.0 + t * 5.0) * 0.5 + 0.5;
   disk *= spiral;
-  float horizon = smoothstep(0.1, 0.09, dist);
+  float horizon = smoothstep(0.09, 0.1, dist);
   float lensing = 1.0 / (1.0 + dist * 5.0);
-  vec3 col = vec3(disk * 0.8 + horizon * 0.0, disk * 0.4 + horizon * 0.0, disk * 0.2 + horizon * 0.0);
+  vec3 col = vec3(disk * 0.8 + horizon, disk * 0.4 + horizon, disk * 0.2 + horizon);
   col *= lensing;
   col += vec3(0.05, 0.02, 0.1) * (1.0 - horizon);
   col *= 0.7 + 0.3 * uBass;
@@ -3385,10 +3350,10 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
   float t = uTime * 0.3;
-  float fade = sin(t) * 0.5 + 0.5 + uBeat * 0.2;
+  float fade = max(sin(t) * 0.5 + 0.5 + uBeat * 0.2, 0.30);
   float d = length(uv);
   float shape = smoothstep(0.2 + fade * 0.1, 0.19 + fade * 0.1, d);
-  vec3 col = vec3(shape * 0.15 * fade);
+  vec3 col = vec3(shape * 0.15 * fade + 0.015);
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'speed', label: 'Speed', min: 0.1, max: 1, default: 0.3, step: 0.05, group: 'animation' },

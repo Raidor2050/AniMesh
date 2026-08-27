@@ -419,7 +419,6 @@ export class AudioEngine {
   }
 
   getSourceType(): AudioSourceType { return this.sourceType }
-  getSnapshot(): AudioSnapshot { return this.snapshot }
 
   // ── BPM Mode Control ──
 

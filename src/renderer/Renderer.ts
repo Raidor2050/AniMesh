@@ -1,4 +1,4 @@
-import { createProgram, createQuadVAO, createFBO, resizeFBO, disposeFBO, disposeProgram, VERT_SRC } from '../core/WebGL'
+import { createProgram, createQuadVAO, createFBO, resizeFBO, disposeFBO, VERT_SRC } from '../core/WebGL'
 import { AudioSnapshot, ShaderDefinition, AudioMapping } from '../utils/types'
 import { AudioMappingEngine } from '../mappings/AudioMappingEngine'
 
@@ -189,33 +189,38 @@ export class Renderer {
     this.uniforms.clear()
     this.baseParams = {}
 
+    let ok = false
     try {
-      this.program = createProgram(gl, def.vertex ?? VERT_SRC, def.fragment)
+      const prog = createProgram(gl, def.vertex ?? VERT_SRC, def.fragment)
+      if (prog) {
+        this.program = prog
+        this.currentShader = def
+        this.baseParams = { ...def.defaults }
+        ok = true
+      }
     } catch (e) {
       this.lastError = e instanceof Error ? e.message : String(e)
       console.error('Shader compile failed:', e)
-      const fallback = createProgram(gl, VERT_SRC, FALLBACK_FRAG)
-      if (fallback) this.program = fallback
-      return
     }
 
-    if (!this.program) {
-      this.lastError = 'Shader compile returned null'
+    if (!ok) {
+      this.lastError = this.lastError ?? 'Shader compile returned null'
       const fallback = createProgram(gl, VERT_SRC, FALLBACK_FRAG)
       if (fallback) this.program = fallback
-      return
     }
 
-    this.lastError = null
-    this.currentShader = def
-    this.baseParams = { ...def.defaults }
-
-    const numUniforms = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORMS) as number
-    for (let i = 0; i < numUniforms; i++) {
-      const info = gl.getActiveUniform(this.program, i)
-      if (info) {
-        const loc = gl.getUniformLocation(this.program, info.name)
-        if (loc) this.uniforms.set(info.name, loc)
+    // Build uniform cache for whichever program is active (shader or fallback).
+    // FALLBACK_FRAG declares uTime/uResolution/uMouse/uBass/uVolume/uBeat —
+    // they MUST be uploaded or the fallback renders black/frozen.
+    const active = this.program
+    if (active) {
+      const numUniforms = gl.getProgramParameter(active, gl.ACTIVE_UNIFORMS) as number
+      for (let i = 0; i < numUniforms; i++) {
+        const info = gl.getActiveUniform(active, i)
+        if (info) {
+          const loc = gl.getUniformLocation(active, info.name)
+          if (loc) this.uniforms.set(info.name, loc)
+        }
       }
     }
 

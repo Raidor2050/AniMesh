@@ -62,22 +62,6 @@ export interface AudioSnapshot {
   spectralCentroid: number
 }
 
-export interface RenderState {
-  gl: WebGL2RenderingContext
-  canvas: HTMLCanvasElement
-  program: WebGLProgram | null
-  vao: WebGLVertexArrayObject | null
-  quadBuffer: WebGLBuffer | null
-  fboA: WebGLFramebuffer | null
-  fboB: WebGLFramebuffer | null
-  fboATexture: WebGLTexture | null
-  fboBTexture: WebGLTexture | null
-  width: number
-  height: number
-  dpr: number
-  qualityTier: 'low' | 'medium' | 'high' | 'ultra'
-}
-
 export const DEFAULT_AUDIO: AudioSnapshot = {
   sub: 0, bass: 0, lowMid: 0, mid: 0, highMid: 0, treble: 0,
   volume: 0, beat: false, beatPhase: 0, beatIntensity: 0,

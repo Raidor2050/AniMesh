@@ -143,26 +143,18 @@ type BPMMode = 'auto' | 'manual' | 'tap'
 
 interface AudioStore {
   sourceType: 'none' | 'mic' | 'file' | 'demo' | 'system'
-  permissionState: 'unknown' | 'granted' | 'denied' | 'prompt'
-  playing: boolean
   bpmMode: BPMMode
   manualBpm: number
   setSourceType: (type: AudioStore['sourceType']) => void
-  setPermissionState: (state: AudioStore['permissionState']) => void
-  setPlaying: (v: boolean) => void
   setBpmMode: (mode: BPMMode) => void
   setManualBpm: (bpm: number) => void
 }
 
 export const useAudioStore = create<AudioStore>((set) => ({
   sourceType: 'none',
-  permissionState: 'unknown',
-  playing: false,
   bpmMode: 'auto',
   manualBpm: 128,
   setSourceType: (sourceType) => set({ sourceType }),
-  setPermissionState: (permissionState) => set({ permissionState }),
-  setPlaying: (playing) => set({ playing }),
   setBpmMode: (bpmMode) => set({ bpmMode }),
   setManualBpm: (manualBpm) => set({ manualBpm }),
 }))
