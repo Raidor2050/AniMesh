@@ -6,7 +6,7 @@
 //   - carries tweakable params actually consumed by the body
 //   - applies a brightness floor so it is never pure black
 import { ShaderDefinition, ShaderCategory, AudioMapping, ParameterSchema } from '../utils/types'
-import { wireUniversals } from './wireParams'
+import { wireUniversals, wireAudioEnvelope } from './wireParams'
 
 const HDR = [
   '#version 300 es',
@@ -25,6 +25,7 @@ const HDR = [
   'uniform float uLowMid;',
   'uniform float uHighMid;',
   'uniform float uSpectralCentroid;',
+  'uniform float uAudioGate;',
   'uniform float speed;',
   'uniform float intensity;',
   'uniform float distortion;',
@@ -107,7 +108,7 @@ function bld(
   return {
     id, name, category: cat, description: detail,
     tags: [cat, 'reactive', 'trance', 'techno'],
-    fragment: HDR + extraUnis + wireUniversals(body, baseDefs), uniforms: [],
+    fragment: HDR + extraUnis + wireAudioEnvelope(wireUniversals(body, baseDefs)), uniforms: [],
     params,
     defaults: {
       speed: 1, intensity: 1, distortion: 1, scale: 1, brightness: 1, hueShift: 0, saturation: 1,

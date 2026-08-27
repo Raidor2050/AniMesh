@@ -1,5 +1,5 @@
 import { ShaderDefinition, ShaderCategory } from '../utils/types'
-import { wireParams, wireUniversals } from './wireParams'
+import { wireParams, wireUniversals, wireAudioEnvelope } from './wireParams'
 import { MILKDROP_PRESETS } from './milkdrop-generated'
 import { GENERATED_REACTIVE } from './reactive-collection'
 
@@ -19,6 +19,7 @@ uniform float uSub;
 uniform float uLowMid;
 uniform float uHighMid;
 uniform float uSpectralCentroid;
+uniform float uAudioGate;
 uniform float speed;
 uniform float intensity;
 uniform float distortion;
@@ -79,7 +80,8 @@ function createShader(
   // body when the author left it unwired) plus guarantee universal speed works.
   const wired = wireParams(body, extraUniforms, params)
   // Universal scale/distortion/hueShift/saturation also work on every shader.
-  const finalBody = wireUniversals(wired.body, defs)
+  // Under-reactive bodies additionally get a gated audio envelope (A2).
+  const finalBody = wireAudioEnvelope(wireUniversals(wired.body, defs))
 
   return {
     id, name, category, description, tags,

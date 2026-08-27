@@ -34,6 +34,10 @@ uniform float uHueShift;
 uniform float uZoom;
 uniform float uTime;
 uniform float uBeat;
+uniform float uBass;
+uniform float uVolume;
+uniform float uSpectralCentroid;
+uniform float uAudioGate;
 out vec4 fragColor;
 // IQ hue rotation matrix
 mat3 hueRotate(float a) {
@@ -51,17 +55,23 @@ mat3 hueRotate(float a) {
 }
 void main() {
   vec2 uv = vUv;
-  // Universal scale/zoom — affects EVERY shader output regardless of body
+  // Universal scale/zoom — affects EVERY shader output regardless of body.
+  // Bass triggers a zoom-in pulse that is identity when uAudioGate is 0.
+  float zoomPulse = uZoom * (1.0 - 0.05 * uBass * uAudioGate);
   vec2 center = vec2(0.5);
-  uv = (uv - center) / max(uZoom, 0.05) + center;
-  vec4 scene = texture(uScene, uv);
-  vec4 bloom = texture(uBloom, uv);
-  vec3 color = scene.rgb + bloom.rgb * uBloomStrength;
+  uv = (uv - center) / max(zoomPulse, 0.05) + center;
+  vec3 scene = texture(uScene, uv).rgb;
+  // Bloom gain follows the bass envelope (gated, identity at silence).
+  float bloomGain = uBloomStrength * (1.0 + 0.30 * uBass * uAudioGate);
+  vec3 color = scene + texture(uBloom, uv).rgb * bloomGain;
   // Guard against NaN/Inf propagating from a broken shader body
   if (any(isnan(color)) || any(isinf(color))) color = vec3(0.0);
+  // Loudness/beat brightness pump — gated so silence stays pixel-identical.
+  color *= mix(1.0, 1.0 + 0.10*uVolume + 0.08*uBass + 0.06*uBeat, uAudioGate);
   // Universal color grading — all params apply to every shader
   color *= uBrightness * uIntensity;
-  color = hueRotate(uHueShift) * color;
+  // Timbre → hue drift (gated): brighter sound shifts hue up, dark down.
+  color = hueRotate(uHueShift + (uSpectralCentroid - 0.5) * uAudioGate * 0.10) * color;
   float gray = dot(color, vec3(0.299, 0.587, 0.114));
   color = mix(vec3(gray), color, uSaturation);
   // Safety floor + minimum beat flash so output is never pure black and
@@ -97,7 +107,7 @@ export class Renderer {
   private bloomProgram: WebGLProgram | null = null
   private compositeProgram: WebGLProgram | null = null
   private bloomLocs: { uTexture: WebGLUniformLocation | null; uResolution: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null } | null = null
-  private compositeLocs: { uScene: WebGLUniformLocation | null; uBloom: WebGLUniformLocation | null; uBloomStrength: WebGLUniformLocation | null; uSaturation: WebGLUniformLocation | null; uBrightness: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null; uHueShift: WebGLUniformLocation | null; uZoom: WebGLUniformLocation | null; uTime: WebGLUniformLocation | null; uBeat: WebGLUniformLocation | null } | null = null
+  private compositeLocs: { uScene: WebGLUniformLocation | null; uBloom: WebGLUniformLocation | null; uBloomStrength: WebGLUniformLocation | null; uSaturation: WebGLUniformLocation | null; uBrightness: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null; uHueShift: WebGLUniformLocation | null; uZoom: WebGLUniformLocation | null; uTime: WebGLUniformLocation | null; uBeat: WebGLUniformLocation | null; uBass: WebGLUniformLocation | null; uVolume: WebGLUniformLocation | null; uSpectralCentroid: WebGLUniformLocation | null; uAudioGate: WebGLUniformLocation | null } | null = null
 
   private mappingEngine = new AudioMappingEngine()
   private currentShader: ShaderDefinition | null = null
@@ -153,6 +163,10 @@ export class Renderer {
           uZoom: gl.getUniformLocation(compositeProg, 'uZoom'),
           uTime: gl.getUniformLocation(compositeProg, 'uTime'),
           uBeat: gl.getUniformLocation(compositeProg, 'uBeat'),
+          uBass: gl.getUniformLocation(compositeProg, 'uBass'),
+          uVolume: gl.getUniformLocation(compositeProg, 'uVolume'),
+          uSpectralCentroid: gl.getUniformLocation(compositeProg, 'uSpectralCentroid'),
+          uAudioGate: gl.getUniformLocation(compositeProg, 'uAudioGate'),
         }
         this.hasPostFx = true
       }
@@ -252,6 +266,12 @@ export class Renderer {
     const rw = Math.floor(width * this.dpr)
     const rh = Math.floor(height * this.dpr)
 
+    // MilkDrop-style silence gate: 0 when idle → every audio modulation below
+    // collapses to identity; ramps to 1 as soon as real audio energy is present.
+    const audioGate = audio.volume >= 0.001
+      ? Math.min(Math.max((audio.volume - 0.008) / 0.032, 0), 1)
+      : 0
+
     const allMappings = [
       ...(this.currentShader?.audioMappings ?? []),
       ...(customMappings ?? []),
@@ -274,7 +294,7 @@ export class Renderer {
       gl.viewport(0, 0, rw, rh)
       gl.clear(gl.COLOR_BUFFER_BIT)
       gl.useProgram(this.program)
-      this.setUniforms(time, audio, mapped, [rw, rh], mouse)
+      this.setUniforms(time, audio, mapped, [rw, rh], mouse, audioGate)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
 
       // Bloom pass → FBO B
@@ -308,6 +328,10 @@ export class Renderer {
       if (this.compositeLocs.uZoom) gl.uniform1f(this.compositeLocs.uZoom, Math.max(0.1, (mapped.zoom ?? mapped.scale ?? 1.0)))
       if (this.compositeLocs.uTime) gl.uniform1f(this.compositeLocs.uTime, time)
       if (this.compositeLocs.uBeat) gl.uniform1f(this.compositeLocs.uBeat, audio.beatIntensity)
+      if (this.compositeLocs.uBass) gl.uniform1f(this.compositeLocs.uBass, audio.bass)
+      if (this.compositeLocs.uVolume) gl.uniform1f(this.compositeLocs.uVolume, audio.volume)
+      if (this.compositeLocs.uSpectralCentroid) gl.uniform1f(this.compositeLocs.uSpectralCentroid, audio.spectralCentroid)
+      if (this.compositeLocs.uAudioGate) gl.uniform1f(this.compositeLocs.uAudioGate, audioGate)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
 
       gl.activeTexture(gl.TEXTURE0)
@@ -324,7 +348,7 @@ export class Renderer {
       gl.viewport(0, 0, rw, rh)
       gl.clear(gl.COLOR_BUFFER_BIT)
       gl.useProgram(this.program)
-      this.setUniforms(time, audio, mapped, [rw, rh], mouse)
+      this.setUniforms(time, audio, mapped, [rw, rh], mouse, audioGate)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
     }
 
@@ -343,7 +367,8 @@ export class Renderer {
     audio: AudioSnapshot,
     mapped: Record<string, number>,
     resolution: [number, number],
-    mouse: [number, number]
+    mouse: [number, number],
+    audioGate: number
   ) {
     const { gl, program, uniforms } = this
     if (!program) return
@@ -371,6 +396,7 @@ export class Renderer {
     set('uLowMid', audio.lowMid)
     set('uHighMid', audio.highMid)
     set('uSpectralCentroid', audio.spectralCentroid)
+    set('uAudioGate', audioGate)
 
     for (const [key, value] of Object.entries(mapped)) {
       set(key, value)

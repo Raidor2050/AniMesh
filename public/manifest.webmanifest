@@ -1,0 +1,26 @@
+{
+  "name": "AniMesh — Audio-Reactive Shader Laboratory",
+  "short_name": "AniMesh",
+  "description": "622+ WebGL2 audio-reactive shaders with production VJ controls, offline-ready.",
+  "id": "/AniMesh/",
+  "start_url": "/AniMesh/",
+  "scope": "/AniMesh/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "/AniMesh/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/AniMesh/icons/mask-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
