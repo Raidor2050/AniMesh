@@ -17,6 +17,7 @@ const PREVIEW_W = 256
 const PREVIEW_H = 160
 const BATCH_SIZE = 4
 const BATCH_DELAY_MS = 16
+const MAX_CACHE = 512
 
 interface PreviewEntry {
   dataUrl: string
@@ -207,8 +208,11 @@ class ShaderPreviewManagerSingleton {
     } catch {
       // Shader failed to compile
     }
-    if (!program) program = this.fallbackProgram
-    if (!program) return
+    if (!program) {
+      // Leave the gradient placeholder in place and let the shader be
+      // retried — never cache a fallback render as a real preview.
+      return
+    }
 
     if (this.currentProgram && this.currentProgram !== this.fallbackProgram) {
       gl.deleteProgram(this.currentProgram)
@@ -254,6 +258,13 @@ class ShaderPreviewManagerSingleton {
     set('hueShift', def.defaults.hueShift ?? 0)
     set('saturation', def.defaults.saturation ?? 1)
 
+    // Upload every remaining default exactly as the main renderer does so
+    // previews match live output — otherwise MilkDrop md* uniforms stay at
+    // their GLSL default of 0 (mdGamma=0 → 1/0, mdZoom=0 → collapsed zoom).
+    for (const [key, value] of Object.entries(def.defaults)) {
+      set(key, value)
+    }
+
     gl.drawArrays(gl.TRIANGLES, 0, 6)
     gl.bindVertexArray(null)
 
@@ -269,6 +280,12 @@ class ShaderPreviewManagerSingleton {
       }
     }
 
+    // Evict oldest cache entry once the cap is reached (Map preserves
+    // insertion order, so the first key is the oldest).
+    if (this.cache.size >= MAX_CACHE) {
+      const oldestKey = this.cache.keys().next().value
+      if (oldestKey !== undefined) this.cache.delete(oldestKey)
+    }
     this.cache.set(def.id, { dataUrl, timestamp: Date.now() })
     this.notify(def.id, dataUrl)
   }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'motion/react'
 import { useUIStore, useShaderStore, useAudioStore, audioDataBridge } from '../state/stores'
 import { colors, typography, spacing, radii } from '../ui/tokens'
@@ -29,6 +29,7 @@ export function TopBar() {
   const [beatPulse, setBeatPulse] = useState(false)
   const [sourceMenuOpen, setSourceMenuOpen] = useState(false)
   const [connecting, setConnecting] = useState(false)
+  const beatPulseTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -45,10 +46,13 @@ export function TopBar() {
     const interval = setInterval(() => {
       if (audioDataBridge.snapshot.beat) {
         setBeatPulse(true)
-        setTimeout(() => setBeatPulse(false), 100)
+        beatPulseTimeoutRef.current = setTimeout(() => setBeatPulse(false), 100)
       }
     }, 50)
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      if (beatPulseTimeoutRef.current) clearTimeout(beatPulseTimeoutRef.current)
+    }
   }, [])
 
   // Close source menu on outside click

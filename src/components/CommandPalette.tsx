@@ -43,7 +43,6 @@ export function CommandPalette() {
       { label: 'Toggle Shader Browser', shortcut: 'B', category: 'Panels', action: () => { toggleBrowser(); toggle() } },
       { label: 'Create New Shader', shortcut: 'N', category: 'Panels', action: () => { toggleCreator(); toggle() } },
       { label: 'Toggle Fullscreen', shortcut: 'F', category: 'Panels', action: () => { toggleImmersive(); toggle() } },
-      { label: 'Open Command Palette', shortcut: '⌘K', category: 'Panels', action: () => {} },
       ...shaderCmds,
     ]
   }, [setActiveShader, toggle, toggleBrowser, toggleCreator, toggleImmersive])
@@ -61,6 +60,8 @@ export function CommandPalette() {
   }, [query])
 
   if (!open) return null
+
+  const safeIndex = filtered.length === 0 ? 0 : Math.min(selectedIndex, filtered.length - 1)
 
   return (
     <motion.div
@@ -106,10 +107,11 @@ export function CommandPalette() {
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Escape') toggle()
-              if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, filtered.length - 1)) }
+              if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex(i => filtered.length === 0 ? 0 : Math.min(i + 1, filtered.length - 1)) }
               if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, 0)) }
               if (e.key === 'Enter' && filtered.length > 0) {
-                filtered[selectedIndex].action()
+                const item = filtered[Math.min(selectedIndex, filtered.length - 1)]
+                if (item) item.action()
               }
             }}
             style={{
@@ -146,7 +148,7 @@ export function CommandPalette() {
             </div>
           )}
           {filtered.map((item, i) => {
-            const isSelected = i === selectedIndex
+            const isSelected = i === safeIndex
             return (
               <button
                 key={i}

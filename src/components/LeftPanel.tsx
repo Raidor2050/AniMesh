@@ -350,6 +350,8 @@ export function LeftPanel() {
           .map(id => SHADER_LIBRARY.find(s => s.id === id))
           .filter(Boolean) as ShaderDefinition[]
         map[cat] = search ? ordered.filter(s => filteredShaders.some(x => x.id === s.id)) : ordered
+      } else if (cat === 'milkdrop') {
+        map[cat] = filteredShaders.filter(s => s.tags.includes('milkdrop'))
       } else {
         map[cat] = filteredShaders.filter(s => s.category === cat)
       }

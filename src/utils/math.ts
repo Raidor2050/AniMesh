@@ -23,8 +23,8 @@ export class Smoother {
     attackMs: number = 10,
     releaseMs: number = 200,
   ) {
-    this.attackCoeff = 1 - Math.exp(-1 / (attackMs * 0.06))
-    this.releaseCoeff = 1 - Math.exp(-1 / (releaseMs * 0.06))
+    this.attackCoeff = 1 - Math.exp(-1 / (Math.max(attackMs, 0.001) * 0.06))
+    this.releaseCoeff = 1 - Math.exp(-1 / (Math.max(releaseMs, 0.001) * 0.06))
   }
 
   update(target: number): number {

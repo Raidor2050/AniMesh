@@ -9,7 +9,6 @@ import { audioDataBridge } from '../state/stores'
 export function CanvasLayer() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<Renderer | null>(null)
-  const animFrameRef = useRef<number>(0)
   const mouseRef = useRef<[number, number]>([0, 0])
   const [error, setError] = useState<string | null>(null)
 
@@ -20,78 +19,99 @@ export function CanvasLayer() {
     if (!canvas) return
 
     let renderer: Renderer | null = null
+    let animFrame = 0
+    let disposeListeners: (() => void) | null = null
 
-    try {
-      const gl = initWebGL(canvas)
-      if (!gl) {
-        setError('WebGL2 is not supported in this browser')
-        return
-      }
-
-      renderer = new Renderer(canvas, gl)
-      rendererRef.current = renderer
-
-      const resize = () => {
-        renderer!.resize(window.innerWidth, window.innerHeight, window.devicePixelRatio)
-      }
-      resize()
-      window.addEventListener('resize', resize)
-
-      // Store defaults to a random shader; fallback for HMR / edge cases
-      const stored = useShaderStore.getState().activeShader
-      const fallback = SHADER_LIBRARY[Math.floor(Math.random() * SHADER_LIBRARY.length)] ?? SHADER_LIBRARY[0]
-      const current = stored ?? fallback
-      if (!stored) useShaderStore.getState().setActiveShader(current)
-      renderer.setShader(current)
-
-      const handleMouseMove = (e: MouseEvent) => {
-        mouseRef.current = [
-          e.clientX / window.innerWidth,
-          1.0 - e.clientY / window.innerHeight,
-        ]
-      }
-      window.addEventListener('mousemove', handleMouseMove)
-
-      const tick = (timestamp: number) => {
-        if (!rendererRef.current) return
-
-        const audio = getAudioEngine()
-        const audioSnapshot = audio.tick(timestamp)
-        audioDataBridge.snapshot = audioSnapshot
-
-        const currentShader = useShaderStore.getState().activeShader
-        if (currentShader && currentShader !== rendererRef.current.getCurrentShader()) {
-          rendererRef.current.setShader(currentShader)
+    const init = () => {
+      try {
+        const gl = initWebGL(canvas)
+        if (!gl) {
+          setError('WebGL2 is not supported in this browser')
+          return
         }
 
-        const customMappings = useShaderStore.getState().customAudioMappings
-        const userParams = useShaderStore.getState().params
-        rendererRef.current.render(audioSnapshot, audioSnapshot.time, mouseRef.current, customMappings, userParams)
-        audioDataBridge.fps = rendererRef.current.getFPS()
+        renderer = new Renderer(canvas, gl)
+        rendererRef.current = renderer
 
-        animFrameRef.current = requestAnimationFrame(tick)
-      }
-      animFrameRef.current = requestAnimationFrame(tick)
+        const resize = () => {
+          renderer!.resize(window.innerWidth, window.innerHeight, window.devicePixelRatio)
+        }
+        resize()
+        window.addEventListener('resize', resize)
 
-      const cleanup = () => {
-        cancelAnimationFrame(animFrameRef.current)
-        window.removeEventListener('resize', resize)
-        window.removeEventListener('mousemove', handleMouseMove)
-        if (rendererRef.current) {
-          rendererRef.current.dispose()
+        // Store defaults to a random shader; fallback for HMR / edge cases
+        const stored = useShaderStore.getState().activeShader
+        const fallback = SHADER_LIBRARY[Math.floor(Math.random() * SHADER_LIBRARY.length)] ?? SHADER_LIBRARY[0]
+        const current = stored ?? fallback
+        if (!stored) useShaderStore.getState().setActiveShader(current)
+        renderer.setShader(current)
+
+        const handleMouseMove = (e: MouseEvent) => {
+          mouseRef.current = [
+            e.clientX / window.innerWidth,
+            1.0 - e.clientY / window.innerHeight,
+          ]
+        }
+        window.addEventListener('mousemove', handleMouseMove)
+
+        const stop = () => {
+          cancelAnimationFrame(animFrame)
+          animFrame = 0
+          window.removeEventListener('resize', resize)
+          window.removeEventListener('mousemove', handleMouseMove)
+          if (renderer) {
+            renderer.dispose()
+            renderer = null
+          }
           rendererRef.current = null
         }
-      }
 
-      ;(canvas as any).__cleanup = cleanup
-    } catch (e) {
-      console.error('Renderer init failed:', e)
-      setError(`Renderer init failed: ${e instanceof Error ? e.message : String(e)}`)
+        disposeListeners = stop
+
+        const tick = (timestamp: number) => {
+          if (!rendererRef.current) return
+
+          const audio = getAudioEngine()
+          const audioSnapshot = audio.tick(timestamp)
+          audioDataBridge.snapshot = audioSnapshot
+
+          const currentShader = useShaderStore.getState().activeShader
+          if (currentShader && currentShader !== rendererRef.current.getCurrentShader()) {
+            rendererRef.current.setShader(currentShader)
+          }
+
+          const customMappings = useShaderStore.getState().customAudioMappings
+          const userParams = useShaderStore.getState().params
+          rendererRef.current.render(audioSnapshot, audioSnapshot.time, mouseRef.current, customMappings, userParams)
+          audioDataBridge.fps = rendererRef.current.getFPS()
+
+          animFrame = requestAnimationFrame(tick)
+        }
+        animFrame = requestAnimationFrame(tick)
+      } catch (e) {
+        console.error('Renderer init failed:', e)
+        setError(`Renderer init failed: ${e instanceof Error ? e.message : String(e)}`)
+      }
     }
 
+    init()
+
+    // Recover from GPU resets: on context loss tear the renderer down (the rAF
+    // loop stops because rendererRef.current is nulled); on restore rebuild it.
+    const handleLost = (e: Event) => {
+      e.preventDefault()
+      disposeListeners?.()
+    }
+    const handleRestored = () => {
+      init()
+    }
+    canvas.addEventListener('webglcontextlost', handleLost)
+    canvas.addEventListener('webglcontextrestored', handleRestored)
+
     return () => {
-      const cleanup = (canvas as any).__cleanup
-      if (cleanup) cleanup()
+      canvas.removeEventListener('webglcontextlost', handleLost)
+      canvas.removeEventListener('webglcontextrestored', handleRestored)
+      disposeListeners?.()
     }
   }, [])
 

@@ -68,10 +68,10 @@ export function StreamGraph() {
 
   const render = useCallback((timestamp: number) => {
     const canvas = canvasRef.current
-    if (!canvas) { animRef.current = requestAnimationFrame(render); return }
+    if (!canvas) { cancelAnimationFrame(animRef.current); return }
 
     const parent = canvas.parentElement
-    if (!parent) { animRef.current = requestAnimationFrame(render); return }
+    if (!parent || parent.clientWidth === 0 || parent.clientHeight === 0) { cancelAnimationFrame(animRef.current); return }
 
     const W = parent.clientWidth
     const H = parent.clientHeight
@@ -85,7 +85,7 @@ export function StreamGraph() {
     }
 
     const ctx = canvas.getContext('2d')
-    if (!ctx) { animRef.current = requestAnimationFrame(render); return }
+    if (!ctx) { cancelAnimationFrame(animRef.current); return }
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, W, H)
@@ -342,12 +342,15 @@ export function StreamGraph() {
     ctx.stroke()
   }
 
+  const hidden = !bootComplete || immersive || isMinimized
+
   useEffect(() => {
+    if (hidden) return
     animRef.current = requestAnimationFrame(render)
     return () => cancelAnimationFrame(animRef.current)
-  }, [render])
+  }, [render, hidden])
 
-  if (!bootComplete || immersive || isMinimized) return null
+  if (hidden) return null
 
   return (
     <motion.div

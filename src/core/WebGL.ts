@@ -125,10 +125,16 @@ export function resizeFBO(
   fbo: { framebuffer: WebGLFramebuffer; texture: WebGLTexture },
   width: number,
   height: number
-) {
+): boolean {
   gl.bindTexture(gl.TEXTURE_2D, fbo.texture)
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.HALF_FLOAT, null)
   gl.bindTexture(gl.TEXTURE_2D, null)
+  // Validate the reallocated attachment so callers can degrade gracefully
+  // instead of binding an incomplete FBO (which would render black).
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo.framebuffer)
+  const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER)
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+  return status === gl.FRAMEBUFFER_COMPLETE
 }
 
 export function disposeFBO(gl: WebGL2RenderingContext, fbo: { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null) {

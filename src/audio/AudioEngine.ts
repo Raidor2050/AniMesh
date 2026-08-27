@@ -1,5 +1,6 @@
 import { AudioSnapshot, DEFAULT_AUDIO } from '../utils/types'
 import { Smoother, computeRMS, clamp } from '../utils/math'
+import { useAudioStore } from '../state/stores'
 
 export type AudioSourceType = 'none' | 'mic' | 'file' | 'demo' | 'system'
 
@@ -27,6 +28,7 @@ export class AudioEngine {
   private ctx: AudioContext | null = null
   private analyser: AnalyserNode | null = null
   private source: AudioNode | null = null
+  private fileSource: AudioBufferSourceNode | null = null
   private masterGain: GainNode | null = null
   private outputGain: GainNode | null = null
   private sourceType: AudioSourceType = 'none'
@@ -55,7 +57,6 @@ export class AudioEngine {
   private beatDetected = false
   private beatPhaseAcc = 0
   private bpmEstimate = 128
-  private startTime = 0
   private warmUpFrames = 0
   private beatCount = 0
 
@@ -79,6 +80,7 @@ export class AudioEngine {
   private static readonly TAP_MAX_SAMPLES = 12
 
   private snapshot: AudioSnapshot = createSnapshot()
+  private lastTickTime = 0
 
   private demoNodes: OscillatorNode[] = []
   private micStream: MediaStream | null = null
@@ -110,7 +112,6 @@ export class AudioEngine {
     this.masterGain.connect(this.analyser)
     this.analyser.connect(this.outputGain)
     this.outputGain.connect(this.ctx.destination)
-    this.startTime = performance.now()
   }
 
   async setSource(type: AudioSourceType, file?: File): Promise<boolean> {
@@ -127,11 +128,12 @@ export class AudioEngine {
         case 'demo': return this.connectDemo(gen)
         case 'system': return await this.connectSystem(gen)
         case 'none':
-        default: this.sourceType = 'none'; return true
+        default: this.sourceType = 'none'; this.syncSourceType(); return true
       }
     } catch (e) {
       console.warn('Audio source failed:', e)
       this.sourceType = 'none'
+      this.syncSourceType()
       return false
     }
   }
@@ -243,6 +245,7 @@ export class AudioEngine {
         console.log('[AudioEngine] System audio track ended (user stopped sharing)')
         this.disconnect()
         this.sourceType = 'none'
+        this.syncSourceType()
       }
     }
 
@@ -288,6 +291,7 @@ export class AudioEngine {
     source.loop = true
     source.start(0)
     this.source = source
+    this.fileSource = source
     this.sourceType = 'file'
     // File audio plays through our speakers
     this.outputGain?.gain.setValueAtTime(1, this.ctx.currentTime)
@@ -398,6 +402,11 @@ export class AudioEngine {
 
     this.demoNodes.forEach(n => { try { n.stop() } catch {} })
     this.demoNodes = []
+    // Stop looped file sources so decoding doesn't continue in the background
+    if (this.fileSource) {
+      try { this.fileSource.stop() } catch {}
+      this.fileSource = null
+    }
     if (this.micStream) {
       this.micStream.getTracks().forEach(t => t.stop())
       this.micStream = null
@@ -419,6 +428,11 @@ export class AudioEngine {
   }
 
   getSourceType(): AudioSourceType { return this.sourceType }
+
+  private syncSourceType() {
+    // Keep the Zustand UI source-type badge in lockstep with the engine state.
+    useAudioStore.getState().setSourceType(this.sourceType)
+  }
 
   // ── BPM Mode Control ──
 
@@ -655,8 +669,19 @@ export class AudioEngine {
     }
     this.snapshot.beatPhase = this.beatPhaseAcc
 
+    // Advance the shader clock from clamped dt so animations don't teleport
+    // after a hidden tab or frame stall; reset beat timing on large gaps.
+    if (this.lastTickTime > 0) {
+      const gapMs = timestamp - this.lastTickTime
+      if (gapMs > 0) this.snapshot.time += Math.min(gapMs / 1000, 0.1)
+      if (gapMs > 1500) {
+        this.lastBeatTime = timestamp
+        this.beatPhaseAcc = 0
+      }
+    }
+    this.lastTickTime = timestamp
+
     this.snapshot.bpm = effectiveBpm
-    this.snapshot.time = (timestamp - this.startTime) / 1000
 
     // Spectral centroid (brightness of sound) — map to hue shift
     this.snapshot.spectralCentroid = this.smoothCentroid.update(

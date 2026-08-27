@@ -211,11 +211,11 @@ export function ShaderCarousel() {
   }, [setActiveShader])
 
   const goLeft = useCallback(() => {
-    setCenterIndex(prev => (prev - 1 + total) % total)
+    setCenterIndex(prev => (total > 0 ? (prev - 1 + total) % total : 0))
   }, [total])
 
   const goRight = useCallback(() => {
-    setCenterIndex(prev => (prev + 1) % total)
+    setCenterIndex(prev => (total > 0 ? (prev + 1) % total : 0))
   }, [total])
 
   useEffect(() => {
@@ -250,9 +250,13 @@ export function ShaderCarousel() {
     if (total === 0) return []
     const half = Math.floor(VISIBLE_COUNT / 2)
     const cards: { shader: ShaderDefinition; offset: number; index: number }[] = []
+    const seen = new Set<string>()
     for (let i = -half; i <= half; i++) {
       const idx = (centerIndex + i + total) % total
-      cards.push({ shader: filteredShaders[idx], offset: i, index: idx })
+      const shader = filteredShaders[idx]
+      if (!shader || seen.has(shader.id)) continue
+      seen.add(shader.id)
+      cards.push({ shader, offset: i, index: idx })
     }
     return cards
   }, [centerIndex, filteredShaders, total])
@@ -391,7 +395,7 @@ export function ShaderCarousel() {
 
                 return (
                   <CarouselCard
-                    key={`${shader.id}-${offset}`}
+                    key={shader.id}
                     shader={shader}
                     offset={offset}
                     isActive={isActive}
@@ -399,7 +403,7 @@ export function ShaderCarousel() {
                     absOffset={absOffset}
                     onClick={() => {
                       if (isCenter) selectShader(shader)
-                      else setCenterIndex((offset > 0 ? 1 : -1) * (offset > 0 ? 1 : -1))
+                      else setCenterIndex(prev => (offset > 0 ? (prev + 1) % total : (prev - 1 + total) % total))
                     }}
                   />
                 )

@@ -176,8 +176,17 @@ export class Renderer {
     this.canvas.style.height = `${h}px`
 
     const { gl } = this
-    if (this.fboA) resizeFBO(gl, this.fboA, rw, rh)
-    if (this.fboB) resizeFBO(gl, this.fboB, rw, rh)
+    const okA = this.fboA ? resizeFBO(gl, this.fboA, rw, rh) : true
+    const okB = this.fboB ? resizeFBO(gl, this.fboB, rw, rh) : true
+    if (!okA || !okB) {
+      // FBO reallocation failed (e.g. texture size exceeded) — degrade to
+      // direct-to-screen rendering instead of silently binding an incomplete FBO.
+      this.hasPostFx = false
+      if (this.fboA) disposeFBO(gl, this.fboA)
+      if (this.fboB) disposeFBO(gl, this.fboB)
+      this.fboA = null
+      this.fboB = null
+    }
   }
 
   setShader(def: ShaderDefinition) {
@@ -210,8 +219,8 @@ export class Renderer {
     }
 
     // Build uniform cache for whichever program is active (shader or fallback).
-    // FALLBACK_FRAG declares uTime/uResolution/uMouse/uBass/uVolume/uBeat —
-    // they MUST be uploaded or the fallback renders black/frozen.
+    // The cache is driven by getActiveUniform, so uniforms the active program
+    // does not declare are simply never uploaded.
     const active = this.program
     if (active) {
       const numUniforms = gl.getProgramParameter(active, gl.ACTIVE_UNIFORMS) as number
@@ -234,7 +243,8 @@ export class Renderer {
     if (!this.program || width === 0 || height === 0 || !this.vao) return
 
     const now = performance.now()
-    const dt = this.lastFrameTime > 0 ? (now - this.lastFrameTime) / 1000 : 1 / 60
+    // Clamp dt so decays/animations don't snap after a hidden tab or long stall.
+    const dt = this.lastFrameTime > 0 ? Math.min((now - this.lastFrameTime) / 1000, 0.1) : 1 / 60
     this.lastFrameTime = now
 
     const rw = Math.floor(width * this.dpr)

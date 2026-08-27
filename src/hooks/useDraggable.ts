@@ -108,10 +108,15 @@ export function useDraggable(options: DraggableOptions = {}) {
 
     if (liveRef.current.hasMoved) {
       setIsDragging(false)
-      setPosition({ x: liveRef.current.x, y: liveRef.current.y })
       if (onDragEnd) onDragEnd(liveRef.current.x, liveRef.current.y)
     }
   }, [onDragEnd])
+
+  const cancelDrag = useCallback(() => {
+    if (!liveRef.current.handleEl) return
+    liveRef.current.handleEl = null
+    setIsDragging(false)
+  }, [])
 
   return {
     position,
@@ -121,7 +126,8 @@ export function useDraggable(options: DraggableOptions = {}) {
       onPointerDown: handlePointerDown,
       onPointerMove: handlePointerMove,
       onPointerUp: handlePointerUp,
-      onPointerCancel: handlePointerUp,
+      onPointerCancel: cancelDrag,
+      onLostPointerCapture: cancelDrag,
     },
   }
 }
