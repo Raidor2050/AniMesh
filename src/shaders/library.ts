@@ -1,5 +1,6 @@
 import { ShaderDefinition, ShaderCategory } from '../utils/types'
 import { MILKDROP_PRESETS } from './milkdrop-generated'
+import { GENERATED_REACTIVE } from './reactive-collection'
 
 const UNIFORM_HEADER = `#version 300 es
 precision highp float;
@@ -3566,7 +3567,57 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     'medium'
   ),
 
-  ...MILKDROP_PRESETS,
+  ...GENERATED_REACTIVE,
+  ...MILKDROP_PRESETS.map(md => {
+    // Make MilkDrop presets fully tweakable + audio-reactive: expose the md*
+    // adapter uniforms as real parameter sliders seeded from each preset's
+    // defaults, and add the universal audio-mapping set.
+    const mdParams: ShaderDefinition['params'] = [
+      { id: 'mdZoom', label: 'Zoom', min: 0.2, max: 3, default: md.defaults.mdZoom ?? 1, step: 0.05, group: 'transform' },
+      { id: 'mdRot', label: 'Rotate', min: -3, max: 3, default: md.defaults.mdRot ?? 0, step: 0.05, group: 'transform' },
+      { id: 'mdDecay', label: 'Decay', min: 0, max: 1, default: md.defaults.mdDecay ?? 0.6, step: 0.05, group: 'audio' },
+      { id: 'mdWarp', label: 'Warp', min: 0, max: 2, default: md.defaults.mdWarp ?? 0.5, step: 0.05, group: 'audio' },
+      { id: 'mdGamma', label: 'Gamma', min: 0.5, max: 3, default: md.defaults.mdGamma ?? 1.4, step: 0.05, group: 'color' },
+      { id: 'mdWaveMode', label: 'Wave Mode', min: 0, max: 6, default: md.defaults.mdWaveMode ?? 0, step: 1, group: 'shape' },
+      { id: 'mdWaveAlpha', label: 'Wave Alpha', min: 0, max: 2, default: md.defaults.mdWaveAlpha ?? 1, step: 0.05, group: 'audio' },
+      { id: 'mdWaveScale', label: 'Wave Scale', min: 0.2, max: 3, default: md.defaults.mdWaveScale ?? 1, step: 0.05, group: 'shape' },
+      { id: 'mdWaveFreq', label: 'Wave Freq', min: 0.5, max: 12, default: md.defaults.mdWaveFreq ?? 4, step: 0.1, group: 'shape' },
+      { id: 'mdObSize', label: 'Obj Size', min: 0.05, max: 1, default: md.defaults.mdObSize ?? 0.3, step: 0.01, group: 'shape' },
+      { id: 'mdObAlpha', label: 'Obj Alpha', min: 0, max: 2, default: md.defaults.mdObAlpha ?? 0, step: 0.05, group: 'audio' },
+      { id: 'mdIbSize', label: 'Inner Size', min: 0.05, max: 1, default: md.defaults.mdIbSize ?? 0.3, step: 0.01, group: 'shape' },
+      { id: 'mdIbAlpha', label: 'Inner Alpha', min: 0, max: 2, default: md.defaults.mdIbAlpha ?? 0, step: 0.05, group: 'audio' },
+    ]
+    const mdDefaultIds = new Set(mdParams.map(p => p.id))
+    const universal: ShaderDefinition['params'] = [
+      { id: 'speed', label: 'Speed', min: 0, max: 3, default: md.defaults.speed ?? 1, step: 0.1 },
+      { id: 'intensity', label: 'Intensity', min: 0, max: 2, default: md.defaults.intensity ?? 1, step: 0.05 },
+      { id: 'distortion', label: 'Distortion', min: 0, max: 2, default: md.defaults.distortion ?? 0, step: 0.05, group: 'audio' },
+      { id: 'scale', label: 'Scale', min: 0.1, max: 3, default: md.defaults.scale ?? 1, step: 0.1, group: 'audio' },
+      { id: 'brightness', label: 'Brightness', min: 0, max: 2, default: md.defaults.brightness ?? 1, step: 0.05, group: 'audio' },
+      { id: 'hueShift', label: 'Hue Shift', min: 0, max: 6.28, default: md.defaults.hueShift ?? 0, step: 0.05 },
+      { id: 'saturation', label: 'Saturation', min: 0, max: 2, default: md.defaults.saturation ?? 1, step: 0.05 },
+    ]
+    return {
+      ...md,
+      params: [...universal, ...mdParams],
+      defaults: {
+        speed: 1, intensity: 1, distortion: 0, scale: 1, brightness: 1, hueShift: 0, saturation: 1,
+        mdZoom: md.defaults.mdZoom ?? 1, mdRot: md.defaults.mdRot ?? 0, mdDecay: md.defaults.mdDecay ?? 0.6,
+        mdWarp: md.defaults.mdWarp ?? 0.5, mdGamma: md.defaults.mdGamma ?? 1.4, mdWaveMode: md.defaults.mdWaveMode ?? 0,
+        mdWaveAlpha: md.defaults.mdWaveAlpha ?? 1, mdWaveScale: md.defaults.mdWaveScale ?? 1,
+        mdWaveFreq: md.defaults.mdWaveFreq ?? 4, mdObSize: md.defaults.mdObSize ?? 0.3,
+        mdObAlpha: md.defaults.mdObAlpha ?? 0, mdIbSize: md.defaults.mdIbSize ?? 0.3,
+        mdIbAlpha: md.defaults.mdIbAlpha ?? 0, ...md.defaults,
+      },
+      audioMappings: ([
+        { signal: 'bass', param: 'mdZoom', amount: 0.30, curve: 'log' } as const,
+        { signal: 'beat', param: 'intensity', amount: 0.35, curve: 'linear' } as const,
+        { signal: 'mid', param: 'hueShift', amount: 0.30, curve: 'linear' } as const,
+        { signal: 'treble', param: 'brightness', amount: 0.20, curve: 'linear' } as const,
+        { signal: 'volume', param: 'brightness', amount: 0.25, curve: 'log' } as const,
+      ]) as unknown as ShaderDefinition['audioMappings'],
+    }
+  }),
 ]
 
 export function getShadersByCategory(category: ShaderCategory): ShaderDefinition[] {
