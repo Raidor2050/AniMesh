@@ -121,8 +121,18 @@ function createShader(
     ],
     defaults: { speed: 1, intensity: 1, distortion: 0, scale: 1, brightness: 1, hueShift: 0, saturation: 1, ...defaults },
     audioMappings: [
-      { signal: 'bass', param: 'speed', amount: 0.5, curve: 'log' },
-      { signal: 'beat', param: 'intensity', amount: 0.3, curve: 'linear' },
+      // Proven universal mapping set (MilkDrop/Butterchurn) — all target
+      // universal params, so every shader reacts even via the composite pass:
+      //   bass/sub → zoom/scale (deep swell), beat → intensity (flash/kick),
+      //   beatPhase → scale (phase-locked motion), mid → hue shift,
+      //   treble → brightness (sparkle), volume → brightness (loudness),
+      //   spectralCentroid → hue shift (timbre → color).
+      { signal: 'bass', param: 'scale', amount: 0.30, curve: 'log' },
+      { signal: 'beat', param: 'intensity', amount: 0.35, curve: 'linear' },
+      { signal: 'beatPhase', param: 'scale', amount: 0.12, curve: 'linear' },
+      { signal: 'mid', param: 'hueShift', amount: 0.30, curve: 'linear' },
+      { signal: 'treble', param: 'brightness', amount: 0.20, curve: 'linear' },
+      { signal: 'volume', param: 'brightness', amount: 0.25, curve: 'log' },
       ...audioMappings,
     ],
     performanceTier: tier,

@@ -28,13 +28,46 @@ uniform sampler2D uScene;
 uniform sampler2D uBloom;
 uniform float uBloomStrength;
 uniform float uSaturation;
+uniform float uBrightness;
+uniform float uHueShift;
+uniform float uZoom;
+uniform float uTime;
+uniform float uBeat;
 out vec4 fragColor;
+// IQ hue rotation matrix
+mat3 hueRotate(float a) {
+  float c = cos(a), s = sin(a);
+  mat3 m3 = mat3(0.299,0.587,0.114,
+                0.299,0.587,0.114,
+                0.299,0.587,0.114);
+  mat3 a3 = mat3(0.701,-0.299,-0.300,
+                -0.587,0.413,-0.588,
+                -0.114,-0.114,0.886);
+  mat3 b3 = mat3(0.168,0.330,-0.497,
+                -0.328,0.035,0.292,
+                1.250,-1.050,0.203);
+  return m3 + c*a3 + s*b3;
+}
 void main() {
-  vec4 scene = texture(uScene, vUv);
-  vec4 bloom = texture(uBloom, vUv);
+  vec2 uv = vUv;
+  // Universal scale/zoom — affects EVERY shader output regardless of body
+  vec2 center = vec2(0.5);
+  uv = (uv - center) / max(uZoom, 0.05) + center;
+  vec4 scene = texture(uScene, uv);
+  vec4 bloom = texture(uBloom, uv);
   vec3 color = scene.rgb + bloom.rgb * uBloomStrength;
+  // Guard against NaN/Inf propagating from a broken shader body
+  if (any(isnan(color)) || any(isinf(color))) color = vec3(0.0);
+  // Universal color grading — all params apply to every shader
+  color *= uBrightness;
+  color = hueRotate(uHueShift) * color;
   float gray = dot(color, vec3(0.299, 0.587, 0.114));
   color = mix(vec3(gray), color, uSaturation);
+  // Safety floor + minimum beat flash so output is never pure black and
+  // always audibly reactive, even if the source shader is degenerate.
+  float floorAmt = 0.02 + 0.03 * uBeat;
+  color = max(color, vec3(floorAmt));
+  color = clamp(color, 0.0, 1.0);
   fragColor = vec4(color, 1.0);
 }`
 
@@ -63,7 +96,7 @@ export class Renderer {
   private bloomProgram: WebGLProgram | null = null
   private compositeProgram: WebGLProgram | null = null
   private bloomLocs: { uTexture: WebGLUniformLocation | null; uResolution: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null } | null = null
-  private compositeLocs: { uScene: WebGLUniformLocation | null; uBloom: WebGLUniformLocation | null; uBloomStrength: WebGLUniformLocation | null; uSaturation: WebGLUniformLocation | null } | null = null
+  private compositeLocs: { uScene: WebGLUniformLocation | null; uBloom: WebGLUniformLocation | null; uBloomStrength: WebGLUniformLocation | null; uSaturation: WebGLUniformLocation | null; uBrightness: WebGLUniformLocation | null; uHueShift: WebGLUniformLocation | null; uZoom: WebGLUniformLocation | null; uTime: WebGLUniformLocation | null; uBeat: WebGLUniformLocation | null } | null = null
 
   private mappingEngine = new AudioMappingEngine()
   private currentShader: ShaderDefinition | null = null
@@ -113,6 +146,11 @@ export class Renderer {
           uBloom: gl.getUniformLocation(compositeProg, 'uBloom'),
           uBloomStrength: gl.getUniformLocation(compositeProg, 'uBloomStrength'),
           uSaturation: gl.getUniformLocation(compositeProg, 'uSaturation'),
+          uBrightness: gl.getUniformLocation(compositeProg, 'uBrightness'),
+          uHueShift: gl.getUniformLocation(compositeProg, 'uHueShift'),
+          uZoom: gl.getUniformLocation(compositeProg, 'uZoom'),
+          uTime: gl.getUniformLocation(compositeProg, 'uTime'),
+          uBeat: gl.getUniformLocation(compositeProg, 'uBeat'),
         }
         this.hasPostFx = true
       }
@@ -246,7 +284,12 @@ export class Renderer {
       gl.bindTexture(gl.TEXTURE_2D, this.fboB.texture)
       if (this.compositeLocs.uBloom) gl.uniform1i(this.compositeLocs.uBloom, 1)
       if (this.compositeLocs.uBloomStrength) gl.uniform1f(this.compositeLocs.uBloomStrength, mapped.bloomStrength ?? 0.6)
-      if (this.compositeLocs.uSaturation) gl.uniform1f(this.compositeLocs.uSaturation, mapped.saturation ?? 1.0)
+      if (this.compositeLocs.uSaturation) gl.uniform1f(this.compositeLocs.uSaturation, Math.max(0, mapped.saturation ?? 1.0))
+      if (this.compositeLocs.uBrightness) gl.uniform1f(this.compositeLocs.uBrightness, Math.max(0, mapped.brightness ?? 1.0))
+      if (this.compositeLocs.uHueShift) gl.uniform1f(this.compositeLocs.uHueShift, mapped.hueShift ?? 0.0)
+      if (this.compositeLocs.uZoom) gl.uniform1f(this.compositeLocs.uZoom, Math.max(0.1, (mapped.zoom ?? mapped.scale ?? 1.0)))
+      if (this.compositeLocs.uTime) gl.uniform1f(this.compositeLocs.uTime, time)
+      if (this.compositeLocs.uBeat) gl.uniform1f(this.compositeLocs.uBeat, audio.beatIntensity)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
 
       gl.activeTexture(gl.TEXTURE0)
