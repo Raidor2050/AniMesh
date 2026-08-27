@@ -200,6 +200,7 @@ export function ShaderCarousel() {
   const filteredShaders = useMemo(() => {
     if (category === 'favorites') return SHADER_LIBRARY.filter(s => favorites.includes(s.id))
     if (category === 'recent') return SHADER_LIBRARY.filter(s => recent.includes(s.id))
+    if (category === 'milkdrop') return SHADER_LIBRARY.filter(s => s.tags.includes('milkdrop'))
     return SHADER_LIBRARY.filter(s => s.category === category)
   }, [category, favorites, recent])
 

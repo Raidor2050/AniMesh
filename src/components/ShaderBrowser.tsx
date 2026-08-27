@@ -7,13 +7,13 @@ import { getShaderPreviewManager } from '../renderer/ShaderPreviewManager'
 import { colors, typography, spacing, radii, animation } from '../ui/tokens'
 
 const CATEGORIES: (ShaderCategory | 'all' | 'favorites' | 'recent')[] = [
-  'all', 'fractals', 'vj', 'geometric', 'liquid', 'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'favorites', 'recent',
+  'all', 'fractals', 'vj', 'geometric', 'liquid', 'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'milkdrop', 'favorites', 'recent',
 ]
 
 const CATEGORY_ICONS: Record<string, string> = {
   all: '◈', fractals: '✦', vj: '◎', geometric: '◇', liquid: '≈',
   cosmic: '✧', synthwave: '▶', abstract: '◆', minimal: '○', particle: '∴',
-  favorites: '★', recent: '◷',
+  milkdrop: '≋', favorites: '★', recent: '◷',
 }
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
@@ -26,6 +26,7 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
   abstract: 'linear-gradient(135deg, #1a1a2e 0%, #2a1a3a 45%, #1e1e32 100%)',
   minimal: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 45%, #1e1e1e 100%)',
   particle: 'linear-gradient(135deg, #0f1f33 0%, #1a2e4a 45%, #0e1a2e 100%)',
+  milkdrop: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 45%, #0f3460 100%)',
   all: 'linear-gradient(135deg, #14141e 0%, #1e1e32 45%, #141428 100%)',
 }
 
@@ -59,7 +60,9 @@ export function ShaderBrowser() {
       // When searching, filter recent by search as well
       shaders = search ? ordered.filter(s => shaders.some(x => x.id === s.id)) : ordered
     } else if (activeCategory !== 'all') {
-      shaders = shaders.filter(s => s.category === activeCategory)
+      shaders = activeCategory === 'milkdrop'
+        ? shaders.filter(s => s.tags.includes('milkdrop'))
+        : shaders.filter(s => s.category === activeCategory)
     }
     return shaders
   }, [search, activeCategory, favorites, recent])
@@ -69,7 +72,9 @@ export function ShaderBrowser() {
     const counts: Record<string, number> = { all: SHADER_LIBRARY.length }
     for (const cat of CATEGORIES) {
       if (cat === 'all' || cat === 'favorites' || cat === 'recent') continue
-      counts[cat] = SHADER_LIBRARY.filter(s => s.category === cat).length
+      counts[cat] = cat === 'milkdrop'
+        ? SHADER_LIBRARY.filter(s => s.tags.includes('milkdrop')).length
+        : SHADER_LIBRARY.filter(s => s.category === cat).length
     }
     counts.favorites = favorites.length
     counts.recent = recent.length
