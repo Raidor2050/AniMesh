@@ -47,7 +47,7 @@ export function ParameterPanel() {
   if (paramDefs.length === 0) return null
 
   const audioParams = paramDefs.filter(p => p.group === 'audio')
-  const visualParams = paramDefs.filter(p => !p.group)
+  const visualParams = paramDefs.filter(p => p.group !== 'audio')
 
   return (
     <AnimatePresence>

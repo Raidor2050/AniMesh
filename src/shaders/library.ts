@@ -1,4 +1,5 @@
 import { ShaderDefinition, ShaderCategory } from '../utils/types'
+import { wireParams, wireUniversals } from './wireParams'
 import { MILKDROP_PRESETS } from './milkdrop-generated'
 import { GENERATED_REACTIVE } from './reactive-collection'
 
@@ -70,23 +71,25 @@ function createShader(
   const shaderParamIds = new Set(params.map(p => p.id))
   const filteredUniversal = universalParams.filter(p => !shaderParamIds.has(p.id))
 
+  const defs: Record<string, number> = { speed: 1, intensity: 1, distortion: 0, scale: 1, brightness: 1, hueShift: 0, saturation: 1 }
+  for (const p of params) defs[p.id] = p.default
+  Object.assign(defs, defaults)
+
+  // Make every custom param a live manipulator (declared + injected into the
+  // body when the author left it unwired) plus guarantee universal speed works.
+  const wired = wireParams(body, extraUniforms, params)
+  // Universal scale/distortion/hueShift/saturation also work on every shader.
+  const finalBody = wireUniversals(wired.body, defs)
+
   return {
     id, name, category, description, tags,
-    fragment: UNIFORM_HEADER + extraUniforms + COMMON_NOISE + body,
+    fragment: UNIFORM_HEADER + wired.extraUniforms + COMMON_NOISE + finalBody,
     uniforms: [],
     params: [
       ...filteredUniversal,
       ...params,
     ],
-    defaults: (() => {
-      // Base universal defaults, then each param schema's default, then any
-      // explicit defaults override — so every declared param gets a base value
-      // (fixes custom params like offsetX/offsetY silently defaulting to 0).
-      const d: Record<string, number> = { speed: 1, intensity: 1, distortion: 0, scale: 1, brightness: 1, hueShift: 0, saturation: 1 }
-      for (const p of params) d[p.id] = p.default
-      Object.assign(d, defaults)
-      return d
-    })(),
+    defaults: defs,
     audioMappings: [
       // Proven universal mapping set (MilkDrop/Butterchurn) — all target
       // universal params, so every shader reacts even via the composite pass:
@@ -2668,16 +2671,15 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float offset = glitch * sin(t * 100.0) * 0.05;
   vec2 distortedUv = uv + vec2(offset, 0.0);
   float scanline = sin(uv.y * 200.0) * 0.02;
-  float noise = fract(sin(dot(uv * t, vec2(12.9898, 78.233))) * 43758.5453);
   vec3 col = vec3(sin(distortedUv.x * 10.0 + t) * 0.5 + 0.5, sin(distortedUv.x * 10.0 + t + 2.094) * 0.5 + 0.5, sin(distortedUv.x * 10.0 + t + 4.188) * 0.5 + 0.5);
   col -= scanline;
-  col += noise * 0.05;
+  col += filmGrain * fract(sin(dot(uv * t, vec2(12.9898, 78.233))) * 43758.5453);
   col *= 1.0 + glitch * 0.5;
   col *= 0.7 + 0.3 * uBass;
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'tracking', label: 'Tracking', min: 0, max: 1, default: 0.5, step: 0.1, group: 'glitch' },
-     { id: 'noise', label: 'Noise', min: 0, max: 0.2, default: 0.05, step: 0.01, group: 'glitch' }],
+     { id: 'filmGrain', label: 'Noise Grain', min: 0, max: 0.2, default: 0.05, step: 0.01, group: 'glitch' }],
     {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
 
@@ -2753,14 +2755,13 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     `void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
   float t = uTime;
-  float noise = fract(sin(dot(uv * t, vec2(12.9898, 78.233))) * 43758.5453);
   float bars = step(0.5, fract(uv.y * 10.0));
-  vec3 col = vec3(noise * 0.3);
+  vec3 col = vec3(filmGrain * fract(sin(dot(uv * t, vec2(12.9898, 78.233))) * 43758.5453));
   col += bars * vec3(step(0.8, fract(uv.x * 7.0 + t)), step(0.6, fract(uv.x * 7.0 + t + 0.2)), step(0.4, fract(uv.x * 7.0 + t + 0.4))) * 0.5;
   col *= 1.0 + uBeat * 0.2;
   fragColor = vec4(col, 1.0);
 }`,
-    [{ id: 'noise', label: 'Noise', min: 0, max: 0.5, default: 0.3, step: 0.05, group: 'glitch' },
+    [{ id: 'filmGrain', label: 'Noise Grain', min: 0, max: 0.5, default: 0.3, step: 0.05, group: 'glitch' },
      { id: 'pattern', label: 'Pattern', min: 0, max: 1, default: 0.5, step: 0.1, group: 'detail' }],
     {}, [{ signal: 'beat', param: 'scale', amount: 0.5, curve: 'log' }, { signal: 'bass', param: 'distortion', amount: 0.3, curve: 'log' }, { signal: 'treble', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
   ),
@@ -3335,14 +3336,15 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float t = uTime * 0.2;
   float angle = t + uBass * 0.2;
   vec2 rotUv = vec2(uv.x * cos(angle) - uv.y * sin(angle), uv.x * sin(angle) + uv.y * cos(angle));
-  float line = smoothstep(0.003, 0.0, abs(rotUv.x)) * smoothstep(0.5, 0.0, abs(rotUv.y));
+  float line = smoothstep(0.003, 0.0, abs(rotUv.x)) * smoothstep(lineLen, 0.0, abs(rotUv.y));
   float fade = 1.0 - length(uv) * 0.8;
   vec3 col = vec3(line * 0.2 * max(0.0, fade));
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'speed', label: 'Speed', min: 0.05, max: 1, default: 0.2, step: 0.05, group: 'animation' },
-     { id: 'length', label: 'Length', min: 0.2, max: 0.8, default: 0.5, step: 0.05, group: 'shape' }],
-    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low'
+     { id: 'lineLen', label: 'Length', min: 0.2, max: 0.8, default: 0.5, step: 0.05, group: 'shape' }],
+    {}, [{ signal: 'bass', param: 'scale', amount: 0.4, curve: 'log' }, { signal: 'beat', param: 'brightness', amount: 0.3, curve: 'linear' }], 'low',
+    'uniform float lineLen;\n'
   ),
 
   createShader(

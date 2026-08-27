@@ -29,6 +29,7 @@ uniform sampler2D uBloom;
 uniform float uBloomStrength;
 uniform float uSaturation;
 uniform float uBrightness;
+uniform float uIntensity;
 uniform float uHueShift;
 uniform float uZoom;
 uniform float uTime;
@@ -59,7 +60,7 @@ void main() {
   // Guard against NaN/Inf propagating from a broken shader body
   if (any(isnan(color)) || any(isinf(color))) color = vec3(0.0);
   // Universal color grading — all params apply to every shader
-  color *= uBrightness;
+  color *= uBrightness * uIntensity;
   color = hueRotate(uHueShift) * color;
   float gray = dot(color, vec3(0.299, 0.587, 0.114));
   color = mix(vec3(gray), color, uSaturation);
@@ -96,7 +97,7 @@ export class Renderer {
   private bloomProgram: WebGLProgram | null = null
   private compositeProgram: WebGLProgram | null = null
   private bloomLocs: { uTexture: WebGLUniformLocation | null; uResolution: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null } | null = null
-  private compositeLocs: { uScene: WebGLUniformLocation | null; uBloom: WebGLUniformLocation | null; uBloomStrength: WebGLUniformLocation | null; uSaturation: WebGLUniformLocation | null; uBrightness: WebGLUniformLocation | null; uHueShift: WebGLUniformLocation | null; uZoom: WebGLUniformLocation | null; uTime: WebGLUniformLocation | null; uBeat: WebGLUniformLocation | null } | null = null
+  private compositeLocs: { uScene: WebGLUniformLocation | null; uBloom: WebGLUniformLocation | null; uBloomStrength: WebGLUniformLocation | null; uSaturation: WebGLUniformLocation | null; uBrightness: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null; uHueShift: WebGLUniformLocation | null; uZoom: WebGLUniformLocation | null; uTime: WebGLUniformLocation | null; uBeat: WebGLUniformLocation | null } | null = null
 
   private mappingEngine = new AudioMappingEngine()
   private currentShader: ShaderDefinition | null = null
@@ -147,6 +148,7 @@ export class Renderer {
           uBloomStrength: gl.getUniformLocation(compositeProg, 'uBloomStrength'),
           uSaturation: gl.getUniformLocation(compositeProg, 'uSaturation'),
           uBrightness: gl.getUniformLocation(compositeProg, 'uBrightness'),
+          uIntensity: gl.getUniformLocation(compositeProg, 'uIntensity'),
           uHueShift: gl.getUniformLocation(compositeProg, 'uHueShift'),
           uZoom: gl.getUniformLocation(compositeProg, 'uZoom'),
           uTime: gl.getUniformLocation(compositeProg, 'uTime'),
@@ -301,6 +303,7 @@ export class Renderer {
       if (this.compositeLocs.uBloomStrength) gl.uniform1f(this.compositeLocs.uBloomStrength, mapped.bloomStrength ?? 0.6)
       if (this.compositeLocs.uSaturation) gl.uniform1f(this.compositeLocs.uSaturation, Math.max(0, mapped.saturation ?? 1.0))
       if (this.compositeLocs.uBrightness) gl.uniform1f(this.compositeLocs.uBrightness, Math.max(0, mapped.brightness ?? 1.0))
+      if (this.compositeLocs.uIntensity) gl.uniform1f(this.compositeLocs.uIntensity, Math.max(0, mapped.intensity ?? 1.0))
       if (this.compositeLocs.uHueShift) gl.uniform1f(this.compositeLocs.uHueShift, mapped.hueShift ?? 0.0)
       if (this.compositeLocs.uZoom) gl.uniform1f(this.compositeLocs.uZoom, Math.max(0.1, (mapped.zoom ?? mapped.scale ?? 1.0)))
       if (this.compositeLocs.uTime) gl.uniform1f(this.compositeLocs.uTime, time)
