@@ -270,6 +270,7 @@ export function ShaderCarousel() {
     <AnimatePresence>
       {carouselOpen && (
         <motion.div
+          className="shader-carousel-panel"
           initial={{ x: -440, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: -440, opacity: 0 }}

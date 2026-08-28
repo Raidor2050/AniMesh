@@ -84,14 +84,27 @@
 - [x] GitHub Pages configured (gh-pages branch)
 - [x] Live site: https://raidor2050.github.io/AniMesh/
 
+### Phase 13: Bootstrap Resilience ✅
+- [x] Revert regression-prone audio/PWA layer (a7ed6a9) back to stable param-wiring baseline (d373c47)
+- [x] Guard localStorage `JSON.parse` (favorites/recent) against corrupt prefs — module-load crash that blanked shaders + tray previews
+- [x] Extract `randomShader`/`cycleShader` into shared `src/state/shaderActions.ts`
+
+### Phase 14: Mobile Optimization + Immersive Controls ✅
+- [x] Immersive mode: tap/touch to reveal HUD (edge proximity + any-touch)
+- [x] Immersive nav buttons: PREV / RANDOM / NEXT / EXIT (44px touch targets)
+- [x] Safe-area insets for immersive bars (notch / home indicator)
+- [x] `viewport-fit=cover` + `touch-action: manipulation` + `overscroll-behavior: none`
+- [x] Responsive shader carousel panel (full-width under 700px)
+- [x] `prefers-reduced-motion` fallback
+
 ## Performance Metrics
 | Metric | Value | Target |
 |--------|-------|--------|
 | Total JS (gzipped) | ~110KB | <150KB ✅ |
-| Shader count | 41 | 40+ ✅ |
-| Build time | 4.4s | <10s ✅ |
+| Shader count | 381 | 40+ ✅ |
+| Build time | 8.4s | <10s ✅ |
 | TypeScript errors | 0 | 0 ✅ |
-| Categories | 9 | 9 ✅ |
+| Categories | 11 + milkdrop | 9 ✅ |
 
 ## Key Decisions Log
 | Date | Decision | Rationale |
@@ -103,3 +116,6 @@
 | 2026-08-25 | Zustand over Context | Transient subscriptions, performance |
 | 2026-08-25 | motion library for panels | Spring physics, performant animations |
 | 2026-08-25 | gh-pages branch over Actions | Token scope limitation, still effective |
+| 2026-08-28 | Reverted a7ed6a9 → d373c47 | User directive: restore stable shader baseline, then enhance |
+| 2026-08-28 | Safe-parse localStorage at bootstrap | Corrupt prefs must never blank the whole app |
+| 2026-08-28 | Touch-native immersive nudging | edge-proximity already mobile-friendly; tap reveals controls |

@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
-import { useUIStore, useShaderStore } from '../state/stores'
-import { SHADER_LIBRARY } from '../shaders/library'
+import { useUIStore } from '../state/stores'
 import { BootSequence } from './BootSequence'
 import { CanvasLayer } from './CanvasLayer'
 import { TopBar } from './TopBar'
@@ -17,23 +16,7 @@ import { MinimizedBar } from './MinimizedBar'
 import { LeftToolbar } from './LeftToolbar'
 import { ShaderCarousel } from './ShaderCarousel'
 import { getAudioEngine } from '../audio/audioSingleton'
-
-function randomShader() {
-  const current = useShaderStore.getState().activeShader
-  if (SHADER_LIBRARY.length <= 1) return
-  let next = current
-  while (next?.id === current?.id && SHADER_LIBRARY.length > 1) {
-    next = SHADER_LIBRARY[Math.floor(Math.random() * SHADER_LIBRARY.length)]
-  }
-  if (next) useShaderStore.getState().setActiveShader(next)
-}
-
-function cycleShader(direction: 1 | -1) {
-  const current = useShaderStore.getState().activeShader
-  const idx = SHADER_LIBRARY.findIndex(s => s.id === current?.id) ?? 0
-  const next = SHADER_LIBRARY[(idx + direction + SHADER_LIBRARY.length) % SHADER_LIBRARY.length]
-  if (next) useShaderStore.getState().setActiveShader(next)
-}
+import { randomShader, cycleShader } from '../state/shaderActions'
 
 export function App() {
   const bootComplete = useUIStore(s => s.bootComplete)

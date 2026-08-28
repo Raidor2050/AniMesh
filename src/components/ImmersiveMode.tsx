@@ -1,10 +1,51 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore, audioDataBridge } from '../state/stores'
-import { colors, typography, spacing } from '../ui/tokens'
+import { randomShader, cycleShader } from '../state/shaderActions'
+import { colors, typography, spacing, radii } from '../ui/tokens'
+
+const HUD_HIDE_DELAY = 2500
+
+function IconButton({ label, glyph, onClick, ariaLabel }: {
+  label: string
+  glyph: string
+  onClick: () => void
+  ariaLabel: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        minHeight: 44, padding: '0 14px',
+        background: 'rgba(0,0,0,0.45)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        borderRadius: radii.md,
+        color: colors.text.primary,
+        fontFamily: typography.families.mono,
+        fontSize: 12, fontWeight: 600, letterSpacing: '0.02em',
+        cursor: 'pointer',
+        backdropFilter: 'blur(12px)',
+        WebkitTapHighlightColor: 'transparent',
+        touchAction: 'manipulation',
+        transition: 'background 0.15s ease, border-color 0.15s ease, transform 0.1s ease',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.35)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.45)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)' }}
+      onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.96)' }}
+      onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
+    >
+      <span style={{ fontSize: 16, lineHeight: 1 }}>{glyph}</span>
+      <span>{label}</span>
+    </button>
+  )
+}
 
 export function ImmersiveMode() {
   const immersive = useUIStore(s => s.immersive)
+  const toggleImmersive = useUIStore(s => s.toggleImmersive)
   const activeShader = useShaderStore(s => s.activeShader)
   const [showHUD, setShowHUD] = useState(false)
   const [mouseNear, setMouseNear] = useState(false)
@@ -13,6 +54,12 @@ export function ImmersiveMode() {
   const prevShaderRef = useRef<string | null>(null)
   const [cursorVisible, setCursorVisible] = useState(true)
 
+  const revealHUD = () => {
+    setShowHUD(true)
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+    hideTimerRef.current = window.setTimeout(() => setShowHUD(false), HUD_HIDE_DELAY)
+  }
+
   // Show HUD near edges + cursor auto-hide (2s idle)
   useEffect(() => {
     if (!immersive) return
@@ -20,7 +67,7 @@ export function ImmersiveMode() {
     let cursorTimer: ReturnType<typeof setTimeout> | null = null
     document.body.style.cursor = 'default'
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: MouseEvent) => {
       const threshold = 80
       const near =
         e.clientX < threshold ||
@@ -33,11 +80,7 @@ export function ImmersiveMode() {
       document.body.style.cursor = 'default'
       if (cursorTimer) clearTimeout(cursorTimer)
 
-      if (near) {
-        setShowHUD(true)
-        if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
-        hideTimerRef.current = window.setTimeout(() => setShowHUD(false), 2500)
-      }
+      if (near) revealHUD()
 
       // Auto-hide cursor after 2s idle (anywhere on screen)
       cursorTimer = setTimeout(() => {
@@ -46,9 +89,14 @@ export function ImmersiveMode() {
       }, 2000)
     }
 
-    window.addEventListener('mousemove', handleMouseMove)
+    // Touch support: tap or touch near an edge reveals the HUD
+    const handleTouchStart = () => revealHUD()
+
+    window.addEventListener('mousemove', handlePointerMove)
+    window.addEventListener('touchstart', handleTouchStart)
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mousemove', handlePointerMove)
+      window.removeEventListener('touchstart', handleTouchStart)
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
       if (cursorTimer) clearTimeout(cursorTimer)
       document.body.style.cursor = 'default'
@@ -81,10 +129,13 @@ export function ImmersiveMode() {
       {/* Top bar */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
-        height: 52,
+        minHeight: 52,
+        boxSizing: 'border-box',
+        paddingTop: 'env(safe-area-inset-top)',
         background: 'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: `0 ${spacing.scale[4]}px`,
+        paddingLeft: `calc(${spacing.scale[4]}px + env(safe-area-inset-left))`,
+        paddingRight: `calc(${spacing.scale[4]}px + env(safe-area-inset-right))`,
         opacity: showHUD ? 1 : 0,
         transition: 'opacity 0.3s ease',
         pointerEvents: 'auto',
@@ -108,11 +159,12 @@ export function ImmersiveMode() {
             fontFamily: typography.families.mono,
             color: colors.text.disabled,
           }}>{bpm} BPM</span>
-          <span style={{
-            fontFamily: typography.families.mono,
-            fontSize: 10,
-            color: colors.text.disabled,
-          }}>ESC to exit</span>
+          <IconButton
+            label="EXIT"
+            glyph="✕"
+            ariaLabel="Exit immersive mode"
+            onClick={toggleImmersive}
+          />
         </div>
       </div>
 
@@ -144,26 +196,24 @@ export function ImmersiveMode() {
         )}
       </AnimatePresence>
 
-      {/* Bottom bar */}
+      {/* Bottom bar: navigation controls */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
-        height: 40,
+        minHeight: 56,
+        boxSizing: 'border-box',
+        paddingBottom: 'env(safe-area-inset-bottom)',
         background: 'linear-gradient(0deg, rgba(0,0,0,0.5) 0%, transparent 100%)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: 12,
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
         opacity: showHUD ? 1 : 0,
         transition: 'opacity 0.3s ease',
         pointerEvents: 'auto',
       }}>
-        <span style={{
-          fontSize: 10,
-          color: colors.text.disabled,
-          fontFamily: typography.families.mono,
-          display: 'flex', gap: 16,
-        }}>
-          <span>← → cycle</span>
-          <span>Space random</span>
-          <span>F exit</span>
-        </span>
+        <IconButton label="PREV" glyph="‹" ariaLabel="Previous shader" onClick={() => cycleShader(-1)} />
+        <IconButton label="RANDOM" glyph="∴" ariaLabel="Random shader" onClick={randomShader} />
+        <IconButton label="NEXT" glyph="›" ariaLabel="Next shader" onClick={() => cycleShader(1)} />
       </div>
     </div>
   )
