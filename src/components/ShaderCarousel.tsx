@@ -7,15 +7,15 @@ import { LayoutGlyph } from '../objects/LayoutGlyph'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 import { useShaderPreview, requestPreviews } from '../hooks/useShaderPreview'
 
-const CATEGORIES: (ShaderCategory | 'favorites' | 'recent')[] = [
-  'favorites', 'recent', 'fractals', 'vj', 'geometric', 'liquid',
+const CATEGORIES: (ShaderCategory | 'favorites' | 'recent' | 'objects')[] = [
+  'favorites', 'recent', 'objects', 'fractals', 'vj', 'geometric', 'liquid',
   'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'milkdrop',
 ]
 
 const CATEGORY_ICONS: Record<string, string> = {
   fractals: '✦', vj: '◎', geometric: '◇', liquid: '≈',
   cosmic: '✧', synthwave: '▶', abstract: '◆', minimal: '○', particle: '∴',
-  favorites: '★', recent: '◷', milkdrop: '≋',
+  favorites: '★', recent: '◷', objects: '▦', milkdrop: '≋',
 }
 
 const CATEGORY_GRADIENTS: Record<string, [string, string, string]> = {
@@ -31,6 +31,7 @@ const CATEGORY_GRADIENTS: Record<string, [string, string, string]> = {
   milkdrop: ['#1a1a2e', '#16213e', '#0f3460'],
   favorites: ['#78350f', '#d97706', '#fbbf24'],
   recent: ['#1e293b', '#475569', '#94a3b8'],
+  objects: ['#064e3b', '#10b981', '#34d399'],
 }
 
 function hashString(str: string): number {
@@ -215,13 +216,14 @@ export function ShaderCarousel() {
   const favorites = useShaderStore(s => s.favorites)
   const recent = useShaderStore(s => s.recent)
 
-  const [category, setCategory] = useState<ShaderCategory | 'favorites' | 'recent'>('favorites')
+  const [category, setCategory] = useState<ShaderCategory | 'favorites' | 'recent' | 'objects'>('favorites')
   const [centerIndex, setCenterIndex] = useState(0)
   const viewportRef = useRef<HTMLDivElement>(null)
 
   const filteredVisuals = useMemo(() => {
     if (category === 'favorites') return VISUAL_LIBRARY.filter(v => favorites.includes(v.id))
     if (category === 'recent') return VISUAL_LIBRARY.filter(v => recent.includes(v.id))
+    if (category === 'objects') return VISUAL_LIBRARY.filter(v => v.kind === 'svg')
     if (category === 'milkdrop') return VISUAL_LIBRARY.filter(v => v.tags.includes('milkdrop'))
     return VISUAL_LIBRARY.filter(v => v.category === category)
   }, [category, favorites, recent])
@@ -365,7 +367,7 @@ export function ShaderCarousel() {
                     if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
                   }}
                 >
-                  {CATEGORY_ICONS[cat]} {(CATEGORY_LABELS as Record<string, string>)[cat] || cat}
+                  {CATEGORY_ICONS[cat]} {cat === 'favorites' ? 'Favorites' : cat === 'recent' ? 'Recent' : cat === 'objects' ? 'Objects' : ((CATEGORY_LABELS as Record<string, string>)[cat] || cat)}
                 </button>
               )
             })}

@@ -7,14 +7,14 @@ import { LayoutGlyph } from '../objects/LayoutGlyph'
 import { getShaderPreviewManager } from '../renderer/ShaderPreviewManager'
 import { colors, typography, radii, animation } from '../ui/tokens'
 
-const CATEGORIES: (ShaderCategory | 'all' | 'favorites' | 'recent')[] = [
-  'all', 'fractals', 'vj', 'geometric', 'liquid', 'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'milkdrop', 'favorites', 'recent',
+const CATEGORIES: (ShaderCategory | 'all' | 'favorites' | 'recent' | 'objects')[] = [
+  'all', 'fractals', 'vj', 'geometric', 'liquid', 'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'milkdrop', 'objects', 'favorites', 'recent',
 ]
 
 const CATEGORY_ICONS: Record<string, string> = {
   all: '◈', fractals: '✦', vj: '◎', geometric: '◇', liquid: '≈',
   cosmic: '✧', synthwave: '▶', abstract: '◆', minimal: '○', particle: '∴',
-  milkdrop: '≋', favorites: '★', recent: '◷',
+  milkdrop: '≋', objects: '▦', favorites: '★', recent: '◷',
 }
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
@@ -29,6 +29,7 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
   particle: 'linear-gradient(135deg, #0f1f33 0%, #1a2e4a 45%, #0e1a2e 100%)',
   milkdrop: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 45%, #0f3460 100%)',
   all: 'linear-gradient(135deg, #14141e 0%, #1e1e32 45%, #141428 100%)',
+  objects: 'linear-gradient(135deg, #064e3b 0%, #10b981 45%, #0f2e2a 100%)',
 }
 
 function getGradient(cat: string) {
@@ -45,7 +46,7 @@ export function ShaderBrowser() {
   const toggleFavorite = useShaderStore(s => s.toggleFavorite)
 
   const [search, setSearch] = useState('')
-  const [activeCategory, setActiveCategory] = useState<ShaderCategory | 'all' | 'favorites' | 'recent'>('all')
+  const [activeCategory, setActiveCategory] = useState<ShaderCategory | 'all' | 'favorites' | 'recent' | 'objects'>('all')
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const gridRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -60,10 +61,12 @@ export function ShaderBrowser() {
         .filter(Boolean) as Visual[]
       // When searching, filter recent by search as well
       visuals = search ? ordered.filter(v => visuals.some(x => x.id === v.id)) : ordered
+    } else if (activeCategory === 'milkdrop') {
+      visuals = visuals.filter(v => v.tags.includes('milkdrop'))
+    } else if (activeCategory === 'objects') {
+      visuals = visuals.filter(v => v.kind === 'svg')
     } else if (activeCategory !== 'all') {
-      visuals = activeCategory === 'milkdrop'
-        ? visuals.filter(v => v.tags.includes('milkdrop'))
-        : visuals.filter(v => v.category === activeCategory)
+      visuals = visuals.filter(v => v.category === activeCategory)
     }
     return visuals
   }, [search, activeCategory, favorites, recent])
@@ -75,7 +78,9 @@ export function ShaderBrowser() {
       if (cat === 'all' || cat === 'favorites' || cat === 'recent') continue
       counts[cat] = cat === 'milkdrop'
         ? VISUAL_LIBRARY.filter(v => v.tags.includes('milkdrop')).length
-        : VISUAL_LIBRARY.filter(v => v.category === cat).length
+        : cat === 'objects'
+          ? VISUAL_LIBRARY.filter(v => v.kind === 'svg').length
+          : VISUAL_LIBRARY.filter(v => v.category === cat).length
     }
     counts.favorites = favorites.length
     counts.recent = recent.length
@@ -281,7 +286,7 @@ export function ShaderBrowser() {
                   onClick={() => !isEmpty && setActiveCategory(cat)}
                   disabled={isEmpty}
                   aria-pressed={isActive}
-                  title={isEmpty ? 'No shaders in this category' : `${count} shader${count !== 1 ? 's' : ''}`}
+                  title={isEmpty ? (cat === 'objects' ? 'No objects in this category' : 'No shaders in this category') : (cat === 'objects' ? `${count} object${count !== 1 ? 's' : ''}` : `${count} shader${count !== 1 ? 's' : ''}`)}
                   style={{
                     padding: '6px 10px',
                     background: isActive ? colors.accent.subtle : 'transparent',
@@ -312,7 +317,7 @@ export function ShaderBrowser() {
                   }}
                 >
                   <span style={{ fontSize: 10, opacity: isActive ? 1 : 0.7 }}>{icon}</span>
-                  <span>{cat === 'all' ? 'All' : cat === 'favorites' ? 'Favorites' : cat === 'recent' ? 'Recent' : (CATEGORY_LABELS[cat as ShaderCategory] || cat)}</span>
+                  <span>{(cat === 'all' ? 'All' : cat === 'favorites' ? 'Favorites' : cat === 'recent' ? 'Recent' : cat === 'objects' ? 'Objects' : (CATEGORY_LABELS[cat as ShaderCategory] || cat))}</span>
                   <span style={{
                     fontSize: 10,
                     fontFamily: typography.families.mono,

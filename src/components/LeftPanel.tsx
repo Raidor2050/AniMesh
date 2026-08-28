@@ -7,15 +7,15 @@ import { LayoutGlyph } from '../objects/LayoutGlyph'
 import { colors, typography, radii, animation } from '../ui/tokens'
 import { useShaderPreview, requestPreviews } from '../hooks/useShaderPreview'
 
-const CATEGORIES: (ShaderCategory | 'favorites' | 'recent')[] = [
-  'favorites', 'recent', 'fractals', 'vj', 'geometric', 'liquid',
+const CATEGORIES: (ShaderCategory | 'favorites' | 'recent' | 'objects')[] = [
+  'favorites', 'recent', 'objects', 'fractals', 'vj', 'geometric', 'liquid',
   'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'milkdrop',
 ]
 
 const CATEGORY_ICONS: Record<string, string> = {
   fractals: '✦', vj: '◎', geometric: '◇', liquid: '≈',
   cosmic: '✧', synthwave: '▶', abstract: '◆', minimal: '○', particle: '∴',
-  favorites: '★', recent: '◷', milkdrop: '≋',
+  favorites: '★', recent: '◷', objects: '▦', milkdrop: '≋',
 }
 
 const CATEGORY_GRADIENTS: Record<string, [string, string, string]> = {
@@ -31,6 +31,7 @@ const CATEGORY_GRADIENTS: Record<string, [string, string, string]> = {
   milkdrop: ['#1a1a2e', '#16213e', '#0f3460'],
   favorites: ['#78350f', '#d97706', '#fbbf24'],
   recent: ['#1e293b', '#475569', '#94a3b8'],
+  objects: ['#064e3b', '#10b981', '#34d399'],
 }
 
 function hashString(str: string): number {
@@ -247,7 +248,7 @@ function VisualCard({ visual, isActive, isFav, onSelect, onToggleFavorite }: {
 }
 
 interface CategorySectionProps {
-  category: ShaderCategory | 'favorites' | 'recent'
+  category: ShaderCategory | 'favorites' | 'recent' | 'objects'
   visuals: Visual[]
   activeVisual: Visual | null
   favorites: string[]
@@ -259,7 +260,7 @@ interface CategorySectionProps {
 function CategorySection({ category, visuals, activeVisual, favorites, onSelect, onToggleFavorite, defaultOpen = false }: CategorySectionProps) {
   const [open, setOpen] = useState(defaultOpen)
   const count = visuals.length
-  const label = category === 'favorites' ? 'Favorites' : category === 'recent' ? 'Recent' : (CATEGORY_LABELS[category as ShaderCategory] || category)
+  const label = category === 'favorites' ? 'Favorites' : category === 'recent' ? 'Recent' : category === 'objects' ? 'Objects' : (CATEGORY_LABELS[category as ShaderCategory] || category)
   const icon = CATEGORY_ICONS[category] || '◈'
 
   useEffect(() => {
@@ -372,6 +373,8 @@ export function LeftPanel() {
         map[cat] = search ? ordered.filter(v => filteredVisuals.some(x => x.id === v.id)) : ordered
       } else if (cat === 'milkdrop') {
         map[cat] = filteredVisuals.filter(v => v.tags.includes('milkdrop'))
+      } else if (cat === 'objects') {
+        map[cat] = filteredVisuals.filter(v => v.kind === 'svg')
       } else {
         map[cat] = filteredVisuals.filter(v => v.category === cat)
       }
