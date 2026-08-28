@@ -1,6 +1,7 @@
 import { createProgram, createQuadVAO, createFBO, resizeFBO, disposeFBO, VERT_SRC } from '../core/WebGL'
 import { AudioSnapshot, ShaderDefinition, AudioMapping } from '../utils/types'
 import { FeatureGraph, DEFAULT_PROFILE, legacyToRoutes, Route, ParamRanges } from '../mappings/featureGraph'
+import { ProgramCache } from './programCache'
 
 const BLOOM_FRAG = `#version 300 es
 precision highp float;
@@ -72,6 +73,21 @@ void main() {
   fragColor = vec4(color, 1.0);
 }`
 
+// Dual-source crossfade mixer (D3). `uProgress` is eased (smoothstep) so the
+// blend never snaps, and both feeds are full-resolution scene FBOs.
+const BLEND_FRAG = `#version 300 es
+precision highp float;
+in vec2 vUv;
+uniform sampler2D uFrom;
+uniform sampler2D uTo;
+uniform float uProgress;
+out vec4 fragColor;
+void main() {
+  vec4 a = texture(uFrom, vUv);
+  vec4 b = texture(uTo, vUv);
+  fragColor = mix(a, b, uProgress);
+}`
+
 const FALLBACK_FRAG = `#version 300 es
 precision highp float;
 in vec2 vUv;
@@ -84,6 +100,9 @@ void main() {
   fragColor = vec4(col, 1.0);
 }`
 
+// Shader crossfade duration in seconds (D03 spec range is 0.4–1.2s).
+const CROSSFADE_SECONDS = 0.7
+
 export class Renderer {
   private gl: WebGL2RenderingContext
   private canvas: HTMLCanvasElement
@@ -93,11 +112,16 @@ export class Renderer {
 
   private fboA: { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null = null
   private fboB: { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null = null
+  private fboC: { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null = null
 
   private bloomProgram: WebGLProgram | null = null
   private compositeProgram: WebGLProgram | null = null
+  private blendProgram: WebGLProgram | null = null
   private bloomLocs: { uTexture: WebGLUniformLocation | null; uResolution: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null } | null = null
   private compositeLocs: { uScene: WebGLUniformLocation | null; uBloom: WebGLUniformLocation | null; uBloomStrength: WebGLUniformLocation | null; uSaturation: WebGLUniformLocation | null; uBrightness: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null; uHueShift: WebGLUniformLocation | null; uZoom: WebGLUniformLocation | null; uTime: WebGLUniformLocation | null; uBeat: WebGLUniformLocation | null } | null = null
+  private blendLocs: { uFrom: WebGLUniformLocation | null; uTo: WebGLUniformLocation | null; uProgress: WebGLUniformLocation | null } | null = null
+
+  private cache!: ProgramCache
 
   private graph = new FeatureGraph()
   private ranges: ParamRanges = {}
@@ -105,6 +129,12 @@ export class Renderer {
   private currentShader: ShaderDefinition | null = null
   private uniforms: Map<string, WebGLUniformLocation> = new Map()
   private baseParams: Record<string, number> = {}
+
+  private transition: {
+    from: WebGLProgram
+    fromUniforms: Map<string, WebGLUniformLocation>
+    frac: number
+  } | null = null
 
   private dpr = 1
   private width = 0
@@ -120,6 +150,7 @@ export class Renderer {
   constructor(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) {
     this.canvas = canvas
     this.gl = gl
+    this.cache = new ProgramCache(gl)
     this.graph.setProfile(DEFAULT_PROFILE)
 
     const quadResult = createQuadVAO(gl)
@@ -133,13 +164,16 @@ export class Renderer {
 
     this.fboA = createFBO(gl, w, h)
     this.fboB = createFBO(gl, w, h)
+    this.fboC = this.fboA && this.fboB ? createFBO(gl, w, h) : null
 
-    if (this.fboA && this.fboB) {
+    if (this.fboA && this.fboB && this.fboC) {
       const bloomProg = createProgram(gl, VERT_SRC, BLOOM_FRAG)
       const compositeProg = createProgram(gl, VERT_SRC, COMPOSITE_FRAG)
-      if (bloomProg && compositeProg) {
+      const blendProg = createProgram(gl, VERT_SRC, BLEND_FRAG)
+      if (bloomProg && compositeProg && blendProg) {
         this.bloomProgram = bloomProg
         this.compositeProgram = compositeProg
+        this.blendProgram = blendProg
         this.bloomLocs = {
           uTexture: gl.getUniformLocation(bloomProg, 'uTexture'),
           uResolution: gl.getUniformLocation(bloomProg, 'uResolution'),
@@ -157,14 +191,19 @@ export class Renderer {
           uTime: gl.getUniformLocation(compositeProg, 'uTime'),
           uBeat: gl.getUniformLocation(compositeProg, 'uBeat'),
         }
+        this.blendLocs = {
+          uFrom: gl.getUniformLocation(blendProg, 'uFrom'),
+          uTo: gl.getUniformLocation(blendProg, 'uTo'),
+          uProgress: gl.getUniformLocation(blendProg, 'uProgress'),
+        }
         this.hasPostFx = true
       }
     }
 
-    const fallbackProg = createProgram(gl, VERT_SRC, FALLBACK_FRAG)
-    if (fallbackProg && !this.program) {
-      this.program = fallbackProg
-    }
+    // Boot program = cached fallback so the very first setShader can
+    // crossfade in from the safety pattern instead of hard-switching.
+    this.program = this.cache.get(VERT_SRC, FALLBACK_FRAG)
+    this.uniforms = this.collectUniforms(this.program)
   }
 
   resize(w: number, h: number, dpr: number) {
@@ -183,35 +222,31 @@ export class Renderer {
     const { gl } = this
     const okA = this.fboA ? resizeFBO(gl, this.fboA, rw, rh) : true
     const okB = this.fboB ? resizeFBO(gl, this.fboB, rw, rh) : true
-    if (!okA || !okB) {
+    const okC = this.fboC ? resizeFBO(gl, this.fboC, rw, rh) : true
+    if (!okA || !okB || !okC) {
       // FBO reallocation failed (e.g. texture size exceeded) — degrade to
       // direct-to-screen rendering instead of silently binding an incomplete FBO.
       this.hasPostFx = false
+      this.transition = null
       if (this.fboA) disposeFBO(gl, this.fboA)
       if (this.fboB) disposeFBO(gl, this.fboB)
+      if (this.fboC) disposeFBO(gl, this.fboC)
       this.fboA = null
       this.fboB = null
+      this.fboC = null
     }
   }
 
   setShader(def: ShaderDefinition) {
     const { gl } = this
+    const vert = def.vertex ?? VERT_SRC
+    gl.useProgram(null) // predictable linker state between switches
 
-    if (this.program) gl.deleteProgram(this.program)
-    this.program = null
-    this.currentShader = null
-    this.uniforms.clear()
-    this.baseParams = {}
-
+    let prog: WebGLProgram | null = null
     let ok = false
     try {
-      const prog = createProgram(gl, def.vertex ?? VERT_SRC, def.fragment)
-      if (prog) {
-        this.program = prog
-        this.currentShader = def
-        this.baseParams = { ...def.defaults }
-        ok = true
-      }
+      prog = this.cache.get(vert, def.fragment)
+      if (prog) ok = true
     } catch (e) {
       this.lastError = e instanceof Error ? e.message : String(e)
       console.error('Shader compile failed:', e)
@@ -219,23 +254,26 @@ export class Renderer {
 
     if (!ok) {
       this.lastError = this.lastError ?? 'Shader compile returned null'
-      const fallback = createProgram(gl, VERT_SRC, FALLBACK_FRAG)
-      if (fallback) this.program = fallback
+      prog = this.cache.get(VERT_SRC, FALLBACK_FRAG)
+      this.currentShader = null
+    } else {
+      this.currentShader = def
     }
 
-    // Build uniform cache for whichever program is active (shader or fallback).
-    // The cache is driven by getActiveUniform, so uniforms the active program
-    // does not declare are simply never uploaded.
-    const active = this.program
-    if (active) {
-      const numUniforms = gl.getProgramParameter(active, gl.ACTIVE_UNIFORMS) as number
-      for (let i = 0; i < numUniforms; i++) {
-        const info = gl.getActiveUniform(active, i)
-        if (info) {
-          const loc = gl.getUniformLocation(active, info.name)
-          if (loc) this.uniforms.set(info.name, loc)
-        }
-      }
+    const prevProgram = this.program
+    const prevUniforms = this.uniforms
+
+    this.program = prog
+    this.uniforms = this.collectUniforms(prog)
+    this.baseParams = ok ? { ...def.defaults } : {}
+
+    // Queue a crossfade (D3) when the full post pipeline is up. The old
+    // program rendering continues with its own scene pass, blending into the
+    // new one over CROSSFADE_SECONDS. Program lifetime stays with the cache.
+    if (this.hasPostFx && this.fboC && prevProgram && prevProgram !== prog) {
+      this.transition = { from: prevProgram, fromUniforms: prevUniforms, frac: 0 }
+    } else {
+      this.transition = null
     }
 
     // Build param ranges (range-aware route amounts are fractions of these).
@@ -263,6 +301,21 @@ export class Renderer {
 
   getLastError(): string | null { return this.lastError }
 
+  /**
+   * Idle pre-warm (D2/D6): compile a program now so a later switch to `def`
+   * hits the cache. Cheap when already warm (true cache hit).
+   */
+  warmShader(def: ShaderDefinition) {
+    this.cache.warm(def.vertex ?? VERT_SRC, def.fragment)
+  }
+
+  /**
+   * Has the given shader been pre-compiled already? (perf overlay / QA tooling)
+   */
+  hasShader(def: ShaderDefinition): boolean {
+    return this.cache.has(def.vertex ?? VERT_SRC, def.fragment)
+  }
+
   render(audio: AudioSnapshot, time: number, mouse: [number, number], customMappings?: AudioMapping[], userParams?: Record<string, number>) {
     const { gl, width, height } = this
     if (!this.program || width === 0 || height === 0 || !this.vao) return
@@ -274,6 +327,7 @@ export class Renderer {
 
     const rw = Math.floor(width * this.dpr)
     const rh = Math.floor(height * this.dpr)
+    const res: [number, number] = [rw, rh]
 
     const mergedBase = userParams ? { ...this.baseParams, ...userParams } : this.baseParams
 
@@ -291,63 +345,150 @@ export class Renderer {
 
     gl.bindVertexArray(this.vao)
 
-    if (this.hasPostFx && this.fboA && this.fboB && this.bloomProgram && this.compositeProgram && this.bloomLocs && this.compositeLocs) {
-      // Scene pass → FBO A
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA.framebuffer)
-      gl.viewport(0, 0, rw, rh)
-      gl.clear(gl.COLOR_BUFFER_BIT)
-      gl.useProgram(this.program)
-      this.setUniforms(time, audio, mapped, [rw, rh], mouse)
-      gl.drawArrays(gl.TRIANGLES, 0, 6)
+    if (this.hasPostFx && this.fboA && this.fboB && this.fboC && this.bloomProgram && this.blendProgram && this.compositeProgram && this.bloomLocs && this.blendLocs && this.compositeLocs) {
+      if (this.transition && this.program && this.transition.from !== this.program) {
+        // ── Crossfade: dual-scene render (D3) ──
+        const tr = this.transition
+        tr.frac = Math.min(1, tr.frac + dt / CROSSFADE_SECONDS)
+        const eased = tr.frac * tr.frac * (3.0 - 2.0 * tr.frac)
 
-      // Bloom pass → FBO B
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
-      gl.viewport(0, 0, rw, rh)
-      gl.clear(gl.COLOR_BUFFER_BIT)
-      gl.useProgram(this.bloomProgram)
-      gl.activeTexture(gl.TEXTURE0)
-      gl.bindTexture(gl.TEXTURE_2D, this.fboA.texture)
-      if (this.bloomLocs.uTexture) gl.uniform1i(this.bloomLocs.uTexture, 0)
-      if (this.bloomLocs.uResolution) gl.uniform2f(this.bloomLocs.uResolution, rw, rh)
-      if (this.bloomLocs.uIntensity) gl.uniform1f(this.bloomLocs.uIntensity, mapped.bloom ?? 0.5)
-      gl.drawArrays(gl.TRIANGLES, 0, 6)
+        // 1. outgoing scene → FBO A
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA.framebuffer)
+        gl.viewport(0, 0, rw, rh)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.useProgram(tr.from)
+        this.applyUniforms(tr.from, tr.fromUniforms, time, audio, mapped, res, mouse, 1 - tr.frac)
+        gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-      // Composite → screen
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-      gl.viewport(0, 0, rw, rh)
-      gl.clear(gl.COLOR_BUFFER_BIT)
-      gl.useProgram(this.compositeProgram)
-      gl.activeTexture(gl.TEXTURE0)
-      gl.bindTexture(gl.TEXTURE_2D, this.fboA.texture)
-      if (this.compositeLocs.uScene) gl.uniform1i(this.compositeLocs.uScene, 0)
-      gl.activeTexture(gl.TEXTURE1)
-      gl.bindTexture(gl.TEXTURE_2D, this.fboB.texture)
-      if (this.compositeLocs.uBloom) gl.uniform1i(this.compositeLocs.uBloom, 1)
-      if (this.compositeLocs.uBloomStrength) gl.uniform1f(this.compositeLocs.uBloomStrength, mapped.bloomStrength ?? 0.6)
-      if (this.compositeLocs.uSaturation) gl.uniform1f(this.compositeLocs.uSaturation, Math.max(0, mapped.saturation ?? 1.0))
-      if (this.compositeLocs.uBrightness) gl.uniform1f(this.compositeLocs.uBrightness, Math.max(0, mapped.brightness ?? 1.0))
-      if (this.compositeLocs.uIntensity) gl.uniform1f(this.compositeLocs.uIntensity, Math.max(0, mapped.intensity ?? 1.0))
-      if (this.compositeLocs.uHueShift) gl.uniform1f(this.compositeLocs.uHueShift, mapped.hueShift ?? 0.0)
-      if (this.compositeLocs.uZoom) gl.uniform1f(this.compositeLocs.uZoom, Math.max(0.1, (mapped.zoom ?? mapped.scale ?? 1.0)))
-      if (this.compositeLocs.uTime) gl.uniform1f(this.compositeLocs.uTime, time)
-      if (this.compositeLocs.uBeat) gl.uniform1f(this.compositeLocs.uBeat, audio.beatIntensity)
-      gl.drawArrays(gl.TRIANGLES, 0, 6)
+        // 2. incoming scene → FBO B
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
+        gl.viewport(0, 0, rw, rh)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.useProgram(this.program)
+        this.applyUniforms(this.program, this.uniforms, time, audio, mapped, res, mouse, tr.frac)
+        gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-      gl.activeTexture(gl.TEXTURE0)
+        // 3. blend (eased) → FBO C
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboC.framebuffer)
+        gl.viewport(0, 0, rw, rh)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.useProgram(this.blendProgram)
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, this.fboA.texture)
+        if (this.blendLocs.uFrom) gl.uniform1i(this.blendLocs.uFrom, 0)
+        gl.activeTexture(gl.TEXTURE1)
+        gl.bindTexture(gl.TEXTURE_2D, this.fboB.texture)
+        if (this.blendLocs.uTo) gl.uniform1i(this.blendLocs.uTo, 1)
+        if (this.blendLocs.uProgress) gl.uniform1f(this.blendLocs.uProgress, eased)
+        gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-      // Hint driver: FBO contents consumed, safe to discard tile memory
-      const invalidate = [gl.COLOR_ATTACHMENT0]
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA.framebuffer)
-      gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
-      gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+        // 4. bloom from the blended scene → FBO B (reuse, A+C consumed above)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
+        gl.viewport(0, 0, rw, rh)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.useProgram(this.bloomProgram)
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, this.fboC.texture)
+        if (this.bloomLocs.uTexture) gl.uniform1i(this.bloomLocs.uTexture, 0)
+        if (this.bloomLocs.uResolution) gl.uniform2f(this.bloomLocs.uResolution, rw, rh)
+        if (this.bloomLocs.uIntensity) gl.uniform1f(this.bloomLocs.uIntensity, mapped.bloom ?? 0.5)
+        gl.drawArrays(gl.TRIANGLES, 0, 6)
+
+        // 5. composite → screen
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.viewport(0, 0, rw, rh)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.useProgram(this.compositeProgram)
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, this.fboC.texture)
+        if (this.compositeLocs.uScene) gl.uniform1i(this.compositeLocs.uScene, 0)
+        gl.activeTexture(gl.TEXTURE1)
+        gl.bindTexture(gl.TEXTURE_2D, this.fboB.texture)
+        if (this.compositeLocs.uBloom) gl.uniform1i(this.compositeLocs.uBloom, 1)
+        if (this.compositeLocs.uBloomStrength) gl.uniform1f(this.compositeLocs.uBloomStrength, mapped.bloomStrength ?? 0.6)
+        if (this.compositeLocs.uSaturation) gl.uniform1f(this.compositeLocs.uSaturation, Math.max(0, mapped.saturation ?? 1.0))
+        if (this.compositeLocs.uBrightness) gl.uniform1f(this.compositeLocs.uBrightness, Math.max(0, mapped.brightness ?? 1.0))
+        if (this.compositeLocs.uIntensity) gl.uniform1f(this.compositeLocs.uIntensity, Math.max(0, mapped.intensity ?? 1.0))
+        if (this.compositeLocs.uHueShift) gl.uniform1f(this.compositeLocs.uHueShift, mapped.hueShift ?? 0.0)
+        if (this.compositeLocs.uZoom) gl.uniform1f(this.compositeLocs.uZoom, Math.max(0.1, (mapped.zoom ?? mapped.scale ?? 1.0)))
+        if (this.compositeLocs.uTime) gl.uniform1f(this.compositeLocs.uTime, time)
+        if (this.compositeLocs.uBeat) gl.uniform1f(this.compositeLocs.uBeat, audio.beatIntensity)
+        gl.drawArrays(gl.TRIANGLES, 0, 6)
+
+        gl.activeTexture(gl.TEXTURE0)
+
+        if (tr.frac >= 1) {
+          this.transition = null
+        }
+
+        // Hint driver: FBO contents consumed, safe to discard tile memory
+        const invalidate = [gl.COLOR_ATTACHMENT0]
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA.framebuffer)
+        gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
+        gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboC.framebuffer)
+        gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+      } else {
+        this.transition = null
+        // Scene pass → FBO A
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA.framebuffer)
+        gl.viewport(0, 0, rw, rh)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.useProgram(this.program)
+        this.setUniforms(time, audio, mapped, res, mouse)
+        gl.drawArrays(gl.TRIANGLES, 0, 6)
+
+        // Bloom pass → FBO B
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
+        gl.viewport(0, 0, rw, rh)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.useProgram(this.bloomProgram)
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, this.fboA.texture)
+        if (this.bloomLocs.uTexture) gl.uniform1i(this.bloomLocs.uTexture, 0)
+        if (this.bloomLocs.uResolution) gl.uniform2f(this.bloomLocs.uResolution, rw, rh)
+        if (this.bloomLocs.uIntensity) gl.uniform1f(this.bloomLocs.uIntensity, mapped.bloom ?? 0.5)
+        gl.drawArrays(gl.TRIANGLES, 0, 6)
+
+        // Composite → screen
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.viewport(0, 0, rw, rh)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        gl.useProgram(this.compositeProgram)
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, this.fboA.texture)
+        if (this.compositeLocs.uScene) gl.uniform1i(this.compositeLocs.uScene, 0)
+        gl.activeTexture(gl.TEXTURE1)
+        gl.bindTexture(gl.TEXTURE_2D, this.fboB.texture)
+        if (this.compositeLocs.uBloom) gl.uniform1i(this.compositeLocs.uBloom, 1)
+        if (this.compositeLocs.uBloomStrength) gl.uniform1f(this.compositeLocs.uBloomStrength, mapped.bloomStrength ?? 0.6)
+        if (this.compositeLocs.uSaturation) gl.uniform1f(this.compositeLocs.uSaturation, Math.max(0, mapped.saturation ?? 1.0))
+        if (this.compositeLocs.uBrightness) gl.uniform1f(this.compositeLocs.uBrightness, Math.max(0, mapped.brightness ?? 1.0))
+        if (this.compositeLocs.uIntensity) gl.uniform1f(this.compositeLocs.uIntensity, Math.max(0, mapped.intensity ?? 1.0))
+        if (this.compositeLocs.uHueShift) gl.uniform1f(this.compositeLocs.uHueShift, mapped.hueShift ?? 0.0)
+        if (this.compositeLocs.uZoom) gl.uniform1f(this.compositeLocs.uZoom, Math.max(0.1, (mapped.zoom ?? mapped.scale ?? 1.0)))
+        if (this.compositeLocs.uTime) gl.uniform1f(this.compositeLocs.uTime, time)
+        if (this.compositeLocs.uBeat) gl.uniform1f(this.compositeLocs.uBeat, audio.beatIntensity)
+        gl.drawArrays(gl.TRIANGLES, 0, 6)
+
+        gl.activeTexture(gl.TEXTURE0)
+
+        // Hint driver: FBO contents consumed, safe to discard tile memory
+        const invalidate = [gl.COLOR_ATTACHMENT0]
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA.framebuffer)
+        gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
+        gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+      }
     } else {
-      // Direct render to screen (no post-processing)
+      // Direct render to screen (no post-processing / crossfade)
+      this.transition = null
       gl.bindFramebuffer(gl.FRAMEBUFFER, null)
       gl.viewport(0, 0, rw, rh)
       gl.clear(gl.COLOR_BUFFER_BIT)
       gl.useProgram(this.program)
-      this.setUniforms(time, audio, mapped, [rw, rh], mouse)
+      this.setUniforms(time, audio, mapped, res, mouse)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
     }
 
@@ -368,11 +509,24 @@ export class Renderer {
     resolution: [number, number],
     mouse: [number, number]
   ) {
-    const { gl, program, uniforms } = this
-    if (!program) return
+    this.applyUniforms(this.program, this.uniforms, time, audio, mapped, resolution, mouse, 1.0)
+  }
+
+  private applyUniforms(
+    prog: WebGLProgram | null,
+    unis: Map<string, WebGLUniformLocation>,
+    time: number,
+    audio: AudioSnapshot,
+    mapped: Record<string, number>,
+    resolution: [number, number],
+    mouse: [number, number],
+    transitionProgress: number
+  ) {
+    const { gl } = this
+    if (!prog) return
 
     const set = (name: string, ...values: number[]) => {
-      const loc = uniforms.get(name)
+      const loc = unis.get(name)
       if (!loc) return
       if (values.length === 1) gl.uniform1f(loc, values[0])
       else if (values.length === 2) gl.uniform2f(loc, values[0], values[1])
@@ -394,22 +548,41 @@ export class Renderer {
     set('uLowMid', audio.lowMid)
     set('uHighMid', audio.highMid)
     set('uSpectralCentroid', audio.spectralCentroid)
+    set('uTransitionProgress', transitionProgress)
 
     for (const [key, value] of Object.entries(mapped)) {
       set(key, value)
     }
   }
 
+  private collectUniforms(prog: WebGLProgram | null): Map<string, WebGLUniformLocation> {
+    const m = new Map<string, WebGLUniformLocation>()
+    if (!prog) return m
+    const { gl } = this
+    const n = gl.getProgramParameter(prog, gl.ACTIVE_UNIFORMS) as number
+    for (let i = 0; i < n; i++) {
+      const info = gl.getActiveUniform(prog, i)
+      if (info) {
+        const loc = gl.getUniformLocation(prog, info.name)
+        if (loc) m.set(info.name, loc)
+      }
+    }
+    return m
+  }
+
   getFPS() { return this.fps }
   getCurrentShader() { return this.currentShader }
   dispose() {
     const { gl } = this
-    if (this.program) gl.deleteProgram(this.program)
+    // All shader programs live in the LRU cache (owns lifetime).
+    this.cache.dispose()
     if (this.bloomProgram) gl.deleteProgram(this.bloomProgram)
     if (this.compositeProgram) gl.deleteProgram(this.compositeProgram)
+    if (this.blendProgram) gl.deleteProgram(this.blendProgram)
     if (this.vao) gl.deleteVertexArray(this.vao)
     if (this.vaoBuffer) gl.deleteBuffer(this.vaoBuffer)
     disposeFBO(gl, this.fboA)
     disposeFBO(gl, this.fboB)
+    disposeFBO(gl, this.fboC)
   }
 }

@@ -6,6 +6,19 @@ import { SHADER_LIBRARY } from '../shaders/library'
 import { getAudioEngine } from '../audio/audioSingleton'
 import { audioDataBridge } from '../state/stores'
 
+let warmed: string | null = null
+
+// Idle pre-warm (D2/D6): compile the adjacent catalog entries in the LRU cache
+// so browsing next/prev is near-instant (cache hit, no recompile).
+function warmNeighbors(renderer: Renderer, around: string) {
+  const index = SHADER_LIBRARY.findIndex(s => s.id === around)
+  if (index < 0) return
+  for (let i = 1; i <= 3; i++) {
+    const nextDef = SHADER_LIBRARY[(index + i) % SHADER_LIBRARY.length]
+    if (nextDef) renderer.warmShader(nextDef)
+  }
+}
+
 export function CanvasLayer() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<Renderer | null>(null)
@@ -45,6 +58,12 @@ export function CanvasLayer() {
         const current = stored ?? fallback
         if (!stored) useShaderStore.getState().setActiveShader(current)
         renderer.setShader(current)
+        warmed = current.id
+        // Pre-warm neighbors after the boot frame settles (450ms) — the
+        // browser is idle during this window, so compilation is free.
+        window.setTimeout(() => {
+          if (rendererRef.current && warmed === current.id) warmNeighbors(rendererRef.current, current.id)
+        }, 450)
 
         const handleMouseMove = (e: MouseEvent) => {
           mouseRef.current = [
@@ -118,6 +137,8 @@ export function CanvasLayer() {
   useEffect(() => {
     if (activeShader && rendererRef.current && activeShader !== rendererRef.current.getCurrentShader()) {
       rendererRef.current.setShader(activeShader)
+      warmed = activeShader.id
+      warmNeighbors(rendererRef.current, activeShader.id)
     }
   }, [activeShader])
 

@@ -149,3 +149,15 @@
 | 2026-08-28 | Comb octave rule: fastest legal near-peak unless 95–135 BMP groove | onset trackers misreport half/double tempo; keep hip-hop/house identities slow, dance fast |
 | 2026-08-28 | Locked clock re-anchors to nearest onset, never resets | D14: phase continuity over hard resets when beat spacing is stable |
 | 2026-08-28 | engineMode defaults to free | risk register: grid must never hurt the base experience deliberately |
+| 2026-08-28 | Chunk grammar `{{chunk:name}}` + `shaders/chunks.ts` registry | AGENTS.md #3; compose resolver is dumb substitution, chunks must precede main() (GLSL ES 3.00 decl-before-use) |
+| 2026-08-28 | Program LRU cache owns program lifetime | callers must never deleteProgram cached programs; eviction frees; crossfade holds both programs resident |
+
+## Phase 17: Shader System Foundations (master-plan Phase 6 part 1)
+- [x] `{{chunk:name}}` grammar + registry (`src/shaders/chunks.ts`, 13 chunks) + resolver (`src/shaders/compose.ts`)
+- [x] Shader factory extracted (`src/shaders/factory.ts`): UNIFORM_HEADER + COMMON_NOISE + createShader; chunks resolve BEFORE wireParams/universals so injected GLSL participates
+- [x] `uniform float uTransitionProgress` added to UNIFORM_HEADER (D3 contract + hero/crossfade use)
+- [x] 10 flagship Hero shaders (`src/shaders/heroes.ts`) composed from chunks across 7 categories, with own uniforms + audio mappings (D24)
+- [x] Program LRU cache (`src/renderer/programCache.ts`, cap 16) — cache owns compile + evict; boot fallback cached so first switch crossfades
+- [x] Renderer rewired: programs via cache; crossfade dual-scene pipeline (out→fboA, in→fboB, eased blend→fboC, bloom fboC→fboB, composite→screen) over 0.7s (D3)
+- [x] Idle pre-warm in CanvasLayer: warm next 3 catalog entries on boot (450ms) and after each switch (D2/D6)
+- [x] 9 new vitest tests (resolver identity/order/unknown/missing/heroes declare-all-uniforms); 41 total green; build green (496.88KB / 106.04KB gz)
