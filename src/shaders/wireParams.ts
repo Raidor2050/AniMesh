@@ -19,7 +19,13 @@ const RE_TIME = /speed|flow|animat|rotat|spin|turn|swirl|drift|phase|evol|expans
 const RE_SPATIAL = /size|radius|zoom|count|density|complex|freq|arm|ring|petal|side|cell|star|bodies|segment|layer|line|node|connect|particle|source|dot|grid|cryst|branch|filament|curtain|contour|wave|detail|thick|width|beam|slice|tile|smooth|depth|spread|scale|interlace|vein|tightness|bead|opening/
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const num = (v: number) => String(Math.round(v * 1e6) / 1e6)
+// Emit values as float literals: strict GLSL compilers (ANGLE/D3D11,
+// SwiftShader) reject `uniform float - int` / `float / int` even though the
+// spec allows implicit conversion. Integral values must carry a `.0`.
+const num = (v: number) => {
+  const r = String(Math.round(v * 1e6) / 1e6)
+  return /\.|e/i.test(r) ? r : r + '.0'
+}
 
 export interface WiredResult {
   body: string

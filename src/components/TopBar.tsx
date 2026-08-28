@@ -29,7 +29,7 @@ export function TopBar() {
   const [beatPulse, setBeatPulse] = useState(false)
   const [sourceMenuOpen, setSourceMenuOpen] = useState(false)
   const [connecting, setConnecting] = useState(false)
-  const beatPulseTimeoutRef = useRef<number | null>(null)
+  const beatPulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const interval = setInterval(() => {

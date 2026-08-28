@@ -125,7 +125,11 @@ function body(extra: string[], main: string): string {
 
 export function genReactive(): ShaderDefinition[] {
   const out: ShaderDefinition[] = []
-  const H = [0.0, 0.1, 0.2, 0.3, 0.15, 0.05, 0.25, 0.35, 0.4, 0.2]
+  // GLSL requires float literals: interpolate `h` with a `.0` suffix so whole
+  // values like 0.0 don't become a bare `0` (function args don't implicitly
+  // convert int→float in GLSL ES, so `pal(colr, 0)` would not compile).
+  const F = (n: number) => (Number.isInteger(n) ? n + '.0' : String(n))
+  const H = [0.0, 0.1, 0.2, 0.3, 0.15, 0.05, 0.25, 0.35, 0.4, 0.2].map(F)
   // `s` is interpolated into GLSL bodies, so it MUST be one of the local
   // prologue identifiers (bass/mid/treb/vol) — never sub/lowMid/highMid/treble.
   const SIG = ['bass', 'bass', 'mid', 'mid', 'treb', 'treb', 'bass', 'mid', 'treb', 'bass']

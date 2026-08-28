@@ -219,7 +219,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
       for(int y = -1; y <= 1; y++)
         for(int x = -1; x <= 1; x++) {
           vec2 n = vec2(float(x), float(y));
-          vec2 pt = 0.5 + 0.5*sin(hash(i+n)*6.28 + uTime*speed);
+          vec2 pt = vec2(0.5 + 0.5*sin(hash(i+n)*6.28 + uTime*speed));
           float d = length(n + pt - f);
           if(d < md) { md2 = md; md = d; }
           else if(d < md2) { md2 = d; }
@@ -2825,8 +2825,8 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   float brightness = sin(uv.x * 5.0 + t) * cos(uv.y * 5.0 + t * 0.7) * 0.5 + 0.5;
   float dotSize = brightness * 0.4;
   float d = length(local);
-  float dot = smoothstep(dotSize, dotSize - 0.05, d);
-  vec3 col = vec3(dot * 0.8);
+  float dotV = smoothstep(dotSize, dotSize - 0.05, d);
+  vec3 col = vec3(dotV * 0.8);
   col *= 1.0 + uBass * 0.2;
   fragColor = vec4(col, 1.0);
 }`,
@@ -3125,9 +3125,9 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   vec2 grid = uv * 10.0;
   vec2 local = fract(grid) - 0.5;
   float d = length(local);
-  float dot = smoothstep(0.15, 0.1, d);
+  float dotV = smoothstep(0.15, 0.1, d);
   float alpha = 1.0 - length(uv) * 0.5;
-  vec3 col = vec3(dot * 0.2 * alpha * (0.7 + 0.3 * uBeat));
+  vec3 col = vec3(dotV * 0.2 * alpha * (0.7 + 0.3 * uBeat));
   fragColor = vec4(col, 1.0);
 }`,
     [{ id: 'density', label: 'Density', min: 5, max: 20, default: 10, step: 1, group: 'shape' },

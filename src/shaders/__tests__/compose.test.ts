@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { resolveChunkTemplates, hasChunkTemplate, listMissingChunks } from '../compose'
 import { CHUNK_IDS } from '../chunks'
 import { HERO_SHADERS } from '../heroes'
+import { wireParams } from '../wireParams'
 
 describe('chunk templates', () => {
   it('resolves a single chunk to its GLSL', () => {
@@ -61,5 +62,18 @@ describe('chunk templates', () => {
         if (used) expect(decl, `uniform ${p.id} undeclared in ${hero.id}`).toBe(true)
       }
     }
+  })
+
+  it('wireParams injects float literals (no bare ints into float math)', () => {
+    // GLSL ES 3.00 allows float∘int implicit conversion, but strict compilers
+    // (ANGLE/D3D11, SwiftShader) reject `float / int` and `float - int`. The
+    // parametrised tail must therefore only emit `.0`-suffixed literals.
+    const params = [
+      { id: 'cells', label: 'Cells', min: 1, max: 16, default: 4, step: 1, group: 'size' },
+      { id: 'pan', label: 'Pan', min: 0, max: 1, default: 0.5, step: 0.05, group: 'offset' },
+    ]
+    const { body } = wireParams('vec2 uv = uv0;\nvoid main(){}', '', params)
+    expect(body).toContain('(cells / 4.0)')
+    expect(body).toContain('(pan - 0.5)')
   })
 })

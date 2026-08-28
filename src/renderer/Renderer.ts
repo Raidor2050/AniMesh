@@ -309,6 +309,7 @@ export class Renderer {
     const { gl } = this
     const vert = def.vertex ?? VERT_SRC
     gl.useProgram(null) // predictable linker state between switches
+    const prevProgram = this.program // retain across a double-compile failure
 
     let prog: WebGLProgram | null = null
     let ok = false
@@ -317,18 +318,29 @@ export class Renderer {
       if (prog) ok = true
     } catch (e) {
       this.lastError = e instanceof Error ? e.message : String(e)
-      console.error('Shader compile failed:', e)
+      console.error('Shader compile failed:', e, `(${def.name})`)
     }
 
     if (!ok) {
       this.lastError = this.lastError ?? 'Shader compile returned null'
-      prog = this.cache.get(VERT_SRC, FALLBACK_FRAG)
+      try {
+        prog = this.cache.get(VERT_SRC, FALLBACK_FRAG)
+      } catch (e2) {
+        this.lastError = `${this.lastError}; fallback also failed: ${e2 instanceof Error ? e2.message : String(e2)}`
+        console.error('Shader fallback compile failed, retaining previous program:', e2, `(${def.name})`)
+      }
       this.currentShader = null
     } else {
       this.currentShader = def
     }
 
-    const prevProgram = this.program
+    // A driver that rejects both target and fallback still keeps rendering
+    // (previous program stays live) instead of throwing through to React.
+    if (!prog) {
+      this.lastError = `${this.lastError ?? 'Shader compile failed'}; retained previous program`
+      prog = prevProgram
+    }
+
     const prevUniforms = this.uniforms
 
     this.program = prog
@@ -372,11 +384,18 @@ export class Renderer {
   getLastError(): string | null { return this.lastError }
 
   /**
-   * Idle pre-warm (D2/D6): compile a program now so a later switch to `def`
-   * hits the cache. Cheap when already warm (true cache hit).
+   * Best-effort idle pre-warm (D2/D6): compile adjacent catalog entries into
+   * the LRU cache so browsing next/prev is near-instant. A shader this driver
+   * rejects is skipped, not fatal — the visible path (setShader) still applies
+   * its fallback and the user never sees a crash panel.
    */
   warmShader(def: ShaderDefinition) {
-    this.cache.warm(def.vertex ?? VERT_SRC, def.fragment)
+    try {
+      this.cache.warm(def.vertex ?? VERT_SRC, def.fragment)
+    } catch (e) {
+      this.lastError = e instanceof Error ? e.message : String(e)
+      console.error('Shader warm failed (skipped):', e, `(${def.name})`)
+    }
   }
 
   /**

@@ -61,7 +61,7 @@ export const HERO_SHADERS: ShaderDefinition[] = [
       vec3 col = iqp(v.y + uTime * 0.06 * speed + uBass * 0.8, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.25, 0.45, 0.6));
       col = mix(col, vec3(1.0), edge * (0.6 + uTreble * 0.6));
       col *= cell * intensity * brightness;
-      vec2 ring = abs(length(uv) - 0.55 - 0.35 * uBeat * intensity);
+      float ring = abs(length(uv) - 0.55 - 0.35 * uBeat * intensity);
       col += vec3(0.3, 0.5, 1.0) * smoothstep(0.03, 0.0, ring) * beatFlash(2.0);
       fragColor = vec4(col, 1.0);
     }
