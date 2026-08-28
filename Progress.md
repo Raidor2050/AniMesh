@@ -194,6 +194,14 @@
 - [x] `.github/workflows/ci.yml`: push/PR on main → lint + check:shaders + build + test; deploy job (peaceiris/actions-gh-pages, force_orphan) auto-publishes `dist` to gh-pages on main push
 - [x] `npm run ci` = lint && check:shaders && build && test — full pass green locally; 7 test files / 62 tests; build clean, no chunk warnings
 
+## Phase 22: QC audit + final docs (master Phase 11/12)
+- [x] Measured real library composition via throwaway vitest probe (probe deleted): **391 shaders** — fractals 38, vj 50, geometric 59, liquid 56, cosmic 57, synthwave 24, abstract 48, particle 42, minimal 17, milkdrop 0 (category unused, 121 milkdrop-tagged); 10 heroes; tiers low 59 / medium 317 / high 15 / ultra 0
+- [x] `scripts/check-shaders.mjs` hard data: 272 GLSL template literals scanned
+- [x] `docs/FINAL_AUDIT.md` written: metrics, verified claims, 12-item manual browser checklist (pending live verification), 9 deliberate deviations (D-A…D-H), doc-delta ledger, open-items (master Phase 8 preview polish de-scoped/deferred)
+- [x] `docs/TESTING.md` reconciled: GLSL lint list rewritten as (check-shaders.mjs items ∪ vitest items); no-console & byte-size recorded as accepted gaps; CI section now matches `ci.yml` (lint → check:shaders → build → test)
+- [x] `docs/PERFORMANCE.md` reconciled: "Current state (Phase 9+ audit)" section maps realized adaptive loop / half-res bloom / 391-shader pre-warm / ~174KB-gz 5-chunk initial vs aspirational spec; budget table rows updated (lazy-per-category → static shader-data chunk 42.8 KB gz; compile list → 391)
+- [x] All gates green after doc edits (lint 0/0, check-shaders OK, build clean, 62 tests)
+
 ## Risk Register (master-plan phases 6–9)
 | When | What | Mitigation |
 | --- | --- | --- |

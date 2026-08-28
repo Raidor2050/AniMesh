@@ -19,15 +19,24 @@
 | `state/guards.test.ts` | safeJSONParse: valid, malformed JSON, wrong-type, deep-corrupt (favorites/recent) |
 | `shaders/catalog.test.ts` | every lazy body present for its catalog id; mandatory metadata fields; tier ∈ allowed set; route targets ∈ known uniforms |
 
-## GLSL static lint (build-time, `scripts/check-shaders.mjs`)
+## GLSL static + compile-facing gates
 
-Runs inside `npm run build` after `tsc -b`:
-1. Per-body `{}`/`()` balance; unterminated string.
-2. Uniform references resolve to UNIFORM_HEADER or local declarations.
-3. `{{chunk:name}}` resolution incl. recursive-dep detection.
-4. Composite nan-guard present.
-5. Lint {{chunk}} expansion output byte-size sane (<64KB per body — compile safety).
-6. No `console.` in `src/audio`, `src/renderer`, `src/mappings`.
+The original aspirational lint list (per-body `{}`/`()` balance, uniform-ref
+resolution, recursive-dep detection, composite nan-guard, byte-size sanity,
+no-console) is implemented split across two CI-visible layers:
+
+1. **`scripts/check-shaders.mjs`** (`npm run check:shaders`) — raw-text scan of
+   the 272 GLSL template literals: unterminated-literal detection, and every
+   literal containing `void main()` must be brace-balanced (pieces assembled by
+   concatenation are exempt by design).
+2. **vitest** (`compose.test.ts` / `catalog.test.ts` / others) — chunk resolution
+   incl. nested deps + unknown-chunk error + leftover-marker detection, hero
+   uniform declarations, catalog integrity (unique ids, valid categories/tiers),
+   route targets ∈ known uniforms, storage guards.
+
+Not gated: literal-level `byte-size` sanity and the `no-console` sweep — both
+tracked as accepted gaps in FINAL_AUDIT (no `console.*` shipping in the hot path;
+bodies are bounded by construction from the milkdrop convert pipeline).
 
 ## Manual regression checklist (FINAL_AUDIT phase)
 
@@ -46,8 +55,9 @@ Runs inside `npm run build` after `tsc -b`:
 
 ## CI
 
-On push/PR to `main`: `npm ci` → `npm run lint` → `npm test` → `npm run build`
-(includes shader lint). On `main` only: deploy to `gh-pages` (see DEPLOYMENT).
+On push/PR to `main`: `npm ci` → `npm run lint` → `npm run check:shaders` →
+`npm run build` → `npm test`. On `main` only: auto-deploy to `gh-pages`
+(`.github/workflows/ci.yml`). Local equivalent: `npm run ci`.
 
 ## Known blind spots (accepted)
 

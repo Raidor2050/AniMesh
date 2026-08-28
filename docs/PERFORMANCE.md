@@ -3,7 +3,28 @@
 > This replaces the earlier Three.js-era performance doc. The app is raw WebGL2 singles
 > full-screen quad; the blocker is fragment cost, not draw calls.
 
-## Budgets (binding)
+## Current state (Phase 9+ audit — supersedes aspirational spec below)
+
+What shipped vs the budget tables in this doc (see FINAL_AUDIT for the full list):
+
+- **Frame budgets met by construction**: single full-screen draw, <10 draw calls,
+  adaptive resolution keeps GPU frame time under the 14 ms/16.7 ms desktop blanket
+  (EMA over frame time, step-down 0.9 / step-up 1.05, 1 s cooldown,
+  MIN 0.5×–MAX 1.0× — `src/renderer/adaptive.ts`, unit-tested).
+- **GPU timing** via `EXT_disjoint_timer_query_webgl2` (polled async, disjoint
+  discarded) with wall-clock EMA fallback.
+- **Kawase bloom** at half-res (extract + 3 widening passes, ping-pong) — the
+  aspirational 6-pass tier-gated chain is simplified: one always-on half-res
+  chain (D04/D12); tier gates were dropped with the tier UI (D-B).
+- **No quality-tier table in the UI.** D05's LOW/MED/HIGH/ULTRA table below is the
+  design record; the realized system is a single automatic scale knob.
+- **Initial JS ≈ 174 KB gz** (5 static chunks incl. the shader-data body chunk)
+  vs the <150 KB target — accepted (D-A); bodies are cache-stable and the app
+  chunk alone is 47 KB gz.
+- **Pre-warm**: programs build on idle impl via `requestIdleCallback`; the
+  compiled set is now **391 shaders** (not 381/406).
+
+## Budgets (binding, per spec above — see "Current state" for realized deltas)
 
 | Metric | Target | Hard limit |
 |--------|--------|-----------|
@@ -12,8 +33,8 @@
 | GPU frame time | <12 ms | 15 ms |
 | Draw calls | <10 (∅ ~7) | 20 |
 | Texture memory | <256 MB | 512 MB |
-| Initial JS (gzipped) | <150 KB | 250 KB |
-| Full library LOADED (lazy per category) | <70 KB gz | — |
+| Initial JS (gzipped) | <150 KB | 175 KB (5 static chunks) |
+| Full library LOADED (static shader-data chunk, 391 bodies) | <70 KB gz | 42.8 KB gz |
 | Shader compile (cold, on switch) | <50 ms (paused ≤1 frame) | buddy to cache |
 | React re-renders / sec during playback | 0 | <2 |
 | Main-thread JS per frame (non-GL) | <1.5 ms | 3 ms |
@@ -65,7 +86,7 @@ at 0.5× (we're within per-shader tolerance).
 
 - `programCache: Map<hash(fragmentSource), WebGLProgram>` — hits skip compile entirely.
 - `requestIdleCallback` pre-warm: build every category's program in priority order
-  (default list, then library order). ~381 programs × ~2–8 ms = seconds on idle
+  (default list, then library order). 391 programs × ~2–8 ms = seconds on idle
   backdrop; measure & cap with a per-slot budget (≤ 6 ms/slot).
 - On switch: compile new if missing, atomically swap on success, keep old until then.
 
