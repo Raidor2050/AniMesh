@@ -202,6 +202,20 @@
 - [x] `docs/PERFORMANCE.md` reconciled: "Current state (Phase 9+ audit)" section maps realized adaptive loop / half-res bloom / 391-shader pre-warm / ~174KB-gz 5-chunk initial vs aspirational spec; budget table rows updated (lazy-per-category → static shader-data chunk 42.8 KB gz; compile list → 391)
 - [x] All gates green after doc edits (lint 0/0, check-shaders OK, build clean, 62 tests)
 
+## Phase 23: Release + live verification (master Phase 13/14)
+- [x] Pushed `main` (a7ed6a9..f39b946 then ..932124c) — required `gh auth refresh -s workflow` for the ci.yml push (OAuth scope gate)
+- [x] First CI run on GitHub green end-to-end: lint ✓ check:shaders ✓ build ✓ test ✓ deploy ✓ (peaceiris → gh-pages); run 33153564574
+- [x] Live site verified: `https://raidor2050.github.io/AniMesh/` serves current build (index-BA1onMI6 / shader-data-CulWpNii / vendor / motion / state), shader-data chunk 200 (274,696 B)
+- [x] Fixed PWA 404s found during live check: `public/` had been gutted by the Phase 1 revert but `index.html` hardcodes manifest/icon refs → restored `manifest.webmanifest` (stale "622+ shaders" claim fixed) + `icons/icon.svg` + `mask-icon.svg`; sw.js stays de-scoped. CI redeploy (33153839963) success; manifest/icon/mask-icon all live 200
+- [x] Deterministic builds confirmed: local dist hashes == CI-ubuntu hashes
+
+## Manual live checklist still open (browser-only, FINAL_AUDIT §Manual checklist)
+- [ ] Boot; browse all 9 categories; ≈20 shader switches; no blank/frozen frame
+- [ ] Mic deny → toast + demo fallback; allow → live audio; file/demo switch
+- [ ] Keyboard (space/arrows/F/P/I/G//), immersive tap targets ≥44px on iPhone
+- [ ] Reduced-motion freeze; 50-switch leak check (`g` overlay cacheSize stable)
+- [ ] webglcontextlost recovery; Lighthouse ≥85; real-device audio calibration
+
 ## Risk Register (master-plan phases 6–9)
 | When | What | Mitigation |
 | --- | --- | --- |

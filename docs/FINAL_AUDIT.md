@@ -82,9 +82,12 @@ Items below need a real session; none are covered by headless gates:
 
 ## Open items before release
 
+- **Deployed live (Phase 14 verification pending):** pushed to `main`; GH Actions
+  `ci.yml` ran green and `peaceiris/actions-gh-pages` published `dist` to
+  `gh-pages` (first run 33153564574). Live URL serves the Phase 9+ build incl.
+  the shader-data chunk; PWA manifest/icons restored to clear the hardcoded-ref
+  404s (sw.js intentionally omitted).
+- Manual browser checklist (previous section) — awaiting a real-device pass.
 - Master-plan Phase 8 browser & previews polish (static-first posters exist via
-  `useShaderPreview` GPU render; hover-live + responsive pass still pending) —
-  decided lower value than the QC gates above; either de-scope explicitly or do it
-  in a follow-up.
-- Live deploy + verify (Phase 14) — requires push, awaiting operator.
-- `docs/TESTING.md` manual checklist — awaiting real-device pass (Section above).
+  `useShaderPreview`; hover-live + responsive pass pending) — de-scoped from
+  release; either drop or do in a follow-up.
