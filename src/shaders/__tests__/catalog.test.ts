@@ -46,4 +46,23 @@ describe('shader catalog integrity (tier audit, D21)', () => {
       }
     }
   })
+
+  it('every shader fragment is unique — no repeated visuals', () => {
+    const seen = new Map<string, string>()
+    for (const s of SHADER_LIBRARY) {
+      const key = s.fragment.replace(/\s+/g, ' ').trim()
+      if (seen.has(key)) {
+        throw new Error(`duplicate fragment: ${s.id} == ${seen.get(key)}`)
+      }
+      seen.set(key, s.id)
+    }
+    expect(seen.size).toBe(SHADER_LIBRARY.length)
+  })
+
+  it('each milkdrop preset gets its own unique variant fragment', () => {
+    const md = SHADER_LIBRARY.filter(s => s.id.startsWith('md-'))
+    expect(md.length).toBeGreaterThan(100)
+    const keys = md.map(s => s.fragment.replace(/\s+/g, ' ').trim())
+    expect(new Set(keys).size).toBe(keys.length)
+  })
 })
