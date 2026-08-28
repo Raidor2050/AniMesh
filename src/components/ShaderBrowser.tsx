@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore } from '../state/stores'
-import { SHADER_LIBRARY, searchShaders } from '../shaders/library'
-import { ShaderDefinition, ShaderCategory, CATEGORY_LABELS } from '../utils/types'
+import { ShaderCategory, CATEGORY_LABELS, Visual } from '../utils/types'
+import { VISUAL_LIBRARY, searchVisuals, onlyShaders, getVisualById } from '../shaders/visualLibrary'
+import { LayoutGlyph } from '../objects/LayoutGlyph'
 import { getShaderPreviewManager } from '../renderer/ShaderPreviewManager'
 import { colors, typography, radii, animation } from '../ui/tokens'
 
@@ -37,8 +38,8 @@ function getGradient(cat: string) {
 export function ShaderBrowser() {
   const browserOpen = useUIStore(s => s.browserOpen)
   const toggleBrowser = useUIStore(s => s.toggleBrowser)
-  const activeShader = useShaderStore(s => s.activeShader)
-  const setActiveShader = useShaderStore(s => s.setActiveShader)
+  const activeVisual = useShaderStore(s => s.activeVisual)
+  const setActiveVisual = useShaderStore(s => s.setActiveVisual)
   const favorites = useShaderStore(s => s.favorites)
   const recent = useShaderStore(s => s.recent)
   const toggleFavorite = useShaderStore(s => s.toggleFavorite)
@@ -49,32 +50,32 @@ export function ShaderBrowser() {
   const gridRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
-  const filteredShaders = useMemo(() => {
-    let shaders = search ? searchShaders(search) : SHADER_LIBRARY
+  const filteredVisuals = useMemo<Visual[]>(() => {
+    let visuals = search ? searchVisuals(search) : VISUAL_LIBRARY
     if (activeCategory === 'favorites') {
-      shaders = shaders.filter(s => favorites.includes(s.id))
+      visuals = visuals.filter(v => favorites.includes(v.id))
     } else if (activeCategory === 'recent') {
       const ordered = recent
-        .map(id => SHADER_LIBRARY.find(s => s.id === id))
-        .filter(Boolean) as ShaderDefinition[]
+        .map(id => getVisualById(id))
+        .filter(Boolean) as Visual[]
       // When searching, filter recent by search as well
-      shaders = search ? ordered.filter(s => shaders.some(x => x.id === s.id)) : ordered
+      visuals = search ? ordered.filter(v => visuals.some(x => x.id === v.id)) : ordered
     } else if (activeCategory !== 'all') {
-      shaders = activeCategory === 'milkdrop'
-        ? shaders.filter(s => s.tags.includes('milkdrop'))
-        : shaders.filter(s => s.category === activeCategory)
+      visuals = activeCategory === 'milkdrop'
+        ? visuals.filter(v => v.tags.includes('milkdrop'))
+        : visuals.filter(v => v.category === activeCategory)
     }
-    return shaders
+    return visuals
   }, [search, activeCategory, favorites, recent])
 
   // Per-category counts for tabs
   const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: SHADER_LIBRARY.length }
+    const counts: Record<string, number> = { all: VISUAL_LIBRARY.length }
     for (const cat of CATEGORIES) {
       if (cat === 'all' || cat === 'favorites' || cat === 'recent') continue
       counts[cat] = cat === 'milkdrop'
-        ? SHADER_LIBRARY.filter(s => s.tags.includes('milkdrop')).length
-        : SHADER_LIBRARY.filter(s => s.category === cat).length
+        ? VISUAL_LIBRARY.filter(v => v.tags.includes('milkdrop')).length
+        : VISUAL_LIBRARY.filter(v => v.category === cat).length
     }
     counts.favorites = favorites.length
     counts.recent = recent.length
@@ -82,11 +83,11 @@ export function ShaderBrowser() {
   }, [favorites, recent])
 
   useEffect(() => {
-    if (browserOpen && filteredShaders.length > 0) {
+    if (browserOpen && filteredVisuals.length > 0) {
       const manager = getShaderPreviewManager()
-      manager.enqueue(filteredShaders)
+      manager.enqueue(onlyShaders(filteredVisuals))
     }
-  }, [browserOpen, filteredShaders])
+  }, [browserOpen, filteredVisuals])
 
   // Autofocus search on open
   useEffect(() => {
@@ -131,7 +132,7 @@ export function ShaderBrowser() {
                   color: colors.text.primary,
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
-                }}>Shader Library</span>
+                }}>Visual Library</span>
                 <span style={{
                   fontSize: 10,
                   color: colors.text.tertiary,
@@ -141,7 +142,7 @@ export function ShaderBrowser() {
                   padding: '2px 6px',
                   borderRadius: radii.xs,
                   fontWeight: 500,
-                }}>{filteredShaders.length !== SHADER_LIBRARY.length ? `${filteredShaders.length}/${SHADER_LIBRARY.length}` : SHADER_LIBRARY.length}</span>
+                }}>{filteredVisuals.length !== VISUAL_LIBRARY.length ? `${filteredVisuals.length}/${VISUAL_LIBRARY.length}` : VISUAL_LIBRARY.length}</span>
               </div>
               <button
                 onClick={toggleBrowser}
@@ -339,17 +340,17 @@ export function ShaderBrowser() {
             alignContent: 'start',
             gridAutoRows: 'minmax(148px, auto)',
           }}>
-            {filteredShaders.length > 0 ? (
-              filteredShaders.map((shader, i) => (
-                <ShaderCard
-                  key={shader.id}
-                  shader={shader}
-                  isActive={activeShader?.id === shader.id}
-                  isFavorite={favorites.includes(shader.id)}
-                  isHovered={hoveredId === shader.id}
-                  onClick={() => setActiveShader(shader)}
-                  onToggleFavorite={() => toggleFavorite(shader.id)}
-                  onHover={() => setHoveredId(shader.id)}
+            {filteredVisuals.length > 0 ? (
+              filteredVisuals.map((visual, i) => (
+                <VisualCard
+                  key={visual.id}
+                  visual={visual}
+                  isActive={activeVisual?.id === visual.id}
+                  isFavorite={favorites.includes(visual.id)}
+                  isHovered={hoveredId === visual.id}
+                  onClick={() => setActiveVisual(visual)}
+                  onToggleFavorite={() => toggleFavorite(visual.id)}
+                  onHover={() => setHoveredId(visual.id)}
                   onLeave={() => setHoveredId(null)}
                   index={i}
                 />
@@ -379,18 +380,18 @@ export function ShaderBrowser() {
                 }}>
                   {activeCategory === 'favorites' && !search && 'No favorites yet'}
                   {activeCategory === 'favorites' && search && `No favorites match “${search}”`}
-                  {activeCategory === 'recent' && !search && 'No recent shaders'}
+                  {activeCategory === 'recent' && !search && 'No recent visuals'}
                   {activeCategory === 'recent' && search && `No recent match for “${search}”`}
                   {activeCategory !== 'favorites' && activeCategory !== 'recent' && search && `No results for “${search}”`}
-                  {activeCategory !== 'favorites' && activeCategory !== 'recent' && !search && 'No shaders found'}
+                  {activeCategory !== 'favorites' && activeCategory !== 'recent' && !search && 'No visuals found'}
                 </div>
                 <div style={{
                   fontSize: 11, color: colors.text.tertiary,
                   lineHeight: '15px', maxWidth: 260, marginBottom: 14,
                 }}>
                   {activeCategory === 'favorites' && 'Tap ★ on any card to save it here for quick access.'}
-                  {activeCategory === 'recent' && 'Shaders you open will appear here.'}
-                  {activeCategory !== 'favorites' && activeCategory !== 'recent' && search && `Try a different search or clear filters to see all ${SHADER_LIBRARY.length} shaders.`}
+                  {activeCategory === 'recent' && 'Visuals you open will appear here.'}
+                  {activeCategory !== 'favorites' && activeCategory !== 'recent' && search && `Try a different search or clear filters to see all ${VISUAL_LIBRARY.length} visuals.`}
                   {activeCategory !== 'favorites' && activeCategory !== 'recent' && !search && 'Try adjusting your filters.'}
                 </div>
                 <button
@@ -406,7 +407,7 @@ export function ShaderBrowser() {
                     cursor: 'pointer',
                   }}
                 >
-                  {search || activeCategory !== 'all' ? 'Clear filters' : 'Browse all shaders'}
+                  {search || activeCategory !== 'all' ? 'Clear filters' : 'Browse all visuals'}
                 </button>
               </div>
             )}
@@ -427,7 +428,7 @@ export function ShaderBrowser() {
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: colors.state.success, boxShadow: `0 0 6px ${colors.state.success}` }} />
-              {filteredShaders.length} of {SHADER_LIBRARY.length}
+              {filteredVisuals.length} of {VISUAL_LIBRARY.length}
             </span>
             <span style={{
               fontSize: 10,
@@ -444,10 +445,10 @@ export function ShaderBrowser() {
   )
 }
 
-function ShaderCard({
-  shader, isActive, isFavorite, isHovered, onClick, onToggleFavorite, onHover, onLeave, index
+function VisualCard({
+  visual, isActive, isFavorite, isHovered, onClick, onToggleFavorite, onHover, onLeave, index
 }: {
-  shader: ShaderDefinition
+  visual: Visual
   isActive: boolean
   isFavorite: boolean
   isHovered: boolean
@@ -457,27 +458,29 @@ function ShaderCard({
   onLeave: () => void
   index: number
 }) {
+  const isSvgVisual = visual.kind === 'svg'
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   useEffect(() => {
+    if (isSvgVisual) return
     const manager = getShaderPreviewManager()
-    const cached = manager.getCached(shader.id)
+    const cached = manager.getCached(visual.id)
     if (cached) {
       setPreviewUrl(cached)
       return
     }
-    const unsub = manager.subscribe(shader.id, (url) => {
+    const unsub = manager.subscribe(visual.id, (url) => {
       setPreviewUrl(url)
     })
     return unsub
-  }, [shader.id])
+  }, [visual.id, isSvgVisual])
 
   const tierInfo = {
     low: { color: colors.state.success, label: 'Low' },
     medium: { color: colors.state.warning, label: 'Med' },
     high: { color: colors.state.error, label: 'High' },
     ultra: { color: '#A855F7', label: 'Ultra' },
-  }[shader.performanceTier] || { color: colors.text.disabled, label: shader.performanceTier }
+  }[visual.performanceTier] || { color: colors.text.disabled, label: visual.performanceTier }
 
   return (
     <motion.div
@@ -488,7 +491,7 @@ function ShaderCard({
       onClick={onClick}
       onMouseEnter={onHover}
       onMouseLeave={onLeave}
-      title={`${shader.name} — ${shader.description}`}
+      title={`${visual.name} — ${visual.description}`}
       style={{
         minHeight: 148,
         background: isActive
@@ -514,7 +517,7 @@ function ShaderCard({
         flexShrink: 0,
         background: previewUrl
           ? `url(${previewUrl}) center / cover no-repeat`
-          : getGradient(shader.category),
+          : getGradient(visual.category),
         position: 'relative',
         overflow: 'hidden',
         borderBottom: `1px solid ${colors.surface.secondary}`,
@@ -523,17 +526,34 @@ function ShaderCard({
         {!previewUrl && (
           <div style={{
             position: 'absolute', inset: 0,
-            background: getGradient(shader.category),
+            background: getGradient(visual.category),
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <span style={{
-              fontSize: 26,
-              color: 'rgba(255,255,255,0.14)',
-              fontWeight: 700,
-              filter: 'drop-shadow(0 1px 8px rgba(0,0,0,0.5))',
-            }}>{CATEGORY_ICONS[shader.category] || shader.name.charAt(0)}</span>
+            {isSvgVisual ? (
+              <LayoutGlyph layout={visual.layout} size={44} opacity={0.55} />
+            ) : (
+              <span style={{
+                fontSize: 26,
+                color: 'rgba(255,255,255,0.14)',
+                fontWeight: 700,
+                filter: 'drop-shadow(0 1px 8px rgba(0,0,0,0.5))',
+              }}>{CATEGORY_ICONS[visual.category] || visual.name.charAt(0)}</span>
+            )}
           </div>
         )}
+
+        {/* Kind badge */}
+        <div style={{
+          position: 'absolute', top: 6, right: 34,
+          padding: '1px 5px',
+          background: isSvgVisual ? 'rgba(16,185,129,0.85)' : 'rgba(99,102,241,0.9)',
+          borderRadius: 4,
+          fontSize: 8, fontWeight: 700,
+          fontFamily: typography.families.mono,
+          color: '#fff',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase' as const,
+        }}>{isSvgVisual ? 'SVG' : 'GL'}</div>
 
         {/* Top inner highlight */}
         <div style={{
@@ -630,7 +650,7 @@ function ShaderCard({
         minHeight: 0,
       }}>
         <div
-          title={shader.name}
+          title={visual.name}
           style={{
             fontFamily: typography.families.sans,
             fontSize: 13,
@@ -642,7 +662,7 @@ function ShaderCard({
             marginBottom: 4,
           }}
         >
-          {shader.name}
+          {visual.name}
         </div>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 5,
@@ -656,15 +676,15 @@ function ShaderCard({
             fontWeight: 500,
             whiteSpace: 'nowrap',
           }}>
-            <span style={{ fontSize: 9, opacity: 0.7 }}>{CATEGORY_ICONS[shader.category]}</span>
-            {CATEGORY_LABELS[shader.category] || shader.category}
+            <span style={{ fontSize: 9, opacity: 0.7 }}>{CATEGORY_ICONS[visual.category]}</span>
+            {CATEGORY_LABELS[visual.category] || visual.category}
           </span>
           <span style={{ width: 2, height: 2, borderRadius: '50%', background: colors.text.disabled, opacity: 0.5, flexShrink: 0 }} />
           <span style={{
             color: colors.text.tertiary, opacity: 0.7,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             minWidth: 0,
-          }}>{shader.tags[0]}</span>
+          }}>{isSvgVisual ? visual.layout : visual.tags[0]}</span>
           <span style={{
             marginLeft: 'auto',
             flexShrink: 0,

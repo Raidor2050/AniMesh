@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion } from 'motion/react'
 import { useUIStore, useShaderStore } from '../state/stores'
-import { SHADER_LIBRARY } from '../shaders/library'
+import { VISUAL_LIBRARY, isSvg } from '../shaders/visualLibrary'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 
 interface CommandItem {
@@ -17,7 +17,7 @@ export function CommandPalette() {
   const toggleBrowser = useUIStore(s => s.toggleBrowser)
   const toggleCreator = useUIStore(s => s.toggleCreator)
   const toggleImmersive = useUIStore(s => s.toggleImmersive)
-  const setActiveShader = useShaderStore(s => s.setActiveShader)
+  const setActiveVisual = useShaderStore(s => s.setActiveVisual)
 
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -33,19 +33,19 @@ export function CommandPalette() {
   }, [open])
 
   const commands: CommandItem[] = useMemo(() => {
-    const shaderCmds: CommandItem[] = SHADER_LIBRARY.map(s => ({
-      label: s.name,
-      category: s.category,
-      action: () => { setActiveShader(s); toggle() },
+    const visualCmds: CommandItem[] = VISUAL_LIBRARY.map(v => ({
+      label: `${isSvg(v) ? '◦ ' : ''}${v.name}`,
+      category: isSvg(v) ? `objects · ${v.layout}` : v.category,
+      action: () => { setActiveVisual(v); toggle() },
     }))
 
     return [
       { label: 'Toggle Shader Browser', shortcut: 'B', category: 'Panels', action: () => { toggleBrowser(); toggle() } },
       { label: 'Create New Shader', shortcut: 'N', category: 'Panels', action: () => { toggleCreator(); toggle() } },
       { label: 'Toggle Fullscreen', shortcut: 'F', category: 'Panels', action: () => { toggleImmersive(); toggle() } },
-      ...shaderCmds,
+      ...visualCmds,
     ]
-  }, [setActiveShader, toggle, toggleBrowser, toggleCreator, toggleImmersive])
+  }, [setActiveVisual, toggle, toggleBrowser, toggleCreator, toggleImmersive])
 
   const filtered = useMemo(() => {
     if (!query) return commands

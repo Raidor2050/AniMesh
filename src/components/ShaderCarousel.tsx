@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore } from '../state/stores'
-import { SHADER_LIBRARY } from '../shaders/library'
-import { ShaderCategory, ShaderDefinition, CATEGORY_LABELS } from '../utils/types'
+import { ShaderCategory, Visual, CATEGORY_LABELS } from '../utils/types'
+import { VISUAL_LIBRARY, onlyShaders } from '../shaders/visualLibrary'
+import { LayoutGlyph } from '../objects/LayoutGlyph'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 import { useShaderPreview, requestPreviews } from '../hooks/useShaderPreview'
 
@@ -55,7 +56,7 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`
 }
 
-function getShaderGradient(shader: ShaderDefinition): string {
+function getShaderGradient(shader: Visual): string {
   const grad = CATEGORY_GRADIENTS[shader.category] || CATEGORY_GRADIENTS.abstract
   const hash = hashString(shader.id)
   const hueShift = (hash % 60) - 30
@@ -80,15 +81,16 @@ function hexToHsl(hex: string): [number, number, number] {
   return [h * 360, s * 100, l * 100]
 }
 
-function CarouselCard({ shader, offset, isActive, isCenter, absOffset, onClick }: {
-  shader: ShaderDefinition
+function CarouselCard({ visual, offset, isActive, isCenter, absOffset, onClick }: {
+  visual: Visual
   offset: number
   isActive: boolean
   isCenter: boolean
   absOffset: number
   onClick: () => void
 }) {
-  const previewUrl = useShaderPreview(shader.id)
+  const previewUrl = useShaderPreview(visual.id)
+  const isSvgVisual = visual.kind === 'svg'
   const angle = offset * ANGLE_STEP
   const opacity = absOffset > 2 ? 0 : isCenter ? 1 : Math.max(0.2, 1 - absOffset * 0.25)
   const brightness = isCenter ? 1.0 : Math.max(0.4, 1 - absOffset * 0.15)
@@ -126,14 +128,14 @@ function CarouselCard({ shader, offset, isActive, isCenter, absOffset, onClick }
     >
       <div style={{
         width: '100%', height: '70%',
-        background: previewUrl ? 'rgba(0,0,0,0.9)' : getShaderGradient(shader),
+        background: previewUrl ? 'rgba(0,0,0,0.9)' : getShaderGradient(visual),
         position: 'relative',
         overflow: 'hidden',
       }}>
         {previewUrl ? (
           <img
             src={previewUrl}
-            alt={shader.name}
+            alt={visual.name}
             style={{
               width: '100%', height: '100%',
               objectFit: 'cover', display: 'block',
@@ -143,8 +145,30 @@ function CarouselCard({ shader, offset, isActive, isCenter, absOffset, onClick }
         ) : (
           <div style={{
             width: '100%', height: '100%',
-            background: getShaderGradient(shader),
-          }} />
+            background: getShaderGradient(visual),
+          }}>
+            {isSvgVisual && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <LayoutGlyph layout={visual.layout} size={44} opacity={0.6} />
+              </div>
+            )}
+          </div>
+        )}
+        {isSvgVisual && (
+          <div style={{
+            position: 'absolute', top: 5, left: 5,
+            padding: '1px 4px',
+            background: 'rgba(16,185,129,0.85)',
+            borderRadius: 3,
+            fontSize: 7, fontWeight: 700,
+            fontFamily: typography.families.mono,
+            color: '#fff',
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase' as const,
+          }}>SVG</div>
         )}
         {isActive && (
           <div style={{
@@ -164,13 +188,13 @@ function CarouselCard({ shader, offset, isActive, isCenter, absOffset, onClick }
           color: colors.text.primary, fontWeight: 500,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
-          {shader.name}
+          {visual.name}
         </div>
         <div style={{
           fontSize: 8, fontFamily: typography.families.mono,
           color: colors.text.disabled, marginTop: 2,
         }}>
-          {CATEGORY_ICONS[shader.category]} {shader.category}
+          {CATEGORY_ICONS[visual.category]} {isSvgVisual ? visual.layout : visual.category}
         </div>
       </div>
     </div>
@@ -186,8 +210,8 @@ const ANGLE_STEP = 360 / VISIBLE_COUNT
 export function ShaderCarousel() {
   const carouselOpen = useUIStore(s => s.carouselOpen)
   const toggleCarousel = useUIStore(s => s.toggleCarousel)
-  const activeShader = useShaderStore(s => s.activeShader)
-  const setActiveShader = useShaderStore(s => s.setActiveShader)
+  const activeVisual = useShaderStore(s => s.activeVisual)
+  const setActiveVisual = useShaderStore(s => s.setActiveVisual)
   const favorites = useShaderStore(s => s.favorites)
   const recent = useShaderStore(s => s.recent)
 
@@ -195,18 +219,18 @@ export function ShaderCarousel() {
   const [centerIndex, setCenterIndex] = useState(0)
   const viewportRef = useRef<HTMLDivElement>(null)
 
-  const filteredShaders = useMemo(() => {
-    if (category === 'favorites') return SHADER_LIBRARY.filter(s => favorites.includes(s.id))
-    if (category === 'recent') return SHADER_LIBRARY.filter(s => recent.includes(s.id))
-    if (category === 'milkdrop') return SHADER_LIBRARY.filter(s => s.tags.includes('milkdrop'))
-    return SHADER_LIBRARY.filter(s => s.category === category)
+  const filteredVisuals = useMemo(() => {
+    if (category === 'favorites') return VISUAL_LIBRARY.filter(v => favorites.includes(v.id))
+    if (category === 'recent') return VISUAL_LIBRARY.filter(v => recent.includes(v.id))
+    if (category === 'milkdrop') return VISUAL_LIBRARY.filter(v => v.tags.includes('milkdrop'))
+    return VISUAL_LIBRARY.filter(v => v.category === category)
   }, [category, favorites, recent])
 
-  const total = filteredShaders.length
+  const total = filteredVisuals.length
 
-  const selectShader = useCallback((shader: ShaderDefinition) => {
-    setActiveShader(shader)
-  }, [setActiveShader])
+  const selectVisual = useCallback((visual: Visual) => {
+    setActiveVisual(visual)
+  }, [setActiveVisual])
 
   const goLeft = useCallback(() => {
     setCenterIndex(prev => (total > 0 ? (prev - 1 + total) % total : 0))
@@ -247,21 +271,21 @@ export function ShaderCarousel() {
   const getVisibleCards = useMemo(() => {
     if (total === 0) return []
     const half = Math.floor(VISIBLE_COUNT / 2)
-    const cards: { shader: ShaderDefinition; offset: number; index: number }[] = []
+    const cards: { visual: Visual; offset: number; index: number }[] = []
     const seen = new Set<string>()
     for (let i = -half; i <= half; i++) {
       const idx = (centerIndex + i + total) % total
-      const shader = filteredShaders[idx]
-      if (!shader || seen.has(shader.id)) continue
-      seen.add(shader.id)
-      cards.push({ shader, offset: i, index: idx })
+      const visual = filteredVisuals[idx]
+      if (!visual || seen.has(visual.id)) continue
+      seen.add(visual.id)
+      cards.push({ visual, offset: i, index: idx })
     }
     return cards
-  }, [centerIndex, filteredShaders, total])
+  }, [centerIndex, filteredVisuals, total])
 
   useEffect(() => {
     if (!carouselOpen || getVisibleCards.length === 0) return
-    requestPreviews(getVisibleCards.map(c => c.shader), true)
+    requestPreviews(onlyShaders(getVisibleCards.map(c => c.visual)), true)
   }, [carouselOpen, getVisibleCards])
 
   return (
@@ -298,7 +322,7 @@ export function ShaderCarousel() {
               fontSize: 12, fontFamily: typography.families.mono,
               color: colors.text.secondary, fontWeight: 600, letterSpacing: '0.04em',
             }}>
-              SHADER CAROUSEL
+              VISUAL CAROUSEL
             </span>
             <button
               onClick={toggleCarousel}
@@ -387,21 +411,21 @@ export function ShaderCarousel() {
               transformStyle: 'preserve-3d',
               transition: 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1)',
             }}>
-              {getVisibleCards.map(({ shader, offset }) => {
-                const isActive = activeShader?.id === shader.id
+              {getVisibleCards.map(({ visual, offset }) => {
+                const isActive = activeVisual?.id === visual.id
                 const isCenter = offset === 0
                 const absOffset = Math.abs(offset)
 
                 return (
                   <CarouselCard
-                    key={shader.id}
-                    shader={shader}
+                    key={visual.id}
+                    visual={visual}
                     offset={offset}
                     isActive={isActive}
                     isCenter={isCenter}
                     absOffset={absOffset}
                     onClick={() => {
-                      if (isCenter) selectShader(shader)
+                      if (isCenter) selectVisual(visual)
                       else setCenterIndex(prev => (offset > 0 ? (prev + 1) % total : (prev - 1 + total) % total))
                     }}
                   />
@@ -437,7 +461,7 @@ export function ShaderCarousel() {
               fontSize: 9, fontFamily: typography.families.mono,
               color: colors.text.disabled,
             }}>
-              {total} shaders
+              {total} visuals
             </span>
             <span style={{
               fontSize: 9, fontFamily: typography.families.mono,

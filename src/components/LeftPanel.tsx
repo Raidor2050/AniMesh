@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore } from '../state/stores'
-import { SHADER_LIBRARY, searchShaders } from '../shaders/library'
-import { ShaderCategory, ShaderDefinition, CATEGORY_LABELS, TIER_COLORS } from '../utils/types'
+import { ShaderCategory, Visual, CATEGORY_LABELS, TIER_COLORS } from '../utils/types'
+import { VISUAL_LIBRARY, searchVisuals, onlyShaders, getVisualById } from '../shaders/visualLibrary'
+import { LayoutGlyph } from '../objects/LayoutGlyph'
 import { colors, typography, radii, animation } from '../ui/tokens'
 import { useShaderPreview, requestPreviews } from '../hooks/useShaderPreview'
 
@@ -77,7 +78,7 @@ function shiftHue(hex: string, degrees: number): string {
   return hslToHex(h + degrees, s, l)
 }
 
-function shaderPreviewGradient(shader: ShaderDefinition): string {
+function shaderPreviewGradient(shader: Visual): string {
   const cat = CATEGORY_GRADIENTS[shader.category] || CATEGORY_GRADIENTS.abstract
   const h = hashString(shader.id)
   const hueShift = (h % 90) - 45
@@ -88,21 +89,22 @@ function shaderPreviewGradient(shader: ShaderDefinition): string {
   return `linear-gradient(${angle}deg, ${c1} 0%, ${c2} ${35 + (h % 20)}%, ${c3} 100%)`
 }
 
-function ShaderCard({ shader, isActive, isFav, onSelect, onToggleFavorite }: {
-  shader: ShaderDefinition
+function VisualCard({ visual, isActive, isFav, onSelect, onToggleFavorite }: {
+  visual: Visual
   isActive: boolean
   isFav: boolean
   onSelect: () => void
   onToggleFavorite: () => void
 }) {
-  const tierColor = TIER_COLORS[shader.performanceTier] || colors.text.disabled
-  const gradient = useMemo(() => shaderPreviewGradient(shader), [shader])
-  const previewUrl = useShaderPreview(shader.id)
+  const isSvgVisual = visual.kind === 'svg'
+  const tierColor = TIER_COLORS[visual.performanceTier] || colors.text.disabled
+  const gradient = useMemo(() => shaderPreviewGradient(visual), [visual])
+  const previewUrl = useShaderPreview(visual.id)
 
   return (
     <button
       onClick={onSelect}
-      title={shader.name}
+      title={visual.name}
       style={{
         width: '100%',
         display: 'flex',
@@ -141,7 +143,7 @@ function ShaderCard({ shader, isActive, isFav, onSelect, onToggleFavorite }: {
         {previewUrl ? (
           <img
             src={previewUrl}
-            alt={shader.name}
+            alt={visual.name}
             style={{
               width: '100%', height: '100%',
               objectFit: 'cover', display: 'block',
@@ -152,12 +154,20 @@ function ShaderCard({ shader, isActive, isFav, onSelect, onToggleFavorite }: {
           <>
             <div style={{
               position: 'absolute', inset: 0,
-              background: `radial-gradient(circle at ${30 + (hashString(shader.id) % 40)}% ${20 + (hashString(shader.id + 'y') % 60)}%, rgba(255,255,255,0.08) 0%, transparent 60%)`,
+              background: `radial-gradient(circle at ${30 + (hashString(visual.id) % 40)}% ${20 + (hashString(visual.id + 'y') % 60)}%, rgba(255,255,255,0.08) 0%, transparent 60%)`,
             }} />
             <div style={{
               position: 'absolute', inset: 0,
-              background: `radial-gradient(circle at ${70 - (hashString(shader.id + 'x') % 40)}% ${80 - (hashString(shader.id + 'z') % 40)}%, rgba(255,255,255,0.05) 0%, transparent 50%)`,
+              background: `radial-gradient(circle at ${70 - (hashString(visual.id + 'x') % 40)}% ${80 - (hashString(visual.id + 'z') % 40)}%, rgba(255,255,255,0.05) 0%, transparent 50%)`,
             }} />
+            {isSvgVisual && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <LayoutGlyph layout={visual.layout} size={26} opacity={0.6} />
+              </div>
+            )}
           </>
         )}
         {/* Tier badge */}
@@ -208,8 +218,19 @@ function ShaderCard({ shader, isActive, isFav, onSelect, onToggleFavorite }: {
           flex: 1,
           textAlign: 'left',
           lineHeight: '13px',
-        }}>{shader.name}</span>
-        {shader.performanceTier === 'low' && (
+        }}>{visual.name}</span>
+        {isSvgVisual && (
+          <span style={{
+            fontSize: 7,
+            fontFamily: typography.families.mono,
+            color: '#10B981',
+            background: 'rgba(16,185,129,0.12)',
+            padding: '0 3px',
+            borderRadius: 3,
+            flexShrink: 0,
+          }}>SVG</span>
+        )}
+        {!isSvgVisual && visual.performanceTier === 'low' && (
           <span style={{
             fontSize: 7,
             fontFamily: typography.families.mono,
@@ -227,25 +248,25 @@ function ShaderCard({ shader, isActive, isFav, onSelect, onToggleFavorite }: {
 
 interface CategorySectionProps {
   category: ShaderCategory | 'favorites' | 'recent'
-  shaders: ShaderDefinition[]
-  activeShader: ShaderDefinition | null
+  visuals: Visual[]
+  activeVisual: Visual | null
   favorites: string[]
-  onSelect: (shader: ShaderDefinition) => void
+  onSelect: (visual: Visual) => void
   onToggleFavorite: (id: string) => void
   defaultOpen?: boolean
 }
 
-function CategorySection({ category, shaders, activeShader, favorites, onSelect, onToggleFavorite, defaultOpen = false }: CategorySectionProps) {
+function CategorySection({ category, visuals, activeVisual, favorites, onSelect, onToggleFavorite, defaultOpen = false }: CategorySectionProps) {
   const [open, setOpen] = useState(defaultOpen)
-  const count = shaders.length
+  const count = visuals.length
   const label = category === 'favorites' ? 'Favorites' : category === 'recent' ? 'Recent' : (CATEGORY_LABELS[category as ShaderCategory] || category)
   const icon = CATEGORY_ICONS[category] || '◈'
 
   useEffect(() => {
-    if (open && shaders.length > 0) {
-      requestPreviews(shaders)
+    if (open && visuals.length > 0) {
+      requestPreviews(onlyShaders(visuals))
     }
-  }, [open, shaders])
+  }, [open, visuals])
 
   return (
     <div style={{ marginBottom: 2 }}>
@@ -305,14 +326,14 @@ function CategorySection({ category, shaders, activeShader, favorites, onSelect,
               gap: 5,
               padding: '4px 4px 6px',
             }}>
-              {shaders.map(shader => (
-                <ShaderCard
-                  key={shader.id}
-                  shader={shader}
-                  isActive={activeShader?.id === shader.id}
-                  isFav={favorites.includes(shader.id)}
-                  onSelect={() => onSelect(shader)}
-                  onToggleFavorite={() => onToggleFavorite(shader.id)}
+              {visuals.map(visual => (
+                <VisualCard
+                  key={visual.id}
+                  visual={visual}
+                  isActive={activeVisual?.id === visual.id}
+                  isFav={favorites.includes(visual.id)}
+                  onSelect={() => onSelect(visual)}
+                  onToggleFavorite={() => onToggleFavorite(visual.id)}
                 />
               ))}
             </div>
@@ -326,8 +347,8 @@ function CategorySection({ category, shaders, activeShader, favorites, onSelect,
 export function LeftPanel() {
   const browserOpen = useUIStore(s => s.browserOpen)
   const toggleBrowser = useUIStore(s => s.toggleBrowser)
-  const activeShader = useShaderStore(s => s.activeShader)
-  const setActiveShader = useShaderStore(s => s.setActiveShader)
+  const activeVisual = useShaderStore(s => s.activeVisual)
+  const setActiveVisual = useShaderStore(s => s.setActiveVisual)
   const favorites = useShaderStore(s => s.favorites)
   const recent = useShaderStore(s => s.recent)
   const toggleFavorite = useShaderStore(s => s.toggleFavorite)
@@ -335,28 +356,28 @@ export function LeftPanel() {
   const [search, setSearch] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
 
-  const filteredShaders = useMemo(() => {
-    return search ? searchShaders(search) : SHADER_LIBRARY
+  const filteredVisuals = useMemo(() => {
+    return search ? searchVisuals(search) : VISUAL_LIBRARY
   }, [search])
 
-  const categoryShaders = useMemo(() => {
-    const map: Record<string, ShaderDefinition[]> = {}
+  const categoryVisuals = useMemo(() => {
+    const map: Record<string, Visual[]> = {}
     for (const cat of CATEGORIES) {
       if (cat === 'favorites') {
-        map[cat] = filteredShaders.filter(s => favorites.includes(s.id))
+        map[cat] = filteredVisuals.filter(v => favorites.includes(v.id))
       } else if (cat === 'recent') {
         const ordered = recent
-          .map(id => SHADER_LIBRARY.find(s => s.id === id))
-          .filter(Boolean) as ShaderDefinition[]
-        map[cat] = search ? ordered.filter(s => filteredShaders.some(x => x.id === s.id)) : ordered
+          .map(id => getVisualById(id))
+          .filter(Boolean) as Visual[]
+        map[cat] = search ? ordered.filter(v => filteredVisuals.some(x => x.id === v.id)) : ordered
       } else if (cat === 'milkdrop') {
-        map[cat] = filteredShaders.filter(s => s.tags.includes('milkdrop'))
+        map[cat] = filteredVisuals.filter(v => v.tags.includes('milkdrop'))
       } else {
-        map[cat] = filteredShaders.filter(s => s.category === cat)
+        map[cat] = filteredVisuals.filter(v => v.category === cat)
       }
     }
     return map
-  }, [filteredShaders, favorites, recent, search])
+  }, [filteredVisuals, favorites, recent, search])
 
   useEffect(() => {
     if (browserOpen) {
@@ -366,10 +387,10 @@ export function LeftPanel() {
   }, [browserOpen])
 
   useEffect(() => {
-    if (search && filteredShaders.length > 0) {
-      requestPreviews(filteredShaders.slice(0, 50))
+    if (search && filteredVisuals.length > 0) {
+      requestPreviews(onlyShaders(filteredVisuals.slice(0, 50)))
     }
-  }, [search, filteredShaders])
+  }, [search, filteredVisuals])
 
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -435,7 +456,7 @@ export function LeftPanel() {
                   padding: '1px 5px',
                   borderRadius: radii.xs,
                   fontWeight: 500,
-                }}>{SHADER_LIBRARY.length}</span>
+                }}>{VISUAL_LIBRARY.length}</span>
               </div>
               <button
                 onClick={toggleBrowser}
@@ -512,21 +533,21 @@ export function LeftPanel() {
             padding: '4px 0',
             scrollbarWidth: 'thin' as any,
           }}>
-            {search && filteredShaders.length > 0 && (
+            {search && filteredVisuals.length > 0 && (
               <div style={{
                 padding: '2px 8px 6px',
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
                 gap: 5,
               }}>
-                {filteredShaders.slice(0, 50).map(shader => (
-                  <ShaderCard
-                    key={shader.id}
-                    shader={shader}
-                    isActive={activeShader?.id === shader.id}
-                    isFav={favorites.includes(shader.id)}
-                    onSelect={() => setActiveShader(shader)}
-                    onToggleFavorite={() => toggleFavorite(shader.id)}
+                {filteredVisuals.slice(0, 50).map(visual => (
+                  <VisualCard
+                    key={visual.id}
+                    visual={visual}
+                    isActive={activeVisual?.id === visual.id}
+                    isFav={favorites.includes(visual.id)}
+                    onSelect={() => setActiveVisual(visual)}
+                    onToggleFavorite={() => toggleFavorite(visual.id)}
                   />
                 ))}
               </div>
@@ -536,17 +557,17 @@ export function LeftPanel() {
               <CategorySection
                 key={cat}
                 category={cat}
-                shaders={categoryShaders[cat] || []}
-                activeShader={activeShader}
+                visuals={categoryVisuals[cat] || []}
+                activeVisual={activeVisual}
                 favorites={favorites}
-                onSelect={setActiveShader}
+                onSelect={setActiveVisual}
                 onToggleFavorite={toggleFavorite}
                 defaultOpen={cat === 'favorites' || cat === 'recent'}
               />
             ))}
 
             {/* Empty state */}
-            {search && filteredShaders.length === 0 && (
+            {search && filteredVisuals.length === 0 && (
               <div style={{
                 padding: '24px 12px',
                 textAlign: 'center',
@@ -589,7 +610,7 @@ export function LeftPanel() {
                 background: colors.state.success,
                 boxShadow: `0 0 4px ${colors.state.success}`,
               }} />
-              {filteredShaders.length}/{SHADER_LIBRARY.length}
+              {filteredVisuals.length}/{VISUAL_LIBRARY.length}
             </span>
             <span style={{
               fontSize: 10,

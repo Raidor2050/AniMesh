@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { SHADER_LIBRARY } from '../library'
 import { SVG_OBJECTS, getSvgCount } from '../../objects/svgObjects'
-import { VISUAL_LIBRARY, getVisualById, isSvg } from '../visualLibrary'
+import { VISUAL_LIBRARY, getVisualById, isSvg, searchVisuals, onlyShaders, visualsInCategory } from '../visualLibrary'
 import { CATEGORIES, TIERS } from '../catalog'
 import { SvgLayoutKey } from '../../utils/types'
 import { cycleVisual, randomVisual } from '../../state/shaderActions'
@@ -55,6 +55,39 @@ describe('Phase-25 visual expansion', () => {
     expect(isSvg(firstShader)).toBe(false)
     expect(getVisualById(firstSvg.id)).toBe(firstSvg)
     expect(getVisualById('does-not-exist')).toBeUndefined()
+  })
+
+  it('searchVisuals covers shaders and SVG objects (by name, layout, category)', () => {
+    expect(searchVisuals('')).toBe(VISUAL_LIBRARY)
+    expect(searchVisuals('')).toHaveLength(VISUAL_LIBRARY.length)
+    const svg = SVG_OBJECTS[0]
+    const byName = searchVisuals(svg.name.split(' ')[0])
+    expect(byName.some(v => v.id === svg.id)).toBe(true)
+    const byLayout = searchVisuals(svg.layout)
+    const layoutSvgs = SVG_OBJECTS.filter(o => o.layout === svg.layout)
+    expect(layoutSvgs.every(o => byLayout.some(v => v.id === o.id))).toBe(true)
+    const byCategory = searchVisuals('cosmic')
+    expect(byCategory.some(v => v.kind === 'svg')).toBe(true)
+    const byCategoryShaders = searchVisuals('fractals')
+    expect(byCategoryShaders.every(v => v.category === 'fractals')).toBe(true)
+  })
+
+  it('onlyShaders strips SVG objects for the WebGL preview pipeline', () => {
+    const all = VISUAL_LIBRARY
+    const shaders = onlyShaders(all)
+    expect(shaders.length).toBe(SHADER_LIBRARY.length)
+    expect(shaders.map(s => s.id)).toEqual(SHADER_LIBRARY.map(s => s.id))
+  })
+
+  it('visualsInCategory merges shader and SVG membership per category', () => {
+    for (const cat of CATEGORIES) {
+      const merged = visualsInCategory(cat)
+      const expected = VISUAL_LIBRARY.filter(v => v.category === cat)
+      expect(merged.map(v => v.id)).toEqual(expected.map(v => v.id))
+      if (SVG_OBJECTS.some(o => o.category === cat)) {
+        expect(merged.some(v => v.kind === 'svg')).toBe(true)
+      }
+    }
   })
 
   it('visual shuffling stays in bounds and never repeats the same id', () => {
