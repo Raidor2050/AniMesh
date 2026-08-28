@@ -160,4 +160,5 @@
 - [x] Program LRU cache (`src/renderer/programCache.ts`, cap 16) — cache owns compile + evict; boot fallback cached so first switch crossfades
 - [x] Renderer rewired: programs via cache; crossfade dual-scene pipeline (out→fboA, in→fboB, eased blend→fboC, bloom fboC→fboB, composite→screen) over 0.7s (D3)
 - [x] Idle pre-warm in CanvasLayer: warm next 3 catalog entries on boot (450ms) and after each switch (D2/D6)
-- [x] 9 new vitest tests (resolver identity/order/unknown/missing/heroes declare-all-uniforms); 41 total green; build green (496.88KB / 106.04KB gz)
+- [x] Catalog metadata layer (`src/shaders/catalog.ts`): categories/heroes/tier stats + audit getters; full-library integrity test (unique ids, valid category/tier, body presence, audio mappings target declared defaults) (D21, tier pass)
+- [x] 16 vitest tests added (compose 9 + catalog 7); 48 total green; build green (496.88KB / 106.04KB gz)
