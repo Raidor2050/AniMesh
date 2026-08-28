@@ -565,7 +565,7 @@ export function LeftPanel() {
                 favorites={favorites}
                 onSelect={setActiveVisual}
                 onToggleFavorite={toggleFavorite}
-                defaultOpen={cat === 'favorites' || cat === 'recent'}
+                defaultOpen={cat === 'favorites' || cat === 'recent' || cat === 'objects'}
               />
             ))}
 
