@@ -228,6 +228,21 @@
 - [x] ONE commit `57817c2` pushed to `main` → CI redeploys live.
 - [ ] Remaining manual-only: real-device mic calibration + phone fps/tap-target eyeball.
 
+## Phase 25: Visual expansion — 391 → 705 shaders + 60 SVG objects (765 visuals)
+- [x] **18 complex shaders (`cx-*`)** — SDF raymarch scenes, domain-warped erosion, kalis/gyroid fields, spectral kaleidoscope; hand-tuned audio submappings.
+- [x] **96 GL object shaders (`obj-*`)** — procedurally generated orbs, tunnels, rings, spires, portals, wires, bars, gears, tendrils with `'pure'` epilogue (mac users: no alpha wash).
+- [x] **200 deep-generative shaders (`dp-*`)** — attractors (lyapunov/logistic), truchet/worley tilings, lyapunov flows, oscilloscopes, rose/star polygons, orbit-by-bass; deterministic seeds, curate-able metadata.
+- [x] **60 SVG objects (12 layouts × 5 variants)** — rings/rose/spiro/lissajous/polarSpectrum/radialBars/waveform/mandala/orbits/flowDash/grid/petals; `mountSvgObject` ref/rAF runtime reading `useShaderStore.params` + `audioDataBridge.snapshot`, reduced-motion aware, `'pure'` GL backdrop (`SVG_BACKDROP`, uses `uBeat`).
+- [x] **Visual union type** — `Visual = ShaderDefinition | SvgObjectDefinition`; `kind?: 'shader'` discriminant added to shaders, required `kind: 'svg'` on SVG defs; `VISUAL_LIBRARY` merges both; `getVisualById`/`isSvg`/`asShader` helpers.
+- [x] **Store/actions** — `activeVisual` + `setActiveVisual` (history-backed with undo); `randomVisual`/`cycleVisual`; `isActiveSvg()`; immersive Space/arrows + ImmersiveMode PREV/RANDOM/NEXT shuffle across shaders AND SVG objects (global `r`/`[`/`]` stay shader-only).
+- [x] **UI** — `SvgObjectLayer.tsx` overlay (pointer-events none, zIndex 1) mounted on activeVisual change; ImmersiveMode shows visual name + GL/SVG badge + flash on change; CanvasLayer dispatches to SVG_BACKDROP when an SVG is active.
+- [x] **Generator core** — `_gen-core.ts` prologue (`P()`) reserves `uv,t,p,bass,mid,treb,vol,sub,cnt,beat,gate`; epilogue modes `'wash'|'pure'`; `pal(u,h)` moved into COMMON_NOISE so wireParams-injected fragments compile standalone.
+- [x] **Strict-driver fixes** — `mid`→`uMid`, `sub`→`uSub` in complex.ts; `fbm(vec3)`→`fbm(qv.xy)` (cx-marble-orb); epilogue `'E2'`→`'pure'` and `float cnt`→`float nb` (obj-orbits-*) found via the offline compile harness.
+- [x] **Debug tooling (thrown away after use)** — fragments dumped via throwaway vitest spec, compiled in an isolated puppeteer WebGL2 harness (ANGLE/D3D11) to catch errors the browser reports with empty info logs; 314/314 new fragments compile.
+- [x] **Verification** — `npm run ci` green (71 tests / 8 files; check-shaders 518 literals); **760-press sweep: 0 compile errors, 0 warm failures, 0 boundary crashes, 0 pageerrors**; e2e **29/29 on Edge** (Chrome headless fake-mic known flake). `visual-expansion.test.ts`: 8 tests (unique ids, 60 SVGs, VISUAL_LIBRARY merge, shuffle in-bounds, kind discrimination).
+- [x] Research findings recorded in `docs/GITHUB_RESEARCH.md` (Phase 25 section).
+- [ ] Live-site sanity after CI deploy (index/manifest/icon 200 + one manual immersive glance).
+
 ## Risk Register (master-plan phases 6–9)
 | When | What | Mitigation |
 | --- | --- | --- |

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { ShaderDefinition, AudioMapping, DEFAULT_AUDIO, AudioSnapshot } from '../utils/types'
+import { ShaderDefinition, AudioMapping, DEFAULT_AUDIO, AudioSnapshot, Visual } from '../utils/types'
 import { SHADER_LIBRARY } from '../shaders/library'
 import { DEFAULT_PROFILE, MACRO_IDS, MacroId } from '../mappings/featureGraph'
 import { pushEntry, applyUndo, HistoryEntry } from './history'
@@ -92,6 +92,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
 interface ShaderStore {
   activeShader: ShaderDefinition | null
+  activeVisual: Visual | null
   params: Record<string, number>
   favorites: string[]
   recent: string[]
@@ -99,6 +100,7 @@ interface ShaderStore {
   history: HistoryEntry[]
   savedChips: Record<string, ShaderPreset[]>
   setActiveShader: (shader: ShaderDefinition) => void
+  setActiveVisual: (visual: Visual) => void
   setParam: (id: string, value: number) => void
   setParams: (params: Record<string, number>) => void
   commitParams: (params: Record<string, number>) => void
@@ -122,6 +124,7 @@ const defaultShader = SHADER_LIBRARY.length > 0
 
 export const useShaderStore = create<ShaderStore>((set) => ({
   activeShader: defaultShader,
+  activeVisual: defaultShader,
   params: defaultShader ? { ...defaultShader.defaults } : {},
   favorites: savedFavorites,
   recent: savedRecent,
@@ -134,9 +137,23 @@ export const useShaderStore = create<ShaderStore>((set) => ({
     announce(`Switched to ${shader.name}`)
     return {
       activeShader: shader,
+      activeVisual: shader,
       params: { ...shader.defaults },
       recent: newRecent,
       history: pushEntry(s.history, { shaderId: s.activeShader?.id ?? '', params: { ...s.params } }),
+    }
+  }),
+  setActiveVisual: (visual) => set((s) => {
+    const newRecent = [visual.id, ...s.recent.filter(id => id !== visual.id)].slice(0, 20)
+    safeSetItem('animesh-recent', JSON.stringify(newRecent))
+    announce(`Switched to ${visual.name}`)
+    const prevShaderId = s.activeVisual?.kind === 'shader' ? s.activeVisual.id : (s.activeShader?.id ?? '')
+    return {
+      activeVisual: visual,
+      activeShader: visual.kind === 'shader' ? visual : null,
+      params: { ...visual.defaults },
+      recent: newRecent,
+      history: pushEntry(s.history, { shaderId: prevShaderId, params: { ...s.params } }),
     }
   }),
   setParam: (id, value) => set((s) => ({ params: { ...s.params, [id]: value } })),
@@ -152,6 +169,7 @@ export const useShaderStore = create<ShaderStore>((set) => ({
     return {
       history: stack,
       activeShader: shader ?? s.activeShader,
+      activeVisual: shader ?? s.activeVisual,
       params: { ...restored.params },
     }
   }),

@@ -51,6 +51,12 @@ float fbm(vec2 p) {
 vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
   return a + b * cos(6.28318 * (c * t + d));
 }
+// Short-hue reader used by the complex set (Phase-25): hue rides the
+// spectral centroid so every cx-shader stays reactive even on silence.
+vec3 pal(float u, float h) {
+  u += h + uSpectralCentroid * 0.35;
+  return 0.5 + 0.5 * cos(6.28318 * (vec3(1.0, 0.72, 0.4) * u + vec3(0.0, 0.16, 0.24)));
+}
 `
 
 export function createShader(

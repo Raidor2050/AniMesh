@@ -32,6 +32,7 @@ export interface AudioMapping {
 }
 
 export interface ShaderDefinition {
+  kind?: 'shader'
   id: string
   name: string
   category: ShaderCategory
@@ -45,6 +46,33 @@ export interface ShaderDefinition {
   audioMappings: AudioMapping[]
   performanceTier: 'low' | 'medium' | 'high' | 'ultra'
 }
+
+export type SvgLayoutKey =
+  | 'rings' | 'rose' | 'spiro' | 'lissajous' | 'polarSpectrum' | 'radialBars'
+  | 'waveform' | 'mandala' | 'orbits' | 'flowDash' | 'grid' | 'petals'
+
+/**
+ * DOM/SVG pattern object driven by the audio snapshot. Rendered as an SVG
+ * overlay above the WebGL canvas by SvgObjectLayer; all per-frame attribute
+ * writes happen via refs + rAF (never React state — AGENTS rule 1/2).
+ */
+export interface SvgObjectDefinition {
+  kind: 'svg'
+  id: string
+  name: string
+  category: ShaderCategory
+  description: string
+  tags: string[]
+  layout: SvgLayoutKey
+  spec: Record<string, number>
+  params: ParameterSchema[]
+  defaults: Record<string, number>
+  audioMappings: AudioMapping[]
+  performanceTier: 'low' | 'medium' | 'high' | 'ultra'
+}
+
+/** A selectable audio-reactive visual: full-screen shader OR SVG pattern object. */
+export type Visual = ShaderDefinition | SvgObjectDefinition
 
 export interface AudioSnapshot {
   sub: number

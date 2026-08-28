@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore, audioDataBridge } from '../state/stores'
-import { randomShader, cycleShader } from '../state/shaderActions'
+import { randomVisual, cycleVisual } from '../state/shaderActions'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 
 const HUD_HIDE_DELAY = 2500
@@ -46,7 +46,7 @@ function IconButton({ label, glyph, onClick, ariaLabel }: {
 export function ImmersiveMode() {
   const immersive = useUIStore(s => s.immersive)
   const toggleImmersive = useUIStore(s => s.toggleImmersive)
-  const activeShader = useShaderStore(s => s.activeShader)
+  const activeVisual = useShaderStore(s => s.activeVisual)
   const [showHUD, setShowHUD] = useState(false)
   const [shaderFlash, setShaderFlash] = useState(false)
   const hideTimerRef = useRef<number | null>(null)
@@ -98,19 +98,19 @@ export function ImmersiveMode() {
     }
   }, [immersive])
 
-  // Flash when shader changes (spacebar, arrows, etc.)
+  // Flash when the visual changes (spacebar, arrows, RANDOM, etc.)
   useEffect(() => {
     if (!immersive) return
-    const id = activeShader?.id
+    const id = activeVisual?.id
     if (id && prevShaderRef.current && id !== prevShaderRef.current) {
       setShaderFlash(true)
-      // Show HUD briefly on shader change
+      // Show HUD briefly on visual change
       setShowHUD(true)
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
       hideTimerRef.current = window.setTimeout(() => { setShowHUD(false); setShaderFlash(false) }, 1200)
     }
     prevShaderRef.current = id ?? null
-  }, [activeShader?.id, immersive])
+  }, [activeVisual?.id, immersive])
 
   if (!immersive) return null
 
@@ -163,9 +163,9 @@ export function ImmersiveMode() {
         </div>
       </div>
 
-      {/* Center: shader name flash on change */}
+      {/* Center: visual name flash on change */}
       <AnimatePresence>
-        {shaderFlash && activeShader && (
+        {shaderFlash && activeVisual && (
           <motion.div
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -186,7 +186,13 @@ export function ImmersiveMode() {
               fontSize: 14, fontWeight: 600,
               color: colors.text.primary,
               letterSpacing: '-0.02em',
-            }}>{activeShader.name}</span>
+            }}>{activeVisual.name}</span>
+            <span style={{
+              display: 'inline-flex', marginLeft: 10,
+              fontFamily: typography.families.mono,
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+              color: activeVisual.kind === 'svg' ? '#34d399' : '#6366F1',
+            }}>{activeVisual.kind === 'svg' ? 'SVG' : 'GL'}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -206,9 +212,9 @@ export function ImmersiveMode() {
         transition: 'opacity 0.3s ease',
         pointerEvents: 'auto',
       }}>
-        <IconButton label="PREV" glyph="‹" ariaLabel="Previous shader" onClick={() => cycleShader(-1)} />
-        <IconButton label="RANDOM" glyph="∴" ariaLabel="Random shader" onClick={randomShader} />
-        <IconButton label="NEXT" glyph="›" ariaLabel="Next shader" onClick={() => cycleShader(1)} />
+        <IconButton label="PREV" glyph="‹" ariaLabel="Previous visual" onClick={() => cycleVisual(-1)} />
+        <IconButton label="RANDOM" glyph="∴" ariaLabel="Random visual" onClick={randomVisual} />
+        <IconButton label="NEXT" glyph="›" ariaLabel="Next visual" onClick={() => cycleVisual(1)} />
       </div>
     </div>
   )

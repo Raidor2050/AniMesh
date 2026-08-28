@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useUIStore, useShaderStore } from '../state/stores'
 import { BootSequence } from './BootSequence'
 import { CanvasLayer } from './CanvasLayer'
+import { SvgObjectLayer } from './SvgObjectLayer'
 import { TopBar } from './TopBar'
 import { LeftPanel } from './LeftPanel'
 import { StreamGraph } from './StreamGraph'
@@ -21,7 +22,7 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { PerformanceOverlay } from './PerformanceOverlay'
 import { getAudioEngine } from '../audio/audioSingleton'
 import { announce } from '../a11y/announcer'
-import { randomShader, cycleShader } from '../state/shaderActions'
+import { randomShader, cycleShader, randomVisual, cycleVisual } from '../state/shaderActions'
 
 export function App() {
   const bootComplete = useUIStore(s => s.bootComplete)
@@ -53,21 +54,22 @@ export function App() {
         useShaderStore.getState().undo()
         if (had) announce('Undo applied')
       }
-      // Immersive-only shortcuts
+      // Immersive-only shortcuts: Space + arrows shuffle across the FULL visual
+      // library (shaders AND SVG pattern objects — Phase-25).
       if (store.immersive && !isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (e.code === 'Space') {
           e.preventDefault()
-          randomShader()
+          randomVisual()
           return
         }
         if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
           e.preventDefault()
-          cycleShader(1)
+          cycleVisual(1)
           return
         }
         if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
           e.preventDefault()
-          cycleShader(-1)
+          cycleVisual(-1)
           return
         }
       }
@@ -110,6 +112,7 @@ export function App() {
         {!bootComplete && <BootSequence />}
         <ErrorBoundary panel="canvas" variant="panel">
           <CanvasLayer />
+          <SvgObjectLayer />
         </ErrorBoundary>
         <ImmersiveMode />
         {bootComplete && !immersive && <TopBar />}

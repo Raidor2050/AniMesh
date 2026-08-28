@@ -1,10 +1,10 @@
 import { useRef, useEffect, useState } from 'react'
-import { useShaderStore } from '../state/stores'
+import { useShaderStore, audioDataBridge } from '../state/stores'
 import { initWebGL } from '../core/WebGL'
 import { Renderer } from '../renderer/Renderer'
 import { SHADER_LIBRARY } from '../shaders/library'
+import { SVG_BACKDROP } from '../shaders/visualLibrary'
 import { getAudioEngine } from '../audio/audioSingleton'
-import { audioDataBridge } from '../state/stores'
 
 let warmed: string | null = null
 
@@ -97,9 +97,14 @@ export function CanvasLayer() {
           const audioSnapshot = audio.tick(timestamp)
           audioDataBridge.snapshot = audioSnapshot
 
-          const currentShader = useShaderStore.getState().activeShader
-          if (currentShader && currentShader !== rendererRef.current.getCurrentShader()) {
-            rendererRef.current.setShader(currentShader)
+          const visual = useShaderStore.getState().activeVisual
+          // SVG pattern objects render on the SVG overlay above; the canvas
+          // drops to the ambient backdrop so the vectors read on a living wash.
+          const targetShader = visual
+            ? (visual.kind === 'svg' ? SVG_BACKDROP : visual)
+            : rendererRef.current.getCurrentShader()
+          if (targetShader && targetShader !== rendererRef.current.getCurrentShader()) {
+            rendererRef.current.setShader(targetShader)
           }
 
           const customMappings = useShaderStore.getState().customAudioMappings

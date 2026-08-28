@@ -50,3 +50,56 @@ permissive patterns were transferred.
 - WebGPU/regl/twgl/PicoGL — do not need abstractions.
 - Playwright E2E, WebGL valorization in CI — cost > value (D35).
 - Layers compositing (OpenVJ) — single-quad is the product.
+
+## Phase 25 — Visual expansion (5 hunters, 30 repos → 765 visuals)
+
+Phase 25 grew the library from 391 to **705 shaders + 60 SVG objects (765 visuals)**.
+Everything transferred is again structure/technique math written fresh; only permissive
+sources informed direct patterns.
+
+### Technical research (5 agents)
+- **Browser Audio Engineer** — AnalyserNode `fftSize=2048`; energy-based beat detection; 6-band
+  extraction + ADSR smoothing; `getUserMedia` constraints must disable processing (echoCancellation/net
+  off); `getDisplayMedia` audio is Chrome-only.
+- **Shader Engineer** — WebGL2 targeting (96%+ support); string-template GLSL composition; SDF
+  raymarch primitives; domain warping; dual Kawase blur post-fx; audio uniforms as float arrays.
+- **VJ / Audio-Reactive Specialist** — musical vs mechanical reactivity; bass→distortion,
+  kick→scale, snare→impact, treble→sparkle; logarithmic scaling; beat-synchronized transitions;
+  autonomous motion during silence.
+- **Web Graphics Performance** — raw WebGL2 for VJ control; <14ms frame budget; adaptive
+  resolution scaling; `EXT_disjoint_timer_query` for GPU timing; ref-based DOM updates bypassing
+  React; shader compilation caching.
+- **Creative Technology / Interaction** — canvas-first layout; glassmorphism only for overlays;
+  proximity-reveal immersive mode; JetBrains Mono + Inter; 4s generative boot sequence; command
+  palette.
+
+### GitHub findings (30 repos evaluated; top adopt)
+| Repo | License | How integrated |
+|------|---------|---------------|
+| iq/iquilezles | CC-BY-NC | Technique patterns only — SDF raymarch, domain warp, palette fns, kalis (written fresh) |
+| mercury.sexy/hg_sdf | CC-BY-NC | SDF primitives concept; written fresh from published math |
+| tuxalin/procedural-tileable-shaders | MIT/CC0 | Tileable FBM/truchet/worley patterns as generators |
+| vista-art/fragmentcolor | MIT | Meta feedback/pixel-sorting inspiration for dp-* family |
+| jberg/butterchurn (+presets) | MIT/BSD-3 | Same JSON-preset param-curve idea reused for deep family defaults |
+| lostjared/shaders | MIT | Orbit/bass-driven object-shader choreography ideas |
+| gl-transitions | MIT | `from/to/progress` contract reused for backdrop swaps |
+| Snorfield The-Library-Of-Shaders | CC0 | Gyroid/lyapunov/logistic map generators |
+| jerosoler/waveform-path / evan-decker/lissajous-svg / audioMotion-analyzer | MIT | SVG layout math for rings/rose/spiro/lissajous/orbits (paths written fresh) |
+| pmndrs/postprocessing | MIT | Kawase ordering concept retained for post pipeline |
+| OpenVJ / Fragment IDE / Shader Park | MIT | Compositing + thumbnail + transpiler concepts — transpiler rejected |
+| milkdrop presets (various) | unclear | Concepts/parameters adapted, no preset bodies copied |
+
+### Phase-25 techniques added to the library
+SDF raymarching (orb/box/torus scenes), domain warping, kalis sets, truchet tilings,
+worley/voronoi, gyroid fields, lyapunov/logistic attractors, spectral kaleidoscope + oscilloscope,
+rose folds, star polygons, Lissajous curves, radial EQ arcs, orbit-by-bass choreography, onset
+spark bursts, autonomous drift during silence. SVG objects: 12 layouts (rings, rose, spiro,
+lissajous, polarSpectrum, radialBars, waveform, mandala, orbits, flowDash, grid, petals) × 5
+variants each; runtime is a ref/rAF SVG layer over the GL backdrop, sharing the same
+`AudioSnapshot`.
+
+### Verification (this phase)
+- All 314 new fragments (cx-/dp-/obj-) compiled 314/314 offline on ANGLE/D3D11 (strict driver);
+  760-press headless sweep: 0 compile errors, 0 warm failures, 0 boundary crashes, 0 pageerrors.
+  e2e 29/29 on Edge (Chrome headless fake-mic is a known flake; Edge is CI source of truth).
+  `npm run ci` green: 71 tests / 8 files.

@@ -4,7 +4,7 @@ import { ParameterSchema } from '../utils/types'
 // (declaring one would shadow the built-in function/var and break compilation).
 const GLSL_BUILTINS = new Set([
   'length', 'texture', 'mix', 'clamp', 'mod', 'smoothstep', 'step', 'noise',
-  'hash', 'fbm', 'palette', 'cos', 'sin', 'tan', 'asin', 'acos', 'atan',
+  'hash', 'fbm', 'palette', 'pal', 'cos', 'sin', 'tan', 'asin', 'acos', 'atan',
   'pow', 'exp', 'log', 'floor', 'ceil', 'fract', 'abs', 'dot', 'sqrt',
   'normalize', 'cross', 'min', 'max', 'sign', 'inversesqrt',
 ])

@@ -1,11 +1,19 @@
 import { ShaderDefinition } from '../utils/types'
 import { MILKDROP_PRESETS } from './milkdrop-generated'
 import { GENERATED_REACTIVE } from './reactive-collection'
+import { GENERATED_DEEP } from './deep-collection'
+import { GENERATED_OBJECTS } from './objects-collection'
+import { COMPLEX_SHADERS } from './complex'
 import { createShader } from './factory'
 import { HERO_SHADERS } from './heroes'
 
 export const SHADER_LIBRARY: ShaderDefinition[] = [
   ...HERO_SHADERS,
+  // Phase-25 extreme collection: complex hand-authored heroes + GL objects
+  // + deep generative families (all strict-GLSL-audited, compile-swept).
+  ...COMPLEX_SHADERS,
+  ...GENERATED_OBJECTS,
+  ...GENERATED_DEEP,
   // ── FRACTALS ──
   createShader(
     'fractal-mandelbrot', 'Mandelbrot Voyage', 'fractals',
