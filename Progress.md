@@ -180,8 +180,15 @@
 - [x] Perf overlay (`PerformanceOverlay.tsx`): ref-driven DOM text (never React state, AGENTS.md #8), shows fps / frame ms / gpu ms / scale / resolution / cache size; toggled with `g`; values published via `audioDataBridge` (frameMs, gpuMs, scale, resolution, cacheSize)
 - [x] 6 vitest tests added (adaptive 6); 62 total green; build green (512.94KB / 110.83KB gz — chunk-size warning tracked in risk register)
 
+## Phase 20: Chunk Split + Dead-Code Pass (D21 re-scope)
+- [x] Shader bodies isolated in a static `shader-data` chunk via `manualChunks(id)` function form (library + milkdrop-generated + reactive-collection + heroes); app chunk 512KB→174KB min (110.8→47.2KB gz), shader-data 274.7KB (42.8KB gz) — 500KB warning cleared, bodies chunk cache-stable
+- [x] D21 revised in DECISIONS.md: full per-category `import.meta.glob` deliberately NOT done — 9 sync importers (stores/canvas/catalog/shaderActions/previews/browser) + sync crossfade-cache flow make the ~90KB-gz first-load gain a blank-library regression risk (top risk-register row); static split delivers warning+hygiene with zero runtime risk. `catalog.ts` note updated to match.
+- [x] Dead code removed: `library.ts` `getShadersByCategory`/`getShaderById` (duplicated by `catalog.ts`, unused by any consumer), UIStore `qualityTier`/`setQualityTier` (zero consumers; superseded by adaptive scale D30)
+- [x] Statuses reconciled in IMPLEMENTATION_PLAN.md (phases 3–7, 9 → `[x]`); master-plan Phase 8 (stationary-first preview posters, hover-live by tier) still open
+- [x] 62 total green; build green — no chunk warnings
+
 ## Risk Register (master-plan phases 6–9)
 | When | What | Mitigation |
 | --- | --- | --- |
-| 2026-08-28 | Main chunk 512.94KB / 110.83KB gz still over the 500KB rollup warning | D21 lazy per-category body split deferred to Phase 9 perf pass (keeps synced crossfade/cache flow intact while bundle is only ~111KB gz) |
+| 2026-08-28 | Main chunk 512.94KB / 110.83KB gz still over the 500KB rollup warning | D21 re-scoped to a static `shader-data` manualChunks split (Phase 20): app chunk → 47.2KB gz, bodies chunk 42.8KB gz, warning cleared, no runtime risk |
 | 2026-08-28 | EXT_disjoint_timer_query result may lag a frame or be unavailable | gpuBegin only re-arms when the previous result is readable (never overwrites in-flight); adaptive falls back to wall-clock EMA |

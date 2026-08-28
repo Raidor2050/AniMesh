@@ -1,4 +1,4 @@
-import { ShaderDefinition, ShaderCategory } from '../utils/types'
+import { ShaderDefinition } from '../utils/types'
 import { MILKDROP_PRESETS } from './milkdrop-generated'
 import { GENERATED_REACTIVE } from './reactive-collection'
 import { createShader } from './factory'
@@ -3517,14 +3517,6 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
     }
   }),
 ]
-
-export function getShadersByCategory(category: ShaderCategory): ShaderDefinition[] {
-  return SHADER_LIBRARY.filter(s => s.category === category)
-}
-
-export function getShaderById(id: string): ShaderDefinition | undefined {
-  return SHADER_LIBRARY.find(s => s.id === id)
-}
 
 export function searchShaders(query: string): ShaderDefinition[] {
   const q = query.toLowerCase()

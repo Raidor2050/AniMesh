@@ -4,11 +4,12 @@
  * Does NOT hold fragment bodies — those live in library.ts/preset modules.
  *
  * NOTE: the master-plan's full per-category `import.meta.glob` body-split is
- * deferred to the perf pass (Phase 9): the milkdrop/reactive bodies (~300KB
- * raw) are the bulk of the bundle, but total gzip is ~106KB and a render-path
- * async switch would complicate the sync crossfade/cache flow. If metrics
- * demand, the 136 MILKDROP_PRESETS fragments move to lazy modules with
- * `setShaderAsync` first.
+ * deliberately NOT done (decision re-scoped, see DECISIONS.md D21): the milkdrop
+ * + reactive bodies (~275KB min) are isolated in a static `shader-data` chunk
+ * via manualChunks, which clears the 500KB warning and cache-stabilizes the
+ * bodies with zero render-path risk. Per-category async would require rewiring
+ * every one of the 9 SHADER_LIBRARY importers (stores, canvas, catalog,
+ * shaderActions, previews, browser) against a ~90KB-gz first-load saving.
  */
 import { SHADER_LIBRARY } from './library'
 import { ShaderCategory, ShaderDefinition } from '../utils/types'

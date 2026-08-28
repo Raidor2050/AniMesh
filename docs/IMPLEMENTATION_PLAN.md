@@ -13,30 +13,30 @@ condensed in RESEARCH.md / GITHUB_RESEARCH.md and resolved in DECISIONS.md.
 ## Phase 2 — Synthesis + Docs `[x]`
 16 docs written; architecture locked (D01–D35).
 
-## Phase 3 — Foundation refactor `[ ]`
+## Phase 3 — Foundation refactor `[x]`
 - `src/mappings/featureGraph.ts` (signals/macros/routes) + `profile.ts` + de-baked
   global profile; keep `Renderer` call-surface stable.
 - `src/shaders/compose.ts` chunk resolver + `chunks.ts` registry; wire into `createShader`.
 - Unit tests for both. **Build gate.**
 
-## Phase 4 — Audio engine upgrade `[ ]`
+## Phase 4 — Audio engine upgrade `[x]`
 - Second (raw) analyser; SuperFlux onset; feature extras (rolloff/flatness/zcr);
   beat/clock split; `engineMode free|locked`; comb-filter tracker + octave correction +
   120 prior + slew + confidence; grid snapshots (bar/eighth/sixteenth); lfo1–4 output;
   remove debug log; silence handling. **Build + perf gate.**
 
-## Phase 5 — Audio parameter graph wiring `[ ]`
+## Phase 5 — Audio parameter graph wiring `[x]`
 - FeatureGraph consumes snapshot → uniform map; renderer merges graph += params;
   MacroBar uniforms (uMacro…) into UNIFORM_HEADER + composite fan-out.
 - Silence-hold + musicality live. **Build gate + manual audio bench.**
 
-## Phase 6 — Shader system `[ ]`
-- `catalog.ts`; lazy `import.meta.glob` bodies per category; retain wireParams outputs;
-  add 10 hero shaders (chunk grammar); tier metadata pass on all 381.
-- Program cache + idle pre-warm in renderer, crossfade (dual FBO + uTransitionProgress).
-  **Build gate + switch-latency check.**
+## Phase 6 — Shader system `[x]`
+- `catalog.ts`; chunks + hero shaders + program cache + crossfade (dual FBO +
+  uTransitionProgress); tier metadata pass on all 406.
+- D21 lazy per-category split revised (see DECISIONS D21) → static `shader-data`
+  chunk. **Build gate + switch-latency check.**
 
-## Phase 7 — UX layer `[ ]`
+## Phase 7 — UX layer `[x]`
 - MacroBar (5 faders) + advanced EQ subview; preset chips + undo; A11yAnnouncer;
   ErrorBoundary root+canvas; reduced-motion freeze; keyboard parity. **Build gate.**
 
@@ -44,7 +44,7 @@ condensed in RESEARCH.md / GITHUB_RESEARCH.md and resolved in DECISIONS.md.
 - Stationary-first preview posters (offscreen first-frame render), hover-live gated by
   tier; grid/carousel responsive check; implicit caching. **Build gate.**
 
-## Phase 9 — Performance hardening `[ ]`
+## Phase 9 — Performance hardening `[x]`
 - Kawase bloom replacement; adaptive scale loop w/ EXT timer-query hysteresis; DPR
   caps; context-loss listeners; perf overlay live data; leak check. **Frame-budget gate.**
 

@@ -34,7 +34,6 @@ interface UIStore {
   commandPaletteOpen: boolean
   panelsVisible: boolean
   panelTab: 'browser' | 'creator' | null
-  qualityTier: 'low' | 'medium' | 'high' | 'ultra'
   reducedMotion: boolean
   minimizedPanels: string[]
   streamPreset: 'stream' | 'spectrum' | 'bars' | 'oscilloscope'
@@ -47,7 +46,6 @@ interface UIStore {
   toggleCommandPalette: () => void
   togglePanelsVisible: () => void
   setPanelTab: (tab: 'browser' | 'creator' | null) => void
-  setQualityTier: (tier: 'low' | 'medium' | 'high' | 'ultra') => void
   setReducedMotion: (v: boolean) => void
   togglePanelMinimized: (id: string) => void
   isPanelMinimized: (id: string) => boolean
@@ -68,7 +66,6 @@ export const useUIStore = create<UIStore>((set, get) => ({
   commandPaletteOpen: false,
   panelsVisible: true,
   panelTab: null,
-  qualityTier: 'high',
   reducedMotion: reducedMotionDefault,
   minimizedPanels: [],
   streamPreset: 'stream',
@@ -81,7 +78,6 @@ export const useUIStore = create<UIStore>((set, get) => ({
   toggleCommandPalette: () => set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
   togglePanelsVisible: () => set((s) => ({ panelsVisible: !s.panelsVisible })),
   setPanelTab: (tab) => set({ panelTab: tab }),
-  setQualityTier: (tier) => set({ qualityTier: tier }),
   setReducedMotion: (v) => set({ reducedMotion: v }),
   togglePanelMinimized: (id) => set((s) => {
     const minimized = s.minimizedPanels.includes(id)

@@ -43,7 +43,7 @@ listed is binding for Phase 3+.
 
 | # | Decision | Rationale |
 |---|----------|-----------|
-| D21 | **Catalog split**: `catatalog.ts` metadata (id/name/category/tier/params) in the entry chunk; shader bodies per-category lazy-loaded via `import.meta.glob`. | Monolith (3480+4837 lines) dies; first load drops ~70%; category loads on demand. |
+| D21 | **Catalog split (revised @ Phase 9)**: `catalog.ts` metadata stays in the entry chunk; shader bodies are isolated in a static `shader-data` chunk via `manualChunks` (library/milkdrop/reactive/heroes), NOT per-category `import.meta.glob`. | Intended lazy split re-scoped: 9 static importers + the sync crossfade/cache flow made per-category async a blank-library regression risk for only ~90KB-gz first-load gain. Static split clears the 500KB warning and gives a cache-stable bodies chunk with zero runtime risk (browsed categories share one fetch). |
 | D22 | **Chunk grammar `{{chunk:name}}`** with a built-time-time registry (`chunks.ts`) — resolve bullets(s) in createShader. Chunks: noise, warp, palette, sdf, raymarch, kaleid, etc. | AGENTS.md convention, matches LYGIA/glslify ideas without their licenses/copyright concerns. |
 | D23 | **LGChoice resolution: LYGIA = ideas only** (Prosperity license forbids reuse). Butterchurn = MIT (structure/contract patterns OK with attribution). We adapt patterns, not code. | No license-reuse risk in shipped GLSL. |
 | D24 | **New hero shaders** (thin categories): moiré-feedback, pseudo-feedback galaxies, quaternion 4D slice beat-pop, mandelbox-lite, smooth Voronoi warpgrid, curl flow, kaleid memorb | One thought per shader; candidates elevate 2 underrepresented categories; use chunk grammar + tiers. |
