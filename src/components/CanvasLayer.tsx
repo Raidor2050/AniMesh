@@ -45,6 +45,9 @@ export function CanvasLayer() {
 
         renderer = new Renderer(canvas, gl)
         rendererRef.current = renderer
+        // Fresh context → stale warm tag must not block the post-restore
+        // neighbor pre-warm (Phase 8 context-loss hardening).
+        warmed = null
 
         const resize = () => {
           renderer!.resize(window.innerWidth, window.innerHeight, window.devicePixelRatio)

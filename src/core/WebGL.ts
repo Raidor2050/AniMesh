@@ -89,6 +89,21 @@ export function createFBO(
   width: number,
   height: number
 ): { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null {
+  return createFBOScaled(gl, width, height, 1)
+}
+
+/**
+ * Half/quarter-resolution variant use for the Kawase bloom chain (D12/D31): a
+ * full-size scene FBO would quadruple the blur passes' fill rate for no
+ * visible gain. The attached texture is resized on frame resize just like the
+ * full-res scene FBOs.
+ */
+export function createFBOScaled(
+  gl: WebGL2RenderingContext,
+  width: number,
+  height: number,
+  scale: number
+): { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null {
   const framebuffer = gl.createFramebuffer()
   const texture = gl.createTexture()
   if (!framebuffer || !texture) {
@@ -97,8 +112,11 @@ export function createFBO(
     return null
   }
 
+  const w = Math.max(1, Math.floor(width * scale))
+  const h = Math.max(1, Math.floor(height * scale))
+
   gl.bindTexture(gl.TEXTURE_2D, texture)
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.HALF_FLOAT, null)
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)

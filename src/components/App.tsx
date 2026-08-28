@@ -18,6 +18,7 @@ import { ShaderCarousel } from './ShaderCarousel'
 import { MacroBar } from './MacroBar'
 import { A11yAnnouncer } from './A11yAnnouncer'
 import { ErrorBoundary } from './ErrorBoundary'
+import { PerformanceOverlay } from './PerformanceOverlay'
 import { getAudioEngine } from '../audio/audioSingleton'
 import { announce } from '../a11y/announcer'
 import { randomShader, cycleShader } from '../state/shaderActions'
@@ -77,6 +78,8 @@ export function App() {
         if (e.key === 'n') store.toggleCreator()
         if (e.key === 'f') store.toggleImmersive()
         if (e.key === 'p') store.togglePanelsVisible()
+        // Perf overlay (D12): ref-driven DOM meter for the frame budget audit
+        if (e.key === 'g') store.togglePerf()
         // [ and ] cycle shaders from anywhere
         if (e.key === '[') { e.preventDefault(); cycleShader(-1) }
         if (e.key === ']') { e.preventDefault(); cycleShader(1) }
@@ -122,6 +125,7 @@ export function App() {
         {bootComplete && <AudioInitBar />}
         {bootComplete && creatorOpen && !immersive && <ShaderCreator />}
         {commandPaletteOpen && <CommandPalette />}
+        <PerformanceOverlay />
         <A11yAnnouncer />
       </div>
     </ErrorBoundary>

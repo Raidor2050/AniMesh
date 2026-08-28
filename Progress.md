@@ -172,7 +172,16 @@
 - [x] ErrorBoundary (D28): class boundary, root + panel variants (retry + reload), announces recoverable errors; wraps root layout + CanvasLayer
 - [x] 8 vitest tests added (heroPresets 4 + history 4); 56 total green; build green (507.47KB / 109.16KB gz)
 
+## Phase 19: Renderer Hardening (master-plan Phase 8)
+- [x] Kawase bloom chain (D12): half-res FBO pair (fboD/fboE via `createFBOScaled`), extract-downsample with bright gate (radius 0.5, uThreshold, uIntensity) + three widening passes (1.5→3.0→6.0 texel) ping-ponged; composite reads half-res bloom (¼ fill rate of scene); degrades to identity-bloom when chain allocation fails
+- [x] Adaptive resolution scaling (D30): pure `src/renderer/adaptive.ts` controller (EMA of wall+GPU ms, 14ms budget, step-down 10% / step-up 5%, 1s cooldown, clamps 0.5–1.0; unit-tested) wired into `render()`; scale changes re-resize canvas + all five FBOs; settles 30 frames before re-gauging
+- [x] GPU timing via `EXT_disjoint_timer_query_webgl2` (D30): two query slots, result read one frame behind, fallback to wall-clock EMA when unsupported
+- [x] Context-loss hardening: stale `warmed` tag cleared on re-init so neighbor pre-warm resumes after `webglcontextrestored`; dispose cleans timing queries + bloom FBOs
+- [x] Perf overlay (`PerformanceOverlay.tsx`): ref-driven DOM text (never React state, AGENTS.md #8), shows fps / frame ms / gpu ms / scale / resolution / cache size; toggled with `g`; values published via `audioDataBridge` (frameMs, gpuMs, scale, resolution, cacheSize)
+- [x] 6 vitest tests added (adaptive 6); 62 total green; build green (512.94KB / 110.83KB gz — chunk-size warning tracked in risk register)
+
 ## Risk Register (master-plan phases 6–9)
 | When | What | Mitigation |
 | --- | --- | --- |
-| 2026-08-28 | Phase 17 build 496.88KB / 106.04KB gz | D21 lazy per-category bodies deferred to Phase 9 perf pass; synced crossfade/cache flow kept intact |
+| 2026-08-28 | Main chunk 512.94KB / 110.83KB gz still over the 500KB rollup warning | D21 lazy per-category body split deferred to Phase 9 perf pass (keeps synced crossfade/cache flow intact while bundle is only ~111KB gz) |
+| 2026-08-28 | EXT_disjoint_timer_query result may lag a frame or be unavailable | gpuBegin only re-arms when the previous result is readable (never overwrites in-flight); adaptive falls back to wall-clock EMA |

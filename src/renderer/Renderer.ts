@@ -1,26 +1,42 @@
-﻿import { createProgram, createQuadVAO, createFBO, resizeFBO, disposeFBO, VERT_SRC } from '../core/WebGL'
+﻿import { createProgram, createQuadVAO, createFBO, createFBOScaled, resizeFBO, disposeFBO, VERT_SRC } from '../core/WebGL'
 import { AudioSnapshot, ShaderDefinition, AudioMapping } from '../utils/types'
 import { FeatureGraph, DEFAULT_PROFILE, legacyToRoutes, Route, ParamRanges, MACRO_IDS } from '../mappings/featureGraph'
 import { audioDataBridge, useUIStore } from '../state/stores'
 import { ProgramCache } from './programCache'
+import { stepAdaptive, createAdaptiveState, AdaptiveState } from './adaptive'
 
-const BLOOM_FRAG = `#version 300 es
+// Typed locally: lib.dom in this TS version omits the WebGL2 timer-query
+// extension interface on some platforms.
+interface ExtDisjointTimerQueryWebGL2 {
+  QUERY_RESULT_AVAILABLE: number
+  QUERY_RESULT: number
+  TIME_ELAPSED_EXT: number
+}
+
+// Kawase-style bloom blur (D12/D31). Runs on the half-resolution bloom chain
+// FBOs: the extract pass downsam-ples the full-res scene while gating to the
+// brights (uRadius 0.5 + uThreshold), then three widening passes accumulate the
+// glow. uIntensity (from the mapped `bloom` knob) scales the extract only.
+const KAWASE_FRAG = `#version 300 es
 precision highp float;
 in vec2 vUv;
 uniform sampler2D uTexture;
-uniform vec2 uResolution;
+uniform vec2 uTexel;
+uniform float uRadius;
+uniform float uThreshold;
 uniform float uIntensity;
 out vec4 fragColor;
 void main() {
-  vec2 texel = 1.0 / uResolution;
+  vec2 o = uTexel * uRadius;
   vec4 c = texture(uTexture, vUv) * 4.0;
-  c += texture(uTexture, vUv + texel * vec2(1,1));
-  c += texture(uTexture, vUv + texel * vec2(-1,1));
-  c += texture(uTexture, vUv + texel * vec2(1,-1));
-  c += texture(uTexture, vUv + texel * vec2(-1,-1));
-  fragColor = c / 8.0;
-  float brightness = dot(fragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-  fragColor.rgb *= smoothstep(0.6, 1.0, brightness) * uIntensity;
+  c += texture(uTexture, vUv + vec2( o.x,  o.y));
+  c += texture(uTexture, vUv + vec2(-o.x,  o.y));
+  c += texture(uTexture, vUv + vec2( o.x, -o.y));
+  c += texture(uTexture, vUv + vec2(-o.x, -o.y));
+  vec4 acc = c * 0.125;
+  float lum = dot(acc.rgb, vec3(0.2126, 0.7152, 0.0722));
+  float gate = smoothstep(uThreshold, uThreshold + 0.15, lum);
+  fragColor = clamp(acc * gate * uIntensity, 0.0, 1.0);
 }`
 
 const COMPOSITE_FRAG = `#version 300 es
@@ -114,11 +130,15 @@ export class Renderer {
   private fboA: { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null = null
   private fboB: { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null = null
   private fboC: { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null = null
+  // Half-resolution Kawase bloom chain (D12/D31)
+  private fboD: { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null = null
+  private fboE: { framebuffer: WebGLFramebuffer; texture: WebGLTexture } | null = null
+  private bloomFinalTex: WebGLTexture | null = null
 
   private bloomProgram: WebGLProgram | null = null
   private compositeProgram: WebGLProgram | null = null
   private blendProgram: WebGLProgram | null = null
-  private bloomLocs: { uTexture: WebGLUniformLocation | null; uResolution: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null } | null = null
+  private bloomLocs: { uTexture: WebGLUniformLocation | null; uTexel: WebGLUniformLocation | null; uRadius: WebGLUniformLocation | null; uThreshold: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null } | null = null
   private compositeLocs: { uScene: WebGLUniformLocation | null; uBloom: WebGLUniformLocation | null; uBloomStrength: WebGLUniformLocation | null; uSaturation: WebGLUniformLocation | null; uBrightness: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null; uHueShift: WebGLUniformLocation | null; uZoom: WebGLUniformLocation | null; uTime: WebGLUniformLocation | null; uBeat: WebGLUniformLocation | null } | null = null
   private blendLocs: { uFrom: WebGLUniformLocation | null; uTo: WebGLUniformLocation | null; uProgress: WebGLUniformLocation | null } | null = null
 
@@ -143,11 +163,26 @@ export class Renderer {
   private dpr = 1
   private width = 0
   private height = 0
+  private lastDpr = 1
+  private lastW = 0
+  private lastH = 0
   private fps = 0
   private frameCount = 0
   private lastFpsTime = 0
   private lastFrameTime = 0
   private hasPostFx = false
+  private hasBloom = false
+
+  // Adaptive resolution scaling (D30)
+  private adaptive: AdaptiveState = createAdaptiveState()
+  private adaptiveScale = 1
+  // EXT_disjoint_timer_query GPU timing (D30) — two slots so a result is
+  // always readable one frame behind while the next frame is measured.
+  private extTiming: ExtDisjointTimerQueryWebGL2 | null = null
+  private timingQueries: WebGLQuery[] = []
+  private timingQueryIndex = 0
+  private gpuSampleMs = 0
+  private frameStartMs = 0
 
   private lastError: string | null = null
 
@@ -169,9 +204,14 @@ export class Renderer {
     this.fboA = createFBO(gl, w, h)
     this.fboB = createFBO(gl, w, h)
     this.fboC = this.fboA && this.fboB ? createFBO(gl, w, h) : null
+    // Half-res bloom chain — separate from the scene FBOs so the blur passes
+    // never pay 4× fill rate. Degrades to "no bloom" (composite identity) if it
+    // fails to allocate.
+    this.fboD = createFBOScaled(gl, w, h, 0.5)
+    this.fboE = createFBOScaled(gl, w, h, 0.5)
 
     if (this.fboA && this.fboB && this.fboC) {
-      const bloomProg = createProgram(gl, VERT_SRC, BLOOM_FRAG)
+      const bloomProg = createProgram(gl, VERT_SRC, KAWASE_FRAG)
       const compositeProg = createProgram(gl, VERT_SRC, COMPOSITE_FRAG)
       const blendProg = createProgram(gl, VERT_SRC, BLEND_FRAG)
       if (bloomProg && compositeProg && blendProg) {
@@ -180,9 +220,12 @@ export class Renderer {
         this.blendProgram = blendProg
         this.bloomLocs = {
           uTexture: gl.getUniformLocation(bloomProg, 'uTexture'),
-          uResolution: gl.getUniformLocation(bloomProg, 'uResolution'),
+          uTexel: gl.getUniformLocation(bloomProg, 'uTexel'),
+          uRadius: gl.getUniformLocation(bloomProg, 'uRadius'),
+          uThreshold: gl.getUniformLocation(bloomProg, 'uThreshold'),
           uIntensity: gl.getUniformLocation(bloomProg, 'uIntensity'),
         }
+        this.hasBloom = Boolean(this.fboD && this.fboE && this.bloomLocs)
         this.compositeLocs = {
           uScene: gl.getUniformLocation(compositeProg, 'uScene'),
           uBloom: gl.getUniformLocation(compositeProg, 'uBloom'),
@@ -208,14 +251,19 @@ export class Renderer {
     // crossfade in from the safety pattern instead of hard-switching.
     this.program = this.cache.get(VERT_SRC, FALLBACK_FRAG)
     this.uniforms = this.collectUniforms(this.program)
+
+    this.initGpuTiming()
   }
 
   resize(w: number, h: number, dpr: number) {
     this.width = w
+    this.lastW = w
+    this.lastH = h
+    this.lastDpr = dpr
     this.height = h
     // Cap DPR: 2.0 desktop, 1.5 mobile â€” research-backed for <14ms frame budget
     const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone/i.test(navigator.userAgent)
-    this.dpr = Math.min(dpr, isMobile ? 1.5 : 2.0)
+    this.dpr = Math.min(dpr, isMobile ? 1.5 : 2.0) * this.adaptiveScale
     const rw = Math.floor(w * this.dpr)
     const rh = Math.floor(h * this.dpr)
     this.canvas.width = rw
@@ -238,6 +286,22 @@ export class Renderer {
       this.fboA = null
       this.fboB = null
       this.fboC = null
+    }
+
+    // Reallocate the half-res bloom chain in lockstep (still 0.5x of the new
+    // resolution). A failure only drops the bloom glow, never the main path.
+    const bw = Math.max(1, rw >> 1)
+    const bh = Math.max(1, rh >> 1)
+    const okD = this.fboD ? resizeFBO(gl, this.fboD, bw, bh) : false
+    const okE = this.fboE ? resizeFBO(gl, this.fboE, bw, bh) : false
+    if (this.fboD || this.fboE) {
+      if (!okD || !okE) {
+        if (this.fboD) disposeFBO(gl, this.fboD)
+        if (this.fboE) disposeFBO(gl, this.fboE)
+        this.fboD = null
+        this.fboE = null
+      }
+      this.hasBloom = Boolean(this.fboD && this.fboE && this.bloomProgram && this.bloomLocs)
     }
   }
 
@@ -327,6 +391,8 @@ export class Renderer {
     if (!this.program || width === 0 || height === 0 || !this.vao) return
 
     const now = performance.now()
+    this.frameStartMs = now
+    this.gpuBegin()
     // Clamp dt so decays/animations don't snap after a hidden tab or long stall.
     const dt = this.lastFrameTime > 0 ? Math.min((now - this.lastFrameTime) / 1000, 0.1) : 1 / 60
     this.lastFrameTime = now
@@ -334,6 +400,9 @@ export class Renderer {
     const rw = Math.floor(width * this.dpr)
     const rh = Math.floor(height * this.dpr)
     const res: [number, number] = [rw, rh]
+    // Half-resolution bloom chain dims (Kawase runs at 0.5x fill rate).
+    const bw = Math.max(1, rw >> 1)
+    const bh = Math.max(1, rh >> 1)
 
     // Reduced motion (D29): freeze uTime (and cancel in-flight crossfades).
     const reducedMotion = useUIStore.getState().reducedMotion
@@ -405,17 +474,8 @@ export class Renderer {
         if (this.blendLocs.uProgress) gl.uniform1f(this.blendLocs.uProgress, eased)
         gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-        // 4. bloom from the blended scene â†’ FBO B (reuse, A+C consumed above)
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
-        gl.viewport(0, 0, rw, rh)
-        gl.clear(gl.COLOR_BUFFER_BIT)
-        gl.useProgram(this.bloomProgram)
-        gl.activeTexture(gl.TEXTURE0)
-        gl.bindTexture(gl.TEXTURE_2D, this.fboC.texture)
-        if (this.bloomLocs.uTexture) gl.uniform1i(this.bloomLocs.uTexture, 0)
-        if (this.bloomLocs.uResolution) gl.uniform2f(this.bloomLocs.uResolution, rw, rh)
-        if (this.bloomLocs.uIntensity) gl.uniform1f(this.bloomLocs.uIntensity, mapped.bloom ?? 0.5)
-        gl.drawArrays(gl.TRIANGLES, 0, 6)
+        // 4. bloom from the blended scene via the Kawase chain (D12/D31)
+        this.runBloomChain(this.fboC.texture, bw, bh, mapped)
 
         // 5. composite â†’ screen
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
@@ -426,7 +486,7 @@ export class Renderer {
         gl.bindTexture(gl.TEXTURE_2D, this.fboC.texture)
         if (this.compositeLocs.uScene) gl.uniform1i(this.compositeLocs.uScene, 0)
         gl.activeTexture(gl.TEXTURE1)
-        gl.bindTexture(gl.TEXTURE_2D, this.fboB.texture)
+        gl.bindTexture(gl.TEXTURE_2D, this.bloomFinalTex ?? this.fboC.texture)
         if (this.compositeLocs.uBloom) gl.uniform1i(this.compositeLocs.uBloom, 1)
         if (this.compositeLocs.uBloomStrength) gl.uniform1f(this.compositeLocs.uBloomStrength, mapped.bloomStrength ?? 0.6)
         if (this.compositeLocs.uSaturation) gl.uniform1f(this.compositeLocs.uSaturation, Math.max(0, mapped.saturation ?? 1.0))
@@ -452,6 +512,14 @@ export class Renderer {
         gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboC.framebuffer)
         gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+        if (this.fboD) {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboD.framebuffer)
+          gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+        }
+        if (this.fboE) {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboE.framebuffer)
+          gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+        }
       } else {
         this.transition = null
         // Scene pass â†’ FBO A
@@ -462,17 +530,8 @@ export class Renderer {
         this.setUniforms(renderTime, audio, mapped, res, mouse)
         gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-        // Bloom pass â†’ FBO B
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
-        gl.viewport(0, 0, rw, rh)
-        gl.clear(gl.COLOR_BUFFER_BIT)
-        gl.useProgram(this.bloomProgram)
-        gl.activeTexture(gl.TEXTURE0)
-        gl.bindTexture(gl.TEXTURE_2D, this.fboA.texture)
-        if (this.bloomLocs.uTexture) gl.uniform1i(this.bloomLocs.uTexture, 0)
-        if (this.bloomLocs.uResolution) gl.uniform2f(this.bloomLocs.uResolution, rw, rh)
-        if (this.bloomLocs.uIntensity) gl.uniform1f(this.bloomLocs.uIntensity, mapped.bloom ?? 0.5)
-        gl.drawArrays(gl.TRIANGLES, 0, 6)
+        // Kawase bloom chain from the scene (half-res, D12/D31)
+        this.runBloomChain(this.fboA.texture, bw, bh, mapped)
 
         // Composite â†’ screen
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
@@ -483,7 +542,7 @@ export class Renderer {
         gl.bindTexture(gl.TEXTURE_2D, this.fboA.texture)
         if (this.compositeLocs.uScene) gl.uniform1i(this.compositeLocs.uScene, 0)
         gl.activeTexture(gl.TEXTURE1)
-        gl.bindTexture(gl.TEXTURE_2D, this.fboB.texture)
+        gl.bindTexture(gl.TEXTURE_2D, this.bloomFinalTex ?? this.fboA.texture)
         if (this.compositeLocs.uBloom) gl.uniform1i(this.compositeLocs.uBloom, 1)
         if (this.compositeLocs.uBloomStrength) gl.uniform1f(this.compositeLocs.uBloomStrength, mapped.bloomStrength ?? 0.6)
         if (this.compositeLocs.uSaturation) gl.uniform1f(this.compositeLocs.uSaturation, Math.max(0, mapped.saturation ?? 1.0))
@@ -503,6 +562,14 @@ export class Renderer {
         gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
         gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+        if (this.fboD) {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboD.framebuffer)
+          gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+        }
+        if (this.fboE) {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboE.framebuffer)
+          gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
+        }
       }
     } else {
       // Direct render to screen (no post-processing / crossfade)
@@ -523,6 +590,26 @@ export class Renderer {
       this.frameCount = 0
       this.lastFpsTime = now
     }
+
+    this.gpuEnd()
+
+    // Adaptive resolution (D30): settle a few frames first so first-frame
+    // compile jank never nukes the scale, then let the controller re-gauge.
+    if (this.frameCount > 30) {
+      const wallMs = now - this.frameStartMs
+      this.adaptive = stepAdaptive(this.adaptive, wallMs, this.gpuSampleMs > 0 ? this.gpuSampleMs : undefined, now)
+      if (Math.abs(this.adaptive.scale - this.adaptiveScale) > 0.001) {
+        this.adaptiveScale = this.adaptive.scale
+        this.resize(this.lastW, this.lastH, this.lastDpr)
+      }
+    }
+
+    // Perf overlay sink (ref-driven DOM, never React state): D12/Agent 4
+    audioDataBridge.frameMs = now - this.frameStartMs
+    audioDataBridge.gpuMs = this.gpuSampleMs
+    audioDataBridge.scale = this.adaptiveScale
+    audioDataBridge.resolution = `${rw} x ${rh}`
+    audioDataBridge.cacheSize = this.cache.size()
   }
 
   private setUniforms(
@@ -534,6 +621,91 @@ export class Renderer {
   ) {
     this.applyUniforms(this.program, this.uniforms, time, audio, mapped, resolution, mouse, 1.0)
   }
+
+  /**
+   * Kawase blur chain on the half-res bloom FBOs (D12/D31). Extract (downsample
+   * + bright gate) → three widening passes. When the chain is unavailable the
+   * composite falls back to the scene as its own bloom (identity, no glow).
+   */
+  private runBloomChain(sceneTex: WebGLTexture, bw: number, bh: number, mapped: Record<string, number>) {
+    const { gl } = this
+    if (!this.hasBloom || !this.bloomProgram || !this.bloomLocs || !this.fboD || !this.fboE) {
+      this.bloomFinalTex = sceneTex
+      return
+    }
+    const bloom = Math.max(0, mapped.bloom ?? 0.5)
+    const threshold = Math.max(0.01, mapped.bloomThreshold ?? 0.55)
+    // 1. extract brights at half res (radius 0.5, gated)
+    this.drawKawase(sceneTex, this.fboD, 0.5, threshold, bloom, bw, bh)
+    // 2–4. widen: 1.5 → 3.0 → 6.0 texels, ping-pong D↔E
+    this.drawKawase(this.fboD.texture, this.fboE, 1.5, 0, 1, bw, bh)
+    this.drawKawase(this.fboE.texture, this.fboD, 3.0, 0, 1, bw, bh)
+    this.drawKawase(this.fboD.texture, this.fboE, 6.0, 0, 1, bw, bh)
+    this.bloomFinalTex = this.fboE.texture
+    gl.bindVertexArray(this.vao)
+    gl.activeTexture(gl.TEXTURE0)
+  }
+
+  private drawKawase(
+    src: WebGLTexture,
+    dst: { framebuffer: WebGLFramebuffer; texture: WebGLTexture },
+    radius: number,
+    threshold: number,
+    intensity: number,
+    bw: number,
+    bh: number
+  ) {
+    const { gl } = this
+    gl.bindFramebuffer(gl.FRAMEBUFFER, dst.framebuffer)
+    gl.viewport(0, 0, bw, bh)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    gl.useProgram(this.bloomProgram)
+    gl.bindVertexArray(this.vao)
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, src)
+    if (this.bloomLocs!.uTexture) gl.uniform1i(this.bloomLocs!.uTexture, 0)
+    if (this.bloomLocs!.uTexel) gl.uniform2f(this.bloomLocs!.uTexel, 1 / bw, 1 / bh)
+    if (this.bloomLocs!.uRadius) gl.uniform1f(this.bloomLocs!.uRadius, radius)
+    if (this.bloomLocs!.uThreshold) gl.uniform1f(this.bloomLocs!.uThreshold, threshold)
+    if (this.bloomLocs!.uIntensity) gl.uniform1f(this.bloomLocs!.uIntensity, intensity)
+    gl.drawArrays(gl.TRIANGLES, 0, 6)
+  }
+
+  // ——— EXT_disjoint_timer_query GPU timing (D30) ———
+  private initGpuTiming() {
+    const ext = this.gl.getExtension('EXT_disjoint_timer_query_webgl2')
+    if (!ext) return
+    this.extTiming = ext
+    for (let i = 0; i < 2; i++) {
+      const q = this.gl.createQuery()
+      if (q) this.timingQueries.push(q)
+    }
+  }
+
+  private gpuBegin() {
+    if (!this.extTiming || this.timingQueries.length !== 2) return
+    const { gl } = this
+    const slot = this.timingQueries[this.timingQueryIndex]
+    // Only re-arm when the previous result is available (skip, don't overwrite).
+    const available = gl.getQueryParameter(slot, this.extTiming.QUERY_RESULT_AVAILABLE)
+    if (!available) return
+    const ns = gl.getQueryParameter(slot, this.extTiming.QUERY_RESULT) as number
+    this.gpuSampleMs = ns / 1e6
+    gl.beginQuery(this.extTiming.TIME_ELAPSED_EXT, slot)
+  }
+
+  private gpuEnd() {
+    if (!this.extTiming || this.timingQueries.length !== 2) return
+    const { gl } = this
+    gl.endQuery(this.extTiming.TIME_ELAPSED_EXT)
+    this.timingQueryIndex = (this.timingQueryIndex + 1) % 2
+  }
+
+  getFrameMs() { return this.frameStartMs > 0 ? performance.now() - this.frameStartMs : 0 }
+  getGpuMs() { return this.gpuSampleMs }
+  getScale() { return this.adaptiveScale }
+  getResolution(): string { return `${Math.floor(this.width * this.dpr)} x ${Math.floor(this.height * this.dpr)}` }
+  getCacheSize() { return this.cache.size() }
 
   private applyUniforms(
     prog: WebGLProgram | null,
@@ -604,8 +776,12 @@ export class Renderer {
     if (this.blendProgram) gl.deleteProgram(this.blendProgram)
     if (this.vao) gl.deleteVertexArray(this.vao)
     if (this.vaoBuffer) gl.deleteBuffer(this.vaoBuffer)
+    for (const q of this.timingQueries) gl.deleteQuery(q)
+    this.timingQueries = []
     disposeFBO(gl, this.fboA)
     disposeFBO(gl, this.fboB)
     disposeFBO(gl, this.fboC)
+    disposeFBO(gl, this.fboD)
+    disposeFBO(gl, this.fboE)
   }
 }

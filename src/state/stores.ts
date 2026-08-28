@@ -38,6 +38,7 @@ interface UIStore {
   reducedMotion: boolean
   minimizedPanels: string[]
   streamPreset: 'stream' | 'spectrum' | 'bars' | 'oscilloscope'
+  perfVisible: boolean
   setBootComplete: (v: boolean) => void
   toggleImmersive: () => void
   toggleBrowser: () => void
@@ -51,6 +52,7 @@ interface UIStore {
   togglePanelMinimized: (id: string) => void
   isPanelMinimized: (id: string) => boolean
   setStreamPreset: (preset: UIStore['streamPreset']) => void
+  togglePerf: () => void
 }
 
 const reducedMotionDefault = typeof window !== 'undefined'
@@ -70,6 +72,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   reducedMotion: reducedMotionDefault,
   minimizedPanels: [],
   streamPreset: 'stream',
+  perfVisible: false,
   setBootComplete: (v) => set({ bootComplete: v }),
   toggleImmersive: () => set((s) => ({ immersive: !s.immersive, browserOpen: false, carouselOpen: false, creatorOpen: false, commandPaletteOpen: false })),
   toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, carouselOpen: false, creatorOpen: false, panelTab: s.browserOpen ? null : 'browser' })),
@@ -88,6 +91,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   }),
   isPanelMinimized: (id) => get().minimizedPanels.includes(id),
   setStreamPreset: (streamPreset) => set({ streamPreset }),
+  togglePerf: () => set((s) => ({ perfVisible: !s.perfVisible })),
 }))
 
 interface ShaderStore {
@@ -211,6 +215,11 @@ export const useAudioStore = create<AudioStore>((set) => ({
 export const audioDataBridge = {
   snapshot: createDefaultSnapshot(),
   fps: 0,
+  frameMs: 0,
+  gpuMs: 0,
+  scale: 1,
+  resolution: '',
+  cacheSize: 0,
   // MacroBar (D26) faders: single pointer handler writes these; the renderer
   // reads them each frame via the graph profile (ref-driven, zero React churn).
   macros: { ...DEFAULT_PROFILE.macros } as Record<MacroId, number>,
