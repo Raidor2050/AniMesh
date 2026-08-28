@@ -48,11 +48,9 @@ export function ImmersiveMode() {
   const toggleImmersive = useUIStore(s => s.toggleImmersive)
   const activeShader = useShaderStore(s => s.activeShader)
   const [showHUD, setShowHUD] = useState(false)
-  const [mouseNear, setMouseNear] = useState(false)
   const [shaderFlash, setShaderFlash] = useState(false)
   const hideTimerRef = useRef<number | null>(null)
   const prevShaderRef = useRef<string | null>(null)
-  const [cursorVisible, setCursorVisible] = useState(true)
 
   const revealHUD = () => {
     setShowHUD(true)
@@ -75,8 +73,6 @@ export function ImmersiveMode() {
         e.clientY < threshold ||
         e.clientY > window.innerHeight - threshold
 
-      setMouseNear(near)
-      setCursorVisible(true)
       document.body.style.cursor = 'default'
       if (cursorTimer) clearTimeout(cursorTimer)
 
@@ -84,7 +80,6 @@ export function ImmersiveMode() {
 
       // Auto-hide cursor after 2s idle (anywhere on screen)
       cursorTimer = setTimeout(() => {
-        setCursorVisible(false)
         document.body.style.cursor = 'none'
       }, 2000)
     }

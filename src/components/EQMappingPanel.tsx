@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useShaderStore, useUIStore, audioDataBridge } from '../state/stores'
-import { AudioSignal, AudioMapping, ShaderCategory, CATEGORY_LABELS } from '../utils/types'
+import { AudioSignal, AudioMapping } from '../utils/types'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 import { useDraggable } from '../hooks/useDraggable'
 
@@ -30,7 +30,7 @@ export function EQMappingPanel() {
   const [bandLevels, setBandLevels] = useState<Record<string, number>>({})
   const [collapsed, setCollapsed] = useState(false)
 
-  const { position, isDragging, containerRef, dragProps } = useDraggable({
+  const { isDragging, containerRef, dragProps } = useDraggable({
     initialX: typeof window !== 'undefined' ? window.innerWidth - 496 : 800,
     initialY: 330,
     bounds: { left: 0, top: 48, right: 0, bottom: 0 },
@@ -226,7 +226,6 @@ export function EQMappingPanel() {
                 <MappingRow
                   key={index}
                   mapping={mapping}
-                  index={index}
                   availableParams={availableParams}
                   onUpdate={(m) => updateMapping(index, m)}
                   onRemove={() => removeMapping(index)}
@@ -288,7 +287,6 @@ function BandLevelRow({ band, level }: {
 
   useEffect(() => {
     const now = Date.now()
-    const prev = prevLevelRef.current
     prevLevelRef.current = level
 
     // New peak: level is higher than stored peak
@@ -356,9 +354,8 @@ function BandLevelRow({ band, level }: {
   )
 }
 
-function MappingRow({ mapping, index, availableParams, onUpdate, onRemove }: {
+function MappingRow({ mapping, availableParams, onUpdate, onRemove }: {
   mapping: AudioMapping
-  index: number
   availableParams: string[]
   onUpdate: (m: AudioMapping) => void
   onRemove: () => void

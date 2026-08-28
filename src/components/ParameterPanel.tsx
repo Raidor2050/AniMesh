@@ -1,5 +1,5 @@
 import { useShaderStore, useUIStore, audioDataBridge } from '../state/stores'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 import { useDraggable } from '../hooks/useDraggable'
@@ -54,7 +54,7 @@ export function ParameterPanel() {
     setSavingChip(false)
   }
 
-  const { position, isDragging, containerRef, dragProps } = useDraggable({
+  const { isDragging, containerRef, dragProps } = useDraggable({
     initialX: typeof window !== 'undefined' ? window.innerWidth - 496 : 800,
     initialY: 60,
     bounds: { left: 0, top: 48, right: 0, bottom: 0 },
@@ -110,7 +110,7 @@ export function ParameterPanel() {
             cursor: isDragging ? 'grabbing' : 'pointer',
             touchAction: 'none',
           }}
-          onClick={(e) => {
+          onClick={() => {
             if (!isDragging) setCollapsed(!collapsed)
           }}
         >

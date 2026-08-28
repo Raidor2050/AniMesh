@@ -187,6 +187,13 @@
 - [x] Statuses reconciled in IMPLEMENTATION_PLAN.md (phases 3–7, 9 → `[x]`); master-plan Phase 8 (stationary-first preview posters, hover-live by tier) still open
 - [x] 62 total green; build green — no chunk warnings
 
+## Phase 21: Tooling + CI (ESLint, check-shaders, GH Actions)
+- [x] `scripts/check-shaders.mjs` — static GLSL gate (unterminated-literal detection; every `void main()` fragment must be brace-balanced; skips `__tests__` + chunk-grammar pieces) → 272 literals scanned, wired as `npm run check:shaders`; architecture notes in file header
+- [x] ESLint 9 flat config (`eslint.config.js`): typescript-eslint recommended + react-hooks + react-refresh; relaxations documented in-file: unused-vars→warn (dead-code pass lives in Progress), `no-explicit-any` off (bridge snapshots), `no-empty` allows empty catches (context-error swallowing), `set-state-in-effect` + `immutability` off (store/mount sync + hoisted fn-decl patterns are valid React 18)
+- [x] 34-warning cleanup as part of the dead-code pass (Phase 20-21): removed dead imports/locals across CommandPalette, EQMappingPanel, ImmersiveMode, LeftPanel, LeftToolbar, ParameterPanel, ShaderBrowser, ShaderCarousel, StreamGraph, TopBar, useDraggable, useShaderPreview, AudioMappingEngine, featureGraph, ShaderPreviewManager, library, wireParams, AudioEngine, vite.config — `lint` exit 0, zero warnings
+- [x] `.github/workflows/ci.yml`: push/PR on main → lint + check:shaders + build + test; deploy job (peaceiris/actions-gh-pages, force_orphan) auto-publishes `dist` to gh-pages on main push
+- [x] `npm run ci` = lint && check:shaders && build && test — full pass green locally; 7 test files / 62 tests; build clean, no chunk warnings
+
 ## Risk Register (master-plan phases 6–9)
 | When | What | Mitigation |
 | --- | --- | --- |

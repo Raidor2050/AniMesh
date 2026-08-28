@@ -64,7 +64,6 @@ export interface ParamRanges {
   [target: string]: [number, number]
 }
 
-const BAND_NAMES = ['sub', 'bass', 'lowMid', 'mid', 'highMid', 'treble'] as const
 const CURVE_LOG = Math.log(10)
 
 const LEGACY_SIGNAL: Record<string, SignalSource> = {

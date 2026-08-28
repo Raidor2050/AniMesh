@@ -1,5 +1,5 @@
 import { AudioSnapshot, AudioMapping } from '../utils/types'
-import { clamp, expDecay } from '../utils/math'
+import { expDecay } from '../utils/math'
 
 export interface MappedParams {
   [key: string]: number

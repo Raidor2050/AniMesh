@@ -16,7 +16,6 @@ void main() {
 const PREVIEW_W = 256
 const PREVIEW_H = 160
 const BATCH_SIZE = 4
-const BATCH_DELAY_MS = 16
 const MAX_CACHE = 512
 
 interface PreviewEntry {

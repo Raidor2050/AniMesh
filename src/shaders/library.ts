@@ -3485,7 +3485,6 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
       { id: 'mdIbSize', label: 'Inner Size', min: 0.05, max: 1, default: md.defaults.mdIbSize ?? 0.3, step: 0.01, group: 'shape' },
       { id: 'mdIbAlpha', label: 'Inner Alpha', min: 0, max: 2, default: md.defaults.mdIbAlpha ?? 0, step: 0.05, group: 'audio' },
     ]
-    const mdDefaultIds = new Set(mdParams.map(p => p.id))
     const universal: ShaderDefinition['params'] = [
       { id: 'speed', label: 'Speed', min: 0, max: 3, default: md.defaults.speed ?? 1, step: 0.1 },
       { id: 'intensity', label: 'Intensity', min: 0, max: 2, default: md.defaults.intensity ?? 1, step: 0.05 },

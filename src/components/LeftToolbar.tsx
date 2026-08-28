@@ -1,5 +1,5 @@
 import { useUIStore } from '../state/stores'
-import { colors, typography, radii } from '../ui/tokens'
+import { colors, radii } from '../ui/tokens'
 
 export function LeftToolbar() {
   const bootComplete = useUIStore(s => s.bootComplete)

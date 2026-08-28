@@ -48,9 +48,12 @@ condensed in RESEARCH.md / GITHUB_RESEARCH.md and resolved in DECISIONS.md.
 - Kawase bloom replacement; adaptive scale loop w/ EXT timer-query hysteresis; DPR
   caps; context-loss listeners; perf overlay live data; leak check. **Frame-budget gate.**
 
-## Phase 10 — Tooling & CI `[ ]`
-- `scripts/check-shaders.mjs` wired into build; vitest suite complete; GH Actions
-  workflow (lint+test+build; deploy on main). **npm test + build green in CI locally.**
+## Phase 10 — Tooling & CI `[x]`
+- `scripts/check-shaders.mjs` (GLSL literal termination + fragment brace balance)
+  wired as `npm run check:shaders`; ESLint 9 flat config (typescript-eslint +
+  react-hooks + react-refresh) with deliberate relaxations; GH Actions workflow
+  `ci.yml` (lint + check:shaders + build + test; auto-deploy gh-pages on main);
+  full `npm run ci` green locally at `9f44e71` + tooling commit.
 
 ## Phase 11 — Quality-control / audit `[ ]`
 - Run TESTING.md manual checklist; fix; re-audit current-state doc deltas.

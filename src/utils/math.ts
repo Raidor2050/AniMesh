@@ -49,7 +49,7 @@ export function computeRMS(data: Float32Array): number {
 }
 
 export function hash21(p: [number, number]): number {
-  let h = Math.sin(p[0] * 127.1 + p[1] * 311.7) * 43758.5453
+  const h = Math.sin(p[0] * 127.1 + p[1] * 311.7) * 43758.5453
   return h - Math.floor(h)
 }
 

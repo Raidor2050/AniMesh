@@ -320,7 +320,7 @@ export class AudioEngine {
     return true
   }
 
-  private connectDemo(gen: number): boolean {
+  private connectDemo(_gen: number): boolean {
     if (!this.ctx || !this.masterGain) return false
 
     // Enhanced FM synthesis demo — evolving, musically interesting

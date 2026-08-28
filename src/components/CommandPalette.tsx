@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
+import { motion } from 'motion/react'
 import { useUIStore, useShaderStore } from '../state/stores'
-import { SHADER_LIBRARY, searchShaders } from '../shaders/library'
+import { SHADER_LIBRARY } from '../shaders/library'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 
 interface CommandItem {

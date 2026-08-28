@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore } from '../state/stores'
 import { SHADER_LIBRARY, searchShaders } from '../shaders/library'
 import { ShaderCategory, ShaderDefinition, CATEGORY_LABELS, TIER_COLORS } from '../utils/types'
-import { colors, typography, spacing, radii, animation } from '../ui/tokens'
+import { colors, typography, radii, animation } from '../ui/tokens'
 import { useShaderPreview, requestPreviews } from '../hooks/useShaderPreview'
 
 const CATEGORIES: (ShaderCategory | 'favorites' | 'recent')[] = [
@@ -66,10 +66,9 @@ function hexToHsl(hex: string): [number, number, number] {
   if (max === min) return [0, 0, l * 100]
   const d = max - min
   const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-  let h = 0
-  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60
-  else if (max === g) h = ((b - r) / d + 2) * 60
-  else h = ((r - g) / d + 4) * 60
+  const h = max === r ? ((g - b) / d + (g < b ? 6 : 0)) * 60
+    : max === g ? ((b - r) / d + 2) * 60
+    : ((r - g) / d + 4) * 60
   return [h, s * 100, l * 100]
 }
 

@@ -17,7 +17,6 @@ const ALWAYS_DECLARED = new Set([
 const RE_OFFSET = /offset|pan|translat|shift|origin|pos/
 const RE_TIME = /speed|flow|animat|rotat|spin|turn|swirl|drift|phase|evol|expansion|veloc/
 const RE_SPATIAL = /size|radius|zoom|count|density|complex|freq|arm|ring|petal|side|cell|star|bodies|segment|layer|line|node|connect|particle|source|dot|grid|cryst|branch|filament|curtain|contour|wave|detail|thick|width|beam|slice|tile|smooth|depth|spread|scale|interlace|vein|tightness|bead|opening/
-const RE_LIGHT = /glow|emiss|light|shine|sheen|sparkle|radian|lumin|flicker|twinkl|warmth|bright/
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const num = (v: number) => String(Math.round(v * 1e6) / 1e6)

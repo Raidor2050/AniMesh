@@ -74,10 +74,9 @@ function hexToHsl(hex: string): [number, number, number] {
   if (max === min) return [0, 0, l * 100]
   const d = max - min
   const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-  let h = 0
-  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6
-  else if (max === g) h = ((b - r) / d + 2) / 6
-  else h = ((r - g) / d + 4) / 6
+  const h = max === r ? ((g - b) / d + (g < b ? 6 : 0)) / 6
+    : max === g ? ((b - r) / d + 2) / 6
+    : ((r - g) / d + 4) / 6
   return [h * 360, s * 100, l * 100]
 }
 
@@ -91,7 +90,6 @@ function CarouselCard({ shader, offset, isActive, isCenter, absOffset, onClick }
 }) {
   const previewUrl = useShaderPreview(shader.id)
   const angle = offset * ANGLE_STEP
-  const scale = isCenter ? 1.08 : Math.max(0.65, 1 - absOffset * 0.12)
   const opacity = absOffset > 2 ? 0 : isCenter ? 1 : Math.max(0.2, 1 - absOffset * 0.25)
   const brightness = isCenter ? 1.0 : Math.max(0.4, 1 - absOffset * 0.15)
 

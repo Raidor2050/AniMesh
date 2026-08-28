@@ -12,7 +12,7 @@ interface DraggableOptions {
 export function useDraggable(options: DraggableOptions = {}) {
   const { initialX = 100, initialY = 100, handleSelector, bounds, onDragEnd, dragThreshold = 4 } = options
 
-  const [position, setPosition] = useState({ x: initialX, y: initialY })
+  const [position] = useState({ x: initialX, y: initialY })
   const [isDragging, setIsDragging] = useState(false)
 
   const liveRef = useRef({

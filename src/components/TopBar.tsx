@@ -25,7 +25,7 @@ export function TopBar() {
   const [audioLevel, setAudioLevel] = useState(0)
   const [bass, setBass] = useState(0)
   const [treble, setTreble] = useState(0)
-  const [bpm, setBpm] = useState(128)
+  const [, setBpm] = useState(128)
   const [beatPulse, setBeatPulse] = useState(false)
   const [sourceMenuOpen, setSourceMenuOpen] = useState(false)
   const [connecting, setConnecting] = useState(false)

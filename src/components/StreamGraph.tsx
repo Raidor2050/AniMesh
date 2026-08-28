@@ -1,9 +1,9 @@
-import { useRef, useEffect, useCallback, useState } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
 import { audioDataBridge, useAudioStore, useUIStore } from '../state/stores'
 import { AudioSnapshot } from '../utils/types'
 import { colors, radii, typography, spacing } from '../ui/tokens'
 import { useDraggable } from '../hooks/useDraggable'
-import { motion, AnimatePresence } from 'motion/react'
+import { motion } from 'motion/react'
 
 const BAND_KEYS = ['sub', 'bass', 'lowMid', 'mid', 'highMid', 'treble'] as const
 const BAND_COLORS = [
@@ -34,14 +34,7 @@ const PRESETS = [
   { id: 'oscilloscope' as const, label: 'Oscilloscope' },
 ]
 
-type StreamPreset = 'stream' | 'spectrum' | 'bars' | 'oscilloscope'
-
 const SPECTRUM_BAR_COUNT = 64
-
-function colorForSpectrum(index: number, total: number): string {
-  const hue = (index / total) * 270
-  return `hsl(${hue}, 75%, 60%)`
-}
 
 export function StreamGraph() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -60,7 +53,7 @@ export function StreamGraph() {
   const peakHoldRef = useRef<Float32Array>(new Float32Array(SPECTRUM_BAR_COUNT))
   const peakDecayRef = useRef<Float32Array>(new Float32Array(SPECTRUM_BAR_COUNT))
 
-  const { position, isDragging, containerRef, dragProps } = useDraggable({
+  const { isDragging, containerRef, dragProps } = useDraggable({
     initialX: typeof window !== 'undefined' ? window.innerWidth - 252 : 800,
     initialY: 52,
     bounds: { left: 0, top: 48, right: 0, bottom: 0 },
@@ -105,6 +98,7 @@ export function StreamGraph() {
     }
 
     animRef.current = requestAnimationFrame(render)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- render* are hoisted fn decls reading refs; deps pinned to store-picked values (re-adding them would rebuild the loop every render)
   }, [sourceType, streamPreset])
 
   function renderStream(ctx: CanvasRenderingContext2D, W: number, H: number, snap: AudioSnapshot, _timestamp: number) {
@@ -262,7 +256,6 @@ export function StreamGraph() {
 
       const barH = avg * usableH * 0.9
       const x = i * (barWidth + gap)
-      const y = PAD_TOP + usableH - barH
 
       const hue = (i / barCount) * 270
 

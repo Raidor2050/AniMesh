@@ -4,7 +4,7 @@ import { useUIStore, useShaderStore } from '../state/stores'
 import { SHADER_LIBRARY, searchShaders } from '../shaders/library'
 import { ShaderDefinition, ShaderCategory, CATEGORY_LABELS } from '../utils/types'
 import { getShaderPreviewManager } from '../renderer/ShaderPreviewManager'
-import { colors, typography, spacing, radii, animation } from '../ui/tokens'
+import { colors, typography, radii, animation } from '../ui/tokens'
 
 const CATEGORIES: (ShaderCategory | 'all' | 'favorites' | 'recent')[] = [
   'all', 'fractals', 'vj', 'geometric', 'liquid', 'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'milkdrop', 'favorites', 'recent',

@@ -2,22 +2,16 @@ import { useSyncExternalStore, useCallback } from 'react'
 import { getShaderPreviewManager } from '../renderer/ShaderPreviewManager'
 import { ShaderDefinition } from '../utils/types'
 
-let globalVersion = 0
-let globalListeners: Set<() => void> = new Set()
+const globalListeners: Set<() => void> = new Set()
 
 function subscribeGlobal(callback: () => void) {
   globalListeners.add(callback)
   return () => { globalListeners.delete(callback) }
 }
 
-function getGlobalSnapshot() {
-  return globalVersion
-}
-
 const pm = getShaderPreviewManager()
 
 pm.subscribeAll(() => {
-  globalVersion++
   globalListeners.forEach(cb => cb())
 })
 
