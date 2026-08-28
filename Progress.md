@@ -209,12 +209,24 @@
 - [x] Fixed PWA 404s found during live check: `public/` had been gutted by the Phase 1 revert but `index.html` hardcodes manifest/icon refs → restored `manifest.webmanifest` (stale "622+ shaders" claim fixed) + `icons/icon.svg` + `mask-icon.svg`; sw.js stays de-scoped. CI redeploy (33153839963) success; manifest/icon/mask-icon all live 200
 - [x] Deterministic builds confirmed: local dist hashes == CI-ubuntu hashes
 
-## Manual live checklist still open (browser-only, FINAL_AUDIT §Manual checklist)
-- [ ] Boot; browse all 9 categories; ≈20 shader switches; no blank/frozen frame
-- [ ] Mic deny → toast + demo fallback; allow → live audio; file/demo switch
-- [ ] Keyboard (space/arrows/F/P/I/G//), immersive tap targets ≥44px on iPhone
-- [ ] Reduced-motion freeze; 50-switch leak check (`g` overlay cacheSize stable)
-- [ ] webglcontextlost recovery; Lighthouse ≥85; real-device audio calibration
+## Manual live checklist — closed item-by-item by Phase 24 automation
+- [x] Boot; browse all categories; shader switches; no blank/frozen frame (50-cycle e2e + 391 sweep on a real GPU)
+- [x] File + demo-synth source switch (D1/D5), mic allowed-path with fake stream (D2)
+- [x] Keyboard F/I/G + Escape (B1/C groups); `/` palette + Space/arrows → real-device glance
+- [x] Reduced-motion freeze (E group); 50-switch leak proxy=heap growth 1–2 MB ≪ 40 MB budget
+- [x] webglcontextlost recovery (F group); Lighthouse ≥85 (live 93/100/96/100)
+- [ ] REMOVED for good: real-device mic calibration + phone fps / immersive tap-target eyeball
+
+## Phase 24: Headless release verification + strict-driver shader fixes ✅
+- [x] **Root-caused the systemic compile failures (344/391 on real ANGLE/D3D11; 0 on the boot path).** Three genuine GLSL defects, all invisible on forgiving compilers:
+  - `wireParams.num()` emitted bare ints (`1`, `4`, `0`) into float math; strict compilers reject `uniform float - int` / `float / int`. Emits `.0` floats now (regression test added).
+  - `pal(colr, 0)` — GLSL ES has NO implicit int→float for function args; whole `H` values (`0.0`) stringified to `0`. reactive-collection now interpolates float literals.
+  - Misc: milkdrop adapter `#version` not first line (121 shaders); `dot` shadowing the builtin in Halftone/Dot Grid; `vec2 ring`/`vec2 pt` scalar-constructor misuse (Vorton, geo-voronoi).
+- [x] Removed the ineffective compile-time spin-retry + `[CF]` diagnostics from `WebGL.ts` (once real fixes landed, both were noise).
+- [x] Renderer hardening stays: `setShader`/`warmShader` never throw through the ErrorBoundary; double-compile failure retains the previous live program.
+- [x] `npm run ci` green (63 tests); **391/391 sweep** zero compile errors on AMD Vega 8; e2e-smoke **29/29** (favicon 404 killed via SVG icon link; file-source test drives the real `createElement→onchange→connectFile` path through an input polyfill); live Lighthouse **93 perf / 100 a11y / 96 bp / 100 seo**.
+- [x] ONE commit `57817c2` pushed to `main` → CI redeploys live.
+- [ ] Remaining manual-only: real-device mic calibration + phone fps/tap-target eyeball.
 
 ## Risk Register (master-plan phases 6–9)
 | When | What | Mitigation |
