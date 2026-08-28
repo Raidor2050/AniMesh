@@ -159,3 +159,18 @@ export function bld(
 export function body(extra: string[], main: string): string {
   return P(extra) + '\n  vec3 col=' + main + ';\n'
 }
+
+// Enforce the "max N variations of the same shader" rule: group entries by
+// family (id with its trailing `-N` suffix stripped) and keep the first `cap`
+// members of each. Applied to the generated collections so no family exceeds
+// its variant budget.
+export function capFamily(defs: ShaderDefinition[], cap = 3): ShaderDefinition[] {
+  const seen = new Map<string, number>()
+  return defs.filter(d => {
+    const base = d.id.replace(/-\d+$/, '')
+    const n = seen.get(base) ?? 0
+    if (n >= cap) return false
+    seen.set(base, n + 1)
+    return true
+  })
+}

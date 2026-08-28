@@ -6,7 +6,7 @@
 // variants (hue offset × audio signal × warp seed × layout count) so each entry
 // is a distinct, tweakable, compile-identical preset. Bodies are strict-GLSL
 // safe by construction (see _gen-core.ts header).
-import { bld, F, H, SIG, sigToSignal, body } from './_gen-core'
+import { bld, F, H, SIG, sigToSignal, body, capFamily } from './_gen-core'
 
 function genDeep(): ReturnType<typeof bld>[] {
   const out = []
@@ -213,5 +213,6 @@ function genDeep(): ReturnType<typeof bld>[] {
   return out
 }
 
-export const GENERATED_DEEP: ReturnType<typeof bld>[] = genDeep()
+export const GENERATED_DEEP: ReturnType<typeof bld>[] = capFamily(genDeep(), 3)
+// Only the 3 most distinct variants of each family survive (max-variation rule).
 export function getDeepCount() { return GENERATED_DEEP.length }

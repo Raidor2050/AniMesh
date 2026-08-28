@@ -8,13 +8,13 @@ import { getShaderPreviewManager } from '../renderer/ShaderPreviewManager'
 import { colors, typography, radii, animation } from '../ui/tokens'
 
 const CATEGORIES: (ShaderCategory | 'all' | 'favorites' | 'recent' | 'objects')[] = [
-  'all', 'fractals', 'vj', 'geometric', 'liquid', 'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'milkdrop', 'objects', 'favorites', 'recent',
+  'all', 'fractals', 'vj', 'geometric', 'liquid', 'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'milkdrop', 'psychedelic', 'objects', 'favorites', 'recent',
 ]
 
 const CATEGORY_ICONS: Record<string, string> = {
   all: '◈', fractals: '✦', vj: '◎', geometric: '◇', liquid: '≈',
   cosmic: '✧', synthwave: '▶', abstract: '◆', minimal: '○', particle: '∴',
-  milkdrop: '≋', objects: '▦', favorites: '★', recent: '◷',
+  milkdrop: '≋', psychedelic: '❋', objects: '▦', favorites: '★', recent: '◷',
 }
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
@@ -28,6 +28,7 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
   minimal: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 45%, #1e1e1e 100%)',
   particle: 'linear-gradient(135deg, #0f1f33 0%, #1a2e4a 45%, #0e1a2e 100%)',
   milkdrop: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 45%, #0f3460 100%)',
+  psychedelic: 'linear-gradient(135deg, #2a0a3a 0%, #4a1a5e 45%, #3a0a3a 100%)',
   all: 'linear-gradient(135deg, #14141e 0%, #1e1e32 45%, #141428 100%)',
   objects: 'linear-gradient(135deg, #064e3b 0%, #10b981 45%, #0f2e2a 100%)',
 }

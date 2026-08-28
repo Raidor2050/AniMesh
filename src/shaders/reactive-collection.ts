@@ -7,6 +7,7 @@
 //   - applies a brightness floor so it is never pure black
 import { ShaderDefinition, ShaderCategory, AudioMapping, ParameterSchema } from '../utils/types'
 import { wireUniversals } from './wireParams'
+import { capFamily } from './_gen-core'
 
 const HDR = [
   '#version 300 es',
@@ -271,4 +272,4 @@ export function genReactive(): ShaderDefinition[] {
   return out
 }
 
-export const GENERATED_REACTIVE: ShaderDefinition[] = genReactive()
+export const GENERATED_REACTIVE: ShaderDefinition[] = capFamily(genReactive(), 3)

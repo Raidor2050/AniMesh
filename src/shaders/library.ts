@@ -4,6 +4,7 @@ import { GENERATED_REACTIVE } from './reactive-collection'
 import { GENERATED_DEEP } from './deep-collection'
 import { GENERATED_OBJECTS } from './objects-collection'
 import { COMPLEX_SHADERS } from './complex'
+import { GENERATED_PSYCHEDELIC } from './psychedelic'
 import { createShader } from './factory'
 import { HERO_SHADERS } from './heroes'
 
@@ -14,6 +15,7 @@ export const SHADER_LIBRARY: ShaderDefinition[] = [
   ...COMPLEX_SHADERS,
   ...GENERATED_OBJECTS,
   ...GENERATED_DEEP,
+  ...GENERATED_PSYCHEDELIC,
   // ── FRACTALS ──
   createShader(
     'fractal-mandelbrot', 'Mandelbrot Voyage', 'fractals',

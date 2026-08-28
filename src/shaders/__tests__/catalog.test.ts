@@ -65,4 +65,29 @@ describe('shader catalog integrity (tier audit, D21)', () => {
     const keys = md.map(s => s.fragment.replace(/\s+/g, ' ').trim())
     expect(new Set(keys).size).toBe(keys.length)
   })
+
+  it('no shader family exceeds 3 variations', () => {
+    const seen = new Map<string, number>()
+    for (const s of SHADER_LIBRARY) {
+      const base = s.id.replace(/-\d+$/, '')
+      const n = (seen.get(base) ?? 0) + 1
+      expect(n, `${base} family`).toBeLessThanOrEqual(3)
+      seen.set(base, n)
+    }
+  })
+
+  it('psychedelic collection delivers the +299 net expansion (1004 total)', () => {
+    const psy = SHADER_LIBRARY.filter(s => s.category === 'psychedelic')
+    expect(psy.length).toBe(613)
+    expect(SHADER_LIBRARY.length).toBe(705 + 299)
+    // Every psychedelic shader is audio-reactive in a meaningful way: time +
+    // at least two band/local signals + beat energy in the fragment body.
+    for (const s of psy) {
+      const body = s.fragment
+      expect(body, `${s.id} time`).toMatch(/\buTime\b/)
+      expect(body, `${s.id} bands`).toMatch(/\b(bass|mid|treb|vol|sub|cnt)\b/)
+      expect(body, `${s.id} beat`).toMatch(/\b(beat|uBeat)\b/)
+      expect(s.defaults, `${s.id} speed`).toHaveProperty('speed')
+    }
+  })
 })

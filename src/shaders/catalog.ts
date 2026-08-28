@@ -16,7 +16,7 @@ import { ShaderCategory, ShaderDefinition } from '../utils/types'
 
 export const CATEGORIES: ShaderCategory[] = [
   'fractals', 'vj', 'geometric', 'liquid', 'cosmic', 'synthwave',
-  'abstract', 'particle', 'minimal', 'milkdrop',
+  'abstract', 'particle', 'minimal', 'milkdrop', 'psychedelic',
 ]
 
 export const TIERS = ['low', 'medium', 'high', 'ultra'] as const

@@ -9,13 +9,13 @@ import { useShaderPreview, requestPreviews } from '../hooks/useShaderPreview'
 
 const CATEGORIES: (ShaderCategory | 'favorites' | 'recent' | 'objects')[] = [
   'favorites', 'recent', 'objects', 'fractals', 'vj', 'geometric', 'liquid',
-  'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'milkdrop',
+  'cosmic', 'synthwave', 'abstract', 'minimal', 'particle', 'milkdrop', 'psychedelic',
 ]
 
 const CATEGORY_ICONS: Record<string, string> = {
   fractals: '✦', vj: '◎', geometric: '◇', liquid: '≈',
   cosmic: '✧', synthwave: '▶', abstract: '◆', minimal: '○', particle: '∴',
-  favorites: '★', recent: '◷', objects: '▦', milkdrop: '≋',
+  favorites: '★', recent: '◷', objects: '▦', milkdrop: '≋', psychedelic: '❋',
 }
 
 const CATEGORY_GRADIENTS: Record<string, [string, string, string]> = {
@@ -29,6 +29,7 @@ const CATEGORY_GRADIENTS: Record<string, [string, string, string]> = {
   minimal: ['#18181b', '#27272a', '#71717a'],
   particle: ['#14532d', '#16a34a', '#4ade80'],
   milkdrop: ['#1a1a2e', '#16213e', '#0f3460'],
+  psychedelic: ['#4a044e', '#a21caf', '#e879f9'],
   favorites: ['#78350f', '#d97706', '#fbbf24'],
   recent: ['#1e293b', '#475569', '#94a3b8'],
   objects: ['#064e3b', '#10b981', '#34d399'],

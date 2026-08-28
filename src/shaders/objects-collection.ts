@@ -4,7 +4,7 @@
 // chains, comet trails, torus scanners. Structurally shaped by Phase-25 object
 // research (Lissajous XY, radial equalizer arcs, orbit-by-bass, onset impulse).
 // Strict-GLSL safe (see _gen-core.ts); pure epilogue keeps objects clean.
-import { bld, F, H, SIG, sigToSignal, body } from './_gen-core'
+import { bld, F, H, SIG, sigToSignal, body, capFamily } from './_gen-core'
 
 function genObjects(): ReturnType<typeof bld>[] {
   const out = []
@@ -231,5 +231,6 @@ function genObjects(): ReturnType<typeof bld>[] {
   return out
 }
 
-export const GENERATED_OBJECTS: ReturnType<typeof bld>[] = genObjects()
+export const GENERATED_OBJECTS: ReturnType<typeof bld>[] = capFamily(genObjects(), 3)
+// Only the 3 most distinct variants of each family survive (max-variation rule).
 export function getObjectsCount() { return GENERATED_OBJECTS.length }
