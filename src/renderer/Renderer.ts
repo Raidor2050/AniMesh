@@ -1,6 +1,7 @@
-import { createProgram, createQuadVAO, createFBO, resizeFBO, disposeFBO, VERT_SRC } from '../core/WebGL'
+﻿import { createProgram, createQuadVAO, createFBO, resizeFBO, disposeFBO, VERT_SRC } from '../core/WebGL'
 import { AudioSnapshot, ShaderDefinition, AudioMapping } from '../utils/types'
-import { FeatureGraph, DEFAULT_PROFILE, legacyToRoutes, Route, ParamRanges } from '../mappings/featureGraph'
+import { FeatureGraph, DEFAULT_PROFILE, legacyToRoutes, Route, ParamRanges, MACRO_IDS } from '../mappings/featureGraph'
+import { audioDataBridge, useUIStore } from '../state/stores'
 import { ProgramCache } from './programCache'
 
 const BLOOM_FRAG = `#version 300 es
@@ -52,7 +53,7 @@ mat3 hueRotate(float a) {
 }
 void main() {
   vec2 uv = vUv;
-  // Universal scale/zoom — affects EVERY shader output regardless of body
+  // Universal scale/zoom â€” affects EVERY shader output regardless of body
   vec2 center = vec2(0.5);
   uv = (uv - center) / max(uZoom, 0.05) + center;
   vec4 scene = texture(uScene, uv);
@@ -60,7 +61,7 @@ void main() {
   vec3 color = scene.rgb + bloom.rgb * uBloomStrength;
   // Guard against NaN/Inf propagating from a broken shader body
   if (any(isnan(color)) || any(isinf(color))) color = vec3(0.0);
-  // Universal color grading — all params apply to every shader
+  // Universal color grading â€” all params apply to every shader
   color *= uBrightness * uIntensity;
   color = hueRotate(uHueShift) * color;
   float gray = dot(color, vec3(0.299, 0.587, 0.114));
@@ -100,7 +101,7 @@ void main() {
   fragColor = vec4(col, 1.0);
 }`
 
-// Shader crossfade duration in seconds (D03 spec range is 0.4–1.2s).
+// Shader crossfade duration in seconds (D03 spec range is 0.4â€“1.2s).
 const CROSSFADE_SECONDS = 0.7
 
 export class Renderer {
@@ -135,6 +136,9 @@ export class Renderer {
     fromUniforms: Map<string, WebGLUniformLocation>
     frac: number
   } | null = null
+
+  // Reduced-motion freeze (D29): uTime is locked to the first frame value.
+  private frozenTime: number | null = null
 
   private dpr = 1
   private width = 0
@@ -209,7 +213,7 @@ export class Renderer {
   resize(w: number, h: number, dpr: number) {
     this.width = w
     this.height = h
-    // Cap DPR: 2.0 desktop, 1.5 mobile — research-backed for <14ms frame budget
+    // Cap DPR: 2.0 desktop, 1.5 mobile â€” research-backed for <14ms frame budget
     const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone/i.test(navigator.userAgent)
     this.dpr = Math.min(dpr, isMobile ? 1.5 : 2.0)
     const rw = Math.floor(w * this.dpr)
@@ -224,7 +228,7 @@ export class Renderer {
     const okB = this.fboB ? resizeFBO(gl, this.fboB, rw, rh) : true
     const okC = this.fboC ? resizeFBO(gl, this.fboC, rw, rh) : true
     if (!okA || !okB || !okC) {
-      // FBO reallocation failed (e.g. texture size exceeded) — degrade to
+      // FBO reallocation failed (e.g. texture size exceeded) â€” degrade to
       // direct-to-screen rendering instead of silently binding an incomplete FBO.
       this.hasPostFx = false
       this.transition = null
@@ -270,7 +274,9 @@ export class Renderer {
     // Queue a crossfade (D3) when the full post pipeline is up. The old
     // program rendering continues with its own scene pass, blending into the
     // new one over CROSSFADE_SECONDS. Program lifetime stays with the cache.
-    if (this.hasPostFx && this.fboC && prevProgram && prevProgram !== prog) {
+    // Reduced-motion (D29) disables crossfades â€” hard switch, no motion.
+    const reducedMotion = useUIStore.getState().reducedMotion
+    if (this.hasPostFx && this.fboC && prevProgram && prevProgram !== prog && !reducedMotion) {
       this.transition = { from: prevProgram, fromUniforms: prevUniforms, frac: 0 }
     } else {
       this.transition = null
@@ -329,6 +335,23 @@ export class Renderer {
     const rh = Math.floor(height * this.dpr)
     const res: [number, number] = [rw, rh]
 
+    // Reduced motion (D29): freeze uTime (and cancel in-flight crossfades).
+    const reducedMotion = useUIStore.getState().reducedMotion
+    if (reducedMotion) {
+      this.frozenTime = this.frozenTime ?? time
+      this.transition = null
+    } else {
+      this.frozenTime = null
+    }
+    const renderTime = reducedMotion ? this.frozenTime ?? time : time
+
+    // MacroBar (D26): ref-bridge â†’ graph profile, read every frame (no React).
+    const profileMacros = this.graph.getProfile().macros
+    for (const id of MACRO_IDS) {
+      const v = audioDataBridge.macros[id]
+      if (v !== undefined) profileMacros[id] = v
+    }
+
     const mergedBase = userParams ? { ...this.baseParams, ...userParams } : this.baseParams
 
     // Custom routes (EQ panel) are rebuilt only when the mapping list changes.
@@ -347,28 +370,28 @@ export class Renderer {
 
     if (this.hasPostFx && this.fboA && this.fboB && this.fboC && this.bloomProgram && this.blendProgram && this.compositeProgram && this.bloomLocs && this.blendLocs && this.compositeLocs) {
       if (this.transition && this.program && this.transition.from !== this.program) {
-        // ── Crossfade: dual-scene render (D3) ──
+        // â”€â”€ Crossfade: dual-scene render (D3) â”€â”€
         const tr = this.transition
         tr.frac = Math.min(1, tr.frac + dt / CROSSFADE_SECONDS)
         const eased = tr.frac * tr.frac * (3.0 - 2.0 * tr.frac)
 
-        // 1. outgoing scene → FBO A
+        // 1. outgoing scene â†’ FBO A
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA.framebuffer)
         gl.viewport(0, 0, rw, rh)
         gl.clear(gl.COLOR_BUFFER_BIT)
         gl.useProgram(tr.from)
-        this.applyUniforms(tr.from, tr.fromUniforms, time, audio, mapped, res, mouse, 1 - tr.frac)
+        this.applyUniforms(tr.from, tr.fromUniforms, renderTime, audio, mapped, res, mouse, 1 - tr.frac)
         gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-        // 2. incoming scene → FBO B
+        // 2. incoming scene â†’ FBO B
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
         gl.viewport(0, 0, rw, rh)
         gl.clear(gl.COLOR_BUFFER_BIT)
         gl.useProgram(this.program)
-        this.applyUniforms(this.program, this.uniforms, time, audio, mapped, res, mouse, tr.frac)
+        this.applyUniforms(this.program, this.uniforms, renderTime, audio, mapped, res, mouse, tr.frac)
         gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-        // 3. blend (eased) → FBO C
+        // 3. blend (eased) â†’ FBO C
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboC.framebuffer)
         gl.viewport(0, 0, rw, rh)
         gl.clear(gl.COLOR_BUFFER_BIT)
@@ -382,7 +405,7 @@ export class Renderer {
         if (this.blendLocs.uProgress) gl.uniform1f(this.blendLocs.uProgress, eased)
         gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-        // 4. bloom from the blended scene → FBO B (reuse, A+C consumed above)
+        // 4. bloom from the blended scene â†’ FBO B (reuse, A+C consumed above)
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
         gl.viewport(0, 0, rw, rh)
         gl.clear(gl.COLOR_BUFFER_BIT)
@@ -394,7 +417,7 @@ export class Renderer {
         if (this.bloomLocs.uIntensity) gl.uniform1f(this.bloomLocs.uIntensity, mapped.bloom ?? 0.5)
         gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-        // 5. composite → screen
+        // 5. composite â†’ screen
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, rw, rh)
         gl.clear(gl.COLOR_BUFFER_BIT)
@@ -411,7 +434,7 @@ export class Renderer {
         if (this.compositeLocs.uIntensity) gl.uniform1f(this.compositeLocs.uIntensity, Math.max(0, mapped.intensity ?? 1.0))
         if (this.compositeLocs.uHueShift) gl.uniform1f(this.compositeLocs.uHueShift, mapped.hueShift ?? 0.0)
         if (this.compositeLocs.uZoom) gl.uniform1f(this.compositeLocs.uZoom, Math.max(0.1, (mapped.zoom ?? mapped.scale ?? 1.0)))
-        if (this.compositeLocs.uTime) gl.uniform1f(this.compositeLocs.uTime, time)
+        if (this.compositeLocs.uTime) gl.uniform1f(this.compositeLocs.uTime, renderTime)
         if (this.compositeLocs.uBeat) gl.uniform1f(this.compositeLocs.uBeat, audio.beatIntensity)
         gl.drawArrays(gl.TRIANGLES, 0, 6)
 
@@ -431,15 +454,15 @@ export class Renderer {
         gl.invalidateFramebuffer(gl.FRAMEBUFFER, invalidate)
       } else {
         this.transition = null
-        // Scene pass → FBO A
+        // Scene pass â†’ FBO A
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA.framebuffer)
         gl.viewport(0, 0, rw, rh)
         gl.clear(gl.COLOR_BUFFER_BIT)
         gl.useProgram(this.program)
-        this.setUniforms(time, audio, mapped, res, mouse)
+        this.setUniforms(renderTime, audio, mapped, res, mouse)
         gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-        // Bloom pass → FBO B
+        // Bloom pass â†’ FBO B
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB.framebuffer)
         gl.viewport(0, 0, rw, rh)
         gl.clear(gl.COLOR_BUFFER_BIT)
@@ -451,7 +474,7 @@ export class Renderer {
         if (this.bloomLocs.uIntensity) gl.uniform1f(this.bloomLocs.uIntensity, mapped.bloom ?? 0.5)
         gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-        // Composite → screen
+        // Composite â†’ screen
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, rw, rh)
         gl.clear(gl.COLOR_BUFFER_BIT)
@@ -468,7 +491,7 @@ export class Renderer {
         if (this.compositeLocs.uIntensity) gl.uniform1f(this.compositeLocs.uIntensity, Math.max(0, mapped.intensity ?? 1.0))
         if (this.compositeLocs.uHueShift) gl.uniform1f(this.compositeLocs.uHueShift, mapped.hueShift ?? 0.0)
         if (this.compositeLocs.uZoom) gl.uniform1f(this.compositeLocs.uZoom, Math.max(0.1, (mapped.zoom ?? mapped.scale ?? 1.0)))
-        if (this.compositeLocs.uTime) gl.uniform1f(this.compositeLocs.uTime, time)
+        if (this.compositeLocs.uTime) gl.uniform1f(this.compositeLocs.uTime, renderTime)
         if (this.compositeLocs.uBeat) gl.uniform1f(this.compositeLocs.uBeat, audio.beatIntensity)
         gl.drawArrays(gl.TRIANGLES, 0, 6)
 
@@ -488,7 +511,7 @@ export class Renderer {
       gl.viewport(0, 0, rw, rh)
       gl.clear(gl.COLOR_BUFFER_BIT)
       gl.useProgram(this.program)
-      this.setUniforms(time, audio, mapped, res, mouse)
+      this.setUniforms(renderTime, audio, mapped, res, mouse)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
     }
 

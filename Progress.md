@@ -162,3 +162,17 @@
 - [x] Idle pre-warm in CanvasLayer: warm next 3 catalog entries on boot (450ms) and after each switch (D2/D6)
 - [x] Catalog metadata layer (`src/shaders/catalog.ts`): categories/heroes/tier stats + audit getters; full-library integrity test (unique ids, valid category/tier, body presence, audio mappings target declared defaults) (D21, tier pass)
 - [x] 16 vitest tests added (compose 9 + catalog 7); 48 total green; build green (496.88KB / 106.04KB gz)
+
+## Phase 18: UX — MacroBar, Preset Chips, Announcer, ErrorBoundary (master-plan Phase 7)
+- [x] MacroBar (D26): 5 semantic vertical faders (Energy / Complexity / Motion / Musicality / Atmosphere) → ref bridge `audioDataBridge.macros` → graph profile, read every frame (no React per pointer-motion); uncontrolled sliders, 10Hz label refresh; reset + Advanced (un-minimizes EQ panel) buttons
+- [x] Renderer per-frame macro sync + reduced-motion freeze (D29): `frozenTime` locks `uTime`, crossfades disabled (hard switch), freeze cancelled when reduced motion off
+- [x] Preset chips (D27): `src/shaders/heroPresets.ts` with 3 named presets per hero (params ⊆ defaults, test-locked); ParameterPanel chip row with save (inline input, aria), apply → `commitParams` + undo (Ctrl+Z), custom-chip delete
+- [x] Param history + undo: `src/state/history.ts` (`HISTORY_CAP=24`, pure push/applyUndo, tested); `commitParams`/`setActiveShader` push history; Ctrl+Z handler (CMD/Ctrl, input-aware) in App.tsx announces on undo
+- [x] Accessibility: `src/a11y/announcer.ts` (module-level announce bus) + `A11yAnnouncer.tsx` live region; `setActiveShader` announces shader name; presets/Advanced announce
+- [x] ErrorBoundary (D28): class boundary, root + panel variants (retry + reload), announces recoverable errors; wraps root layout + CanvasLayer
+- [x] 8 vitest tests added (heroPresets 4 + history 4); 56 total green; build green (507.47KB / 109.16KB gz)
+
+## Risk Register (master-plan phases 6–9)
+| When | What | Mitigation |
+| --- | --- | --- |
+| 2026-08-28 | Phase 17 build 496.88KB / 106.04KB gz | D21 lazy per-category bodies deferred to Phase 9 perf pass; synced crossfade/cache flow kept intact |

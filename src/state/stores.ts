@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import { ShaderDefinition, AudioMapping, DEFAULT_AUDIO, AudioSnapshot } from '../utils/types'
 import { SHADER_LIBRARY } from '../shaders/library'
+import { DEFAULT_PROFILE, MACRO_IDS, MacroId } from '../mappings/featureGraph'
+import { pushEntry, applyUndo, HistoryEntry } from './history'
+import { ShaderPreset } from '../shaders/heroPresets'
+import { announce } from '../a11y/announcer'
 
 function safeGetItem(key: string): string | null {
   try { return localStorage.getItem(key) } catch { return null }
@@ -92,9 +96,15 @@ interface ShaderStore {
   favorites: string[]
   recent: string[]
   customAudioMappings: AudioMapping[]
+  history: HistoryEntry[]
+  savedChips: Record<string, ShaderPreset[]>
   setActiveShader: (shader: ShaderDefinition) => void
   setParam: (id: string, value: number) => void
   setParams: (params: Record<string, number>) => void
+  commitParams: (params: Record<string, number>) => void
+  undo: () => void
+  saveChip: (name: string, params: Record<string, number>) => void
+  removeChip: (shaderId: string, index: number) => void
   toggleFavorite: (id: string) => void
   setCustomAudioMappings: (mappings: AudioMapping[]) => void
   addCustomAudioMapping: (mapping: AudioMapping) => void
@@ -104,6 +114,7 @@ interface ShaderStore {
 
 const savedFavorites = safeJSONParse<string[]>(safeGetItem('animesh-favorites'), [])
 const savedRecent = safeJSONParse<string[]>(safeGetItem('animesh-recent'), [])
+const savedChips = safeJSONParse<Record<string, ShaderPreset[]>>(safeGetItem('animesh-chips'), {})
 
 const defaultShader = SHADER_LIBRARY.length > 0
   ? SHADER_LIBRARY[Math.floor(Math.random() * SHADER_LIBRARY.length)]
@@ -115,17 +126,51 @@ export const useShaderStore = create<ShaderStore>((set) => ({
   favorites: savedFavorites,
   recent: savedRecent,
   customAudioMappings: [],
+  history: [],
+  savedChips,
   setActiveShader: (shader) => set((s) => {
     const newRecent = [shader.id, ...s.recent.filter(id => id !== shader.id)].slice(0, 20)
     safeSetItem('animesh-recent', JSON.stringify(newRecent))
+    announce(`Switched to ${shader.name}`)
     return {
       activeShader: shader,
       params: { ...shader.defaults },
       recent: newRecent,
+      history: pushEntry(s.history, { shaderId: s.activeShader?.id ?? '', params: { ...s.params } }),
     }
   }),
   setParam: (id, value) => set((s) => ({ params: { ...s.params, [id]: value } })),
   setParams: (params) => set({ params }),
+  commitParams: (params) => set((s) => ({
+    params,
+    history: pushEntry(s.history, { shaderId: s.activeShader?.id ?? '', params: { ...s.params } }),
+  })),
+  undo: () => set((s) => {
+    const { stack, restored } = applyUndo(s.history)
+    if (!restored) return {}
+    const shader = SHADER_LIBRARY.find(x => x.id === restored.shaderId)
+    return {
+      history: stack,
+      activeShader: shader ?? s.activeShader,
+      params: { ...restored.params },
+    }
+  }),
+  saveChip: (name, params) => set((s) => {
+    const shaderId = s.activeShader?.id ?? ''
+    if (!shaderId || !name.trim()) return {}
+    const clean = name.trim()
+    const existing = s.savedChips[shaderId] ?? []
+    const next = { ...s.savedChips, [shaderId]: [...existing, { name: clean, params: { ...params }, custom: true }] }
+    safeSetItem('animesh-chips', JSON.stringify(next))
+    announce(`Preset ${clean} saved`)
+    return { savedChips: next }
+  }),
+  removeChip: (shaderId, index) => set((s) => {
+    const existing = s.savedChips[shaderId] ?? []
+    const next = { ...s.savedChips, [shaderId]: existing.filter((_, i) => i !== index) }
+    safeSetItem('animesh-chips', JSON.stringify(next))
+    return { savedChips: next }
+  }),
   toggleFavorite: (id) => set((s) => {
     const favs = s.favorites.includes(id)
       ? s.favorites.filter(f => f !== id)
@@ -166,4 +211,9 @@ export const useAudioStore = create<AudioStore>((set) => ({
 export const audioDataBridge = {
   snapshot: createDefaultSnapshot(),
   fps: 0,
+  // MacroBar (D26) faders: single pointer handler writes these; the renderer
+  // reads them each frame via the graph profile (ref-driven, zero React churn).
+  macros: { ...DEFAULT_PROFILE.macros } as Record<MacroId, number>,
 }
+
+export { MACRO_IDS }

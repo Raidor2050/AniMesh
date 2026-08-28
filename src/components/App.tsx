@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useUIStore } from '../state/stores'
+import { useUIStore, useShaderStore } from '../state/stores'
 import { BootSequence } from './BootSequence'
 import { CanvasLayer } from './CanvasLayer'
 import { TopBar } from './TopBar'
@@ -15,7 +15,11 @@ import { ImmersiveMode } from './ImmersiveMode'
 import { MinimizedBar } from './MinimizedBar'
 import { LeftToolbar } from './LeftToolbar'
 import { ShaderCarousel } from './ShaderCarousel'
+import { MacroBar } from './MacroBar'
+import { A11yAnnouncer } from './A11yAnnouncer'
+import { ErrorBoundary } from './ErrorBoundary'
 import { getAudioEngine } from '../audio/audioSingleton'
+import { announce } from '../a11y/announcer'
 import { randomShader, cycleShader } from '../state/shaderActions'
 
 export function App() {
@@ -40,6 +44,13 @@ export function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
         store.toggleCommandPalette()
+      }
+      // Undo (D27): preset/param/shader history
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z') && !isInput) {
+        e.preventDefault()
+        const had = useShaderStore.getState().history.length > 0
+        useShaderStore.getState().undo()
+        if (had) announce('Undo applied')
       }
       // Immersive-only shortcuts
       if (store.immersive && !isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
@@ -91,22 +102,28 @@ export function App() {
   }, [])
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: '#000' }}>
-      {!bootComplete && <BootSequence />}
-      <CanvasLayer />
-      <ImmersiveMode />
-      {bootComplete && !immersive && <TopBar />}
-      {bootComplete && <LeftToolbar />}
-      {bootComplete && !immersive && <ShaderCarousel />}
-      {bootComplete && !immersive && <LeftPanel />}
-      {bootComplete && !immersive && <StreamGraph />}
-      {bootComplete && !immersive && <ParameterPanel />}
-      {bootComplete && !immersive && <EQMappingPanel />}
-      {bootComplete && !immersive && <PanelToggleButton />}
-      {bootComplete && <MinimizedBar />}
-      {bootComplete && <AudioInitBar />}
-      {bootComplete && creatorOpen && !immersive && <ShaderCreator />}
-      {commandPaletteOpen && <CommandPalette />}
-    </div>
+    <ErrorBoundary panel="root" variant="root">
+      <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: '#000' }}>
+        {!bootComplete && <BootSequence />}
+        <ErrorBoundary panel="canvas" variant="panel">
+          <CanvasLayer />
+        </ErrorBoundary>
+        <ImmersiveMode />
+        {bootComplete && !immersive && <TopBar />}
+        {bootComplete && <LeftToolbar />}
+        {bootComplete && !immersive && <ShaderCarousel />}
+        {bootComplete && !immersive && <LeftPanel />}
+        {bootComplete && !immersive && <StreamGraph />}
+        {bootComplete && !immersive && <ParameterPanel />}
+        {bootComplete && !immersive && <EQMappingPanel />}
+        {bootComplete && !immersive && <MacroBar />}
+        {bootComplete && !immersive && <PanelToggleButton />}
+        {bootComplete && <MinimizedBar />}
+        {bootComplete && <AudioInitBar />}
+        {bootComplete && creatorOpen && !immersive && <ShaderCreator />}
+        {commandPaletteOpen && <CommandPalette />}
+        <A11yAnnouncer />
+      </div>
+    </ErrorBoundary>
   )
 }

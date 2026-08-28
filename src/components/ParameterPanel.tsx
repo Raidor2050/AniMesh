@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'motion/react'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 import { useDraggable } from '../hooks/useDraggable'
 import { ParameterSchema } from '../utils/types'
+import { getHeroPresets, ShaderPreset } from '../shaders/heroPresets'
+import { announce } from '../a11y/announcer'
 
 function randomizeParams(paramDefs: ParameterSchema[]): Record<string, number> {
   const result: Record<string, number> = {}
@@ -25,8 +27,32 @@ export function ParameterPanel() {
   const panelsVisible = useUIStore(s => s.panelsVisible)
   const isMinimized = useUIStore(s => s.minimizedPanels.includes('params'))
   const togglePanelMinimized = useUIStore(s => s.togglePanelMinimized)
+  const savedChips = useShaderStore(s => s.savedChips)
+  const commitParams = useShaderStore(s => s.commitParams)
+  const saveChip = useShaderStore(s => s.saveChip)
+  const removeChip = useShaderStore(s => s.removeChip)
   const [audioLevel, setAudioLevel] = useState(0)
   const [collapsed, setCollapsed] = useState(false)
+  const [savingChip, setSavingChip] = useState(false)
+  const [chipName, setChipName] = useState('')
+
+  const chips: ShaderPreset[] = activeShader
+    ? [...getHeroPresets(activeShader.id), ...(savedChips[activeShader.id] ?? [])]
+    : []
+
+  const applyPreset = (preset: ShaderPreset) => {
+    if (!activeShader) return
+    commitParams({ ...activeShader.defaults, ...preset.params })
+    announce(`Preset ${preset.name} applied`)
+  }
+
+  const confirmSave = () => {
+    if (chipName.trim() && activeShader) {
+      saveChip(chipName, useShaderStore.getState().params)
+    }
+    setChipName('')
+    setSavingChip(false)
+  }
 
   const { position, isDragging, containerRef, dragProps } = useDraggable({
     initialX: typeof window !== 'undefined' ? window.innerWidth - 496 : 800,
@@ -179,6 +205,91 @@ export function ParameterPanel() {
 
         {!collapsed && (
           <div style={{ flex: 1, overflow: 'auto', padding: `${spacing.scale[3]}px ${spacing.scale[4]}px` }}>
+            {/* Preset chips (D27) — instant recall + undo (Ctrl+Z) */}
+            {(chips.length > 0 || savingChip) && (
+              <div style={{ marginBottom: spacing.scale[4] }}>
+                <div style={{
+                  fontSize: 9,
+                  fontFamily: typography.families.mono,
+                  color: colors.text.disabled,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  marginBottom: spacing.scale[2],
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <span>Presets</span>
+                  {!savingChip && (
+                    <button
+                      onClick={() => setSavingChip(true)}
+                      aria-label="Save current parameters as a preset"
+                      title="Save preset"
+                      style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        color: colors.text.disabled, fontSize: 12, padding: '2px 4px',
+                      }}
+                    >+ chip</button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {savingChip && (
+                    <input
+                      autoFocus
+                      value={chipName}
+                      onChange={e => setChipName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') confirmSave()
+                        if (e.key === 'Escape') setSavingChip(false)
+                      }}
+                      onBlur={() => { if (!chipName.trim()) setSavingChip(false) }}
+                      placeholder="preset name…"
+                      aria-label="Preset name"
+                      style={{
+                        background: colors.surface.primary,
+                        border: `1px solid ${colors.surface.secondary}`,
+                        color: colors.text.primary,
+                        fontFamily: typography.families.mono,
+                        fontSize: 10,
+                        padding: '4px 7px',
+                        borderRadius: radii.sm,
+                        width: 90,
+                        outline: 'none',
+                      }}
+                    />
+                  )}
+                  {chips.map((preset, i) => (
+                    <span key={`${preset.name}-${i}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      <button
+                        onClick={() => applyPreset(preset)}
+                        aria-label={`Apply preset ${preset.name}`}
+                        title={preset.name}
+                        style={{
+                          background: colors.accent.subtle,
+                          border: 'none',
+                          borderRadius: radii.sm,
+                          color: preset.custom ? colors.accent.hover : colors.text.secondary,
+                          fontFamily: typography.families.mono,
+                          fontSize: 10,
+                          padding: '4px 8px',
+                          cursor: 'pointer',
+                        }}
+                      >{preset.name}</button>
+                      {preset.custom && (
+                        <button
+                          onClick={() => { if (activeShader) removeChip(activeShader.id, i - getHeroPresets(activeShader.id).length) }}
+                          aria-label={`Delete preset ${preset.name}`}
+                          title="Delete preset"
+                          style={{
+                            background: 'transparent', border: 'none', cursor: 'pointer',
+                            color: colors.text.disabled, fontSize: 10, padding: 0,
+                          }}
+                        >×</button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Visual params */}
             {visualParams.length > 0 && (
               <div style={{ marginBottom: spacing.scale[4] }}>

@@ -15,6 +15,10 @@ export type SignalSource =
 
 export type MacroId = 'uMacroEnergy' | 'uMacroComplexity' | 'uMacroMotion' | 'uMacroMusicality' | 'uMacroAtmosphere'
 
+export const MACRO_IDS: MacroId[] = [
+  'uMacroEnergy', 'uMacroComplexity', 'uMacroMotion', 'uMacroMusicality', 'uMacroAtmosphere',
+]
+
 export interface Route {
   id: string
   src: SignalSource
