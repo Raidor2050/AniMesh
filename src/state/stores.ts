@@ -8,6 +8,10 @@ function safeGetItem(key: string): string | null {
 function safeSetItem(key: string, value: string) {
   try { localStorage.setItem(key, value) } catch {}
 }
+function safeJSONParse<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback
+  try { return JSON.parse(raw) as T } catch { return fallback }
+}
 
 function createDefaultSnapshot(): AudioSnapshot {
   return {
@@ -98,8 +102,8 @@ interface ShaderStore {
   updateCustomAudioMapping: (index: number, mapping: AudioMapping) => void
 }
 
-const savedFavorites = JSON.parse(safeGetItem('animesh-favorites') || '[]')
-const savedRecent = JSON.parse(safeGetItem('animesh-recent') || '[]')
+const savedFavorites = safeJSONParse<string[]>(safeGetItem('animesh-favorites'), [])
+const savedRecent = safeJSONParse<string[]>(safeGetItem('animesh-recent'), [])
 
 const defaultShader = SHADER_LIBRARY.length > 0
   ? SHADER_LIBRARY[Math.floor(Math.random() * SHADER_LIBRARY.length)]
