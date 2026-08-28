@@ -52,6 +52,8 @@ export interface Profile {
    * every shader stays audio-reactive even when its own body is inert.
    */
   globalRoutes: Route[]
+  /** Global responsiveness gain applied after envelopes (D18). 0 = inert. */
+  musicality?: number
 }
 
 export interface ParamRanges {
@@ -204,6 +206,7 @@ export class FeatureGraph {
   // ── derivation ──
 
   private computeFlux(snapshot: AudioSnapshot): void {
+    // HWR flux over the smoothed spectrum — feeds flux/fluxEnv derived signals.
     const spec = snapshot.spectrum
     if (this.prevSpectrum.length !== spec.length) {
       this.prevSpectrum = new Uint8Array(spec.length)
@@ -221,7 +224,14 @@ export class FeatureGraph {
     this.fluxIndex = (this.fluxIndex + 1) % this.fluxHistory.length
     this.fluxValue = flux
     const avg = this.fluxSum / this.fluxHistory.length
-    // SuperFlux-style: onset when flux clears the adaptive threshold
+
+    // Engine-driven SuperFlux onset (raw analyser, D09) wins when present;
+    // fall back to a spectrum-based adaptive threshold when the engine is idle
+    // (isolated/unit-test contexts) or reporting no onset.
+    if (snapshot.onsetOn || snapshot.onsetStrength > 0) {
+      this.onsetValue = Math.max(this.onsetValue, Math.min(snapshot.onsetStrength, 3))
+      return
+    }
     if (avg > 0 && flux > avg * 1.4) {
       this.onsetValue = clamp(flux / avg, 0, 3)
     } else {
@@ -266,18 +276,25 @@ export class FeatureGraph {
         const b = snapshot.bpm
         return b <= 0 ? 0 : clamp((b - 60) / 100, 0, 1)
       }
-      case 'barPhase': return (this.beatInBar + snapshot.beatPhase) / 4
-      case 'conf': return this.beatConfidence
+      case 'barPhase': {
+        // Locked mode: the engine's continuous clock is authoritative (D13).
+        if (snapshot.engineMode === 'locked') return snapshot.barPhase
+        return (this.beatInBar + snapshot.beatPhase) / 4
+      }
+      case 'conf': {
+        if (snapshot.engineMode === 'locked') return snapshot.confidence
+        return this.beatConfidence
+      }
       case 'flux': return clamp(this.fluxValue / 400, 0, 1)
       case 'fluxEnv': return clamp(this.fluxEnvV, 0, 1)
       case 'onset': return clamp(this.onsetValue, 0, 1)
       case 'onsetEnv': return clamp(this.onsetEnvV, 0, 1)
       case 'rand': return this.randValue
       case 'noiseS': return this.noiseSValue
-      case 'lfo1': return 0.5 + 0.5 * Math.sin(2 * Math.PI * ((this.barClock + snapshot.beatPhase) / 1))
-      case 'lfo2': return 0.5 + 0.5 * Math.sin(2 * Math.PI * ((this.barClock + snapshot.beatPhase) / 2))
-      case 'lfo3': return 0.5 + 0.5 * Math.sin(2 * Math.PI * ((this.barClock + snapshot.beatPhase) / 4))
-      case 'lfo4': return 0.5 + 0.5 * Math.sin(2 * Math.PI * ((this.barClock + snapshot.beatPhase) / 8))
+      case 'lfo1': return 0.5 + 0.5 * Math.sin(2 * Math.PI * (this.beatsInBars(snapshot) / 1))
+      case 'lfo2': return 0.5 + 0.5 * Math.sin(2 * Math.PI * (this.beatsInBars(snapshot) / 2))
+      case 'lfo3': return 0.5 + 0.5 * Math.sin(2 * Math.PI * (this.beatsInBars(snapshot) / 4))
+      case 'lfo4': return 0.5 + 0.5 * Math.sin(2 * Math.PI * (this.beatsInBars(snapshot) / 8))
       default: {
         if (src.startsWith('bandEnv.')) {
           const name = src.slice('bandEnv.'.length)
@@ -289,6 +306,12 @@ export class FeatureGraph {
         return 0
       }
     }
+  }
+
+  /** LFO phase expressed in bars (1.0 = one full 4/4 bar). */
+  private beatsInBars(snapshot: AudioSnapshot): number {
+    if (snapshot.engineMode === 'locked') return snapshot.barPhase
+    return (this.barClock + snapshot.beatPhase) / 4
   }
 
   private shape(v: number, curve: Curve): number {
@@ -340,7 +363,7 @@ export class FeatureGraph {
     const v = clamp(raw, -1, 1)
 
     const env = this.envStep(route, dt, v)
-    const signed = env * route.amount * (route.weight ?? 1)
+    const signed = env * route.amount * (route.weight ?? 1) * (this.profile.musicality ?? 1)
 
     const span = this.ranges[route.target] ? this.ranges[route.target][1] - this.ranges[route.target][0] : 1
     const min = this.ranges[route.target] ? this.ranges[route.target][0] : 0

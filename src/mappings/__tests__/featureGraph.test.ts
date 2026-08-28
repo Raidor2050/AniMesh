@@ -44,6 +44,25 @@ function graphWith(profile: Profile = EMPTY_PROFILE) {
   return g
 }
 
+describe('FeatureGraph — musicality gain (D18)', () => {
+  it('musicality 0 zeroes route output while macros still run', () => {
+    const g = graphWith({ ...EMPTY_PROFILE, musicality: 0 })
+    g.setShaderRoutes([route({ src: 'bass', target: 'scale', amount: 0.5 })])
+    for (let i = 0; i < 30; i++) g.applySnapshot(snapshot({ bass: 1 }), 1 / 60)
+    const out = g.applySnapshot(snapshot({ bass: 1 }), 1 / 60)
+    expect(out.scale).toBeCloseTo(1, 5)
+  })
+
+  it('musicality 0.5 halves a warm route contribution', () => {
+    const g = graphWith({ ...EMPTY_PROFILE, musicality: 0.5 })
+    g.setShaderRoutes([route({ src: 'bass', target: 'scale', amount: 0.5 })])
+    for (let i = 0; i < 30; i++) g.applySnapshot(snapshot({ bass: 1 }), 1 / 60)
+    const out = g.applySnapshot(snapshot({ bass: 1 }), 1 / 60)
+    expect(out.scale).toBeGreaterThan(1 + 0.5 * 2.9 * 0.5 * 0.9)
+    expect(out.scale).toBeLessThan(1 + 0.5 * 2.9 * 0.5 + 1e-6)
+  })
+})
+
 describe('FeatureGraph — route semantics', () => {
   it('add: amount is a fraction of the target span, applied to base', () => {
     const g = graphWith()

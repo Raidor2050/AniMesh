@@ -108,6 +108,18 @@
 - [x] De-baked the 6 universal mappings from library.ts → global profile; uMacro* in UNIFORM_HEADER
 - [x] 15 vitest tests green (`npm test`), build green (~7.3s, 409 modules)
 
+### Phase 16: Audio Engine Upgrade ✅ (master-plan Phase 4)
+- [x] Second raw analyser (smoothingTimeConstant=0) for streak-truth onset data (D08)
+- [x] SuperFlux onset: HWR flux + local-max 1s threshold on raw; onsetStrength/onsetOn + user sensitivity (D09)
+- [x] Comb-filter tempo tracker: harmonic/subdivision scoring, octave correction, 95–135 groove band, 120 prior, slew limit ±3%/event, confidence (D10/D11)
+- [x] `engineMode 'free'|'locked'` (D12): free = transient-reset beatPhase; locked = continuous clock that re-anchors to the nearest onset, never resets (D14)
+- [x] Beat grid snapshot: bar/eighth/sixteenth phases, downbeat confidence (D13); TrustGrid gates bpm blend/confidence
+- [x] New feature extras: rolloff (85% cumulative), flatness (geo/arith), ZCR (percussive vs tonal), rms
+- [x] Silence handling (D20): >3s under floor → silence flag, confidence→0 with smooth fade
+- [x] Diversity check: 750/375/187.5ms patterns all resolve to 160 BPM; 600ms hip-hop stays 100
+- [x] Removed debug console.log block; no-alloc frame (arrays pre-allocated, snapshot object reused)
+- [x] 17 new vitest tests (comb tracker + grid phases) — 32 total green; build green (476KB / 101.7KB gz)
+
 ## Performance Metrics
 | Metric | Value | Target |
 |--------|-------|--------|
@@ -133,3 +145,7 @@
 | 2026-08-28 | 4-stage feature graph replaces AudioMappingEngine | macros as user-facing semantic knobs; routes accumulate onto base reset for legacy parity |
 | 2026-08-28 | Silence-hold freezes on first quiet frame | fast-release envelopes must not pre-decay the last loud frame; relative 0.25× energy clause keeps quiet pads alive |
 | 2026-08-28 | 15 vitest pure-logic tests | test the impactful math; GL stays untested by design (D31) |
+| 2026-08-28 | Second raw analyser + SuperFlux onsets | smoothed data lies to transient detectors; raw streak is truth (D08/D09) |
+| 2026-08-28 | Comb octave rule: fastest legal near-peak unless 95–135 BMP groove | onset trackers misreport half/double tempo; keep hip-hop/house identities slow, dance fast |
+| 2026-08-28 | Locked clock re-anchors to nearest onset, never resets | D14: phase continuity over hard resets when beat spacing is stable |
+| 2026-08-28 | engineMode defaults to free | risk register: grid must never hurt the base experience deliberately |

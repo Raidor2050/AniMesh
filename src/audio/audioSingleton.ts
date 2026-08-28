@@ -1,4 +1,5 @@
 import { AudioEngine, AudioSourceType, BPMMode } from '../audio/AudioEngine'
+import type { EngineMode } from '../utils/types'
 
 let engine: AudioEngine | null = null
 
@@ -35,4 +36,16 @@ export function tapTempo(): number | null {
 
 export function getBpmMode(): BPMMode {
   return getAudioEngine().getBpmMode()
+}
+
+export function setEngineMode(mode: EngineMode) {
+  getAudioEngine().setEngineMode(mode)
+}
+
+export function getEngineMode(): EngineMode {
+  return getAudioEngine().getEngineMode()
+}
+
+export function setOnsetSensitivity(s: number) {
+  getAudioEngine().setOnsetSensitivity(s)
 }

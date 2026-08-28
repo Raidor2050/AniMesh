@@ -22,6 +22,8 @@ export interface ParameterSchema {
 
 export type AudioSignal = 'sub' | 'bass' | 'lowMid' | 'mid' | 'highMid' | 'treble' | 'volume' | 'beat' | 'beatPhase'
 
+export type EngineMode = 'free' | 'locked'
+
 export interface AudioMapping {
   signal: AudioSignal
   param: string
@@ -52,22 +54,45 @@ export interface AudioSnapshot {
   highMid: number
   treble: number
   volume: number
+  /** @deprecated alias of beatOn — kept for legacy shader mappings */
   beat: boolean
+  beatOn: boolean
   beatPhase: number
   beatIntensity: number
+  /** per-band smoothed energies, mirrored into named fields */
+  bands: Float32Array<ArrayBuffer>
+  rms: number
+  bpm: number
+  /** beat-clock trust 0..1 (comb tracker consistency × 120-prior) */
+  confidence: number
+  barPhase: number
+  downbeatConfidence: number
+  eighthPhase: number
+  sixteenthPhase: number
+  engineMode: EngineMode
+  onsetStrength: number
+  onsetOn: boolean
+  spectralCentroid: number
+  rolloff: number
+  flatness: number
+  zcr: number
+  silence: boolean
   waveform: Float32Array<ArrayBuffer>
   spectrum: Uint8Array<ArrayBuffer>
-  bpm: number
   time: number
-  spectralCentroid: number
 }
 
 export const DEFAULT_AUDIO: AudioSnapshot = {
   sub: 0, bass: 0, lowMid: 0, mid: 0, highMid: 0, treble: 0,
-  volume: 0, beat: false, beatPhase: 0, beatIntensity: 0,
+  volume: 0, beat: false, beatOn: false, beatPhase: 0, beatIntensity: 0,
+  bands: new Float32Array(6),
+  rms: 0, bpm: 128, confidence: 0,
+  barPhase: 0, downbeatConfidence: 0, eighthPhase: 0, sixteenthPhase: 0,
+  engineMode: 'free', onsetStrength: 0, onsetOn: false,
+  spectralCentroid: 0, rolloff: 0, flatness: 0, zcr: 0, silence: false,
   waveform: new Float32Array(1024),
   spectrum: new Uint8Array(1024),
-  bpm: 128, time: 0, spectralCentroid: 0,
+  time: 0,
 }
 
 export const CATEGORY_LABELS: Record<ShaderCategory, string> = {

@@ -1,5 +1,7 @@
-import { AudioSnapshot, DEFAULT_AUDIO } from '../utils/types'
+import { AudioSnapshot, DEFAULT_AUDIO, EngineMode } from '../utils/types'
 import { Smoother, computeRMS, clamp } from '../utils/math'
+import { CombTracker } from './combTracker'
+import { computeFreeGrid, computeLockedGrid, Grid } from './grid'
 import { useAudioStore } from '../state/stores'
 
 export type AudioSourceType = 'none' | 'mic' | 'file' | 'demo' | 'system'
@@ -27,6 +29,7 @@ export type BPMMode = 'auto' | 'manual' | 'tap'
 export class AudioEngine {
   private ctx: AudioContext | null = null
   private analyser: AnalyserNode | null = null
+  private rawAnalyser: AnalyserNode | null = null
   private source: AudioNode | null = null
   private fileSource: AudioBufferSourceNode | null = null
   private masterGain: GainNode | null = null
@@ -36,6 +39,16 @@ export class AudioEngine {
 
   private freqData: Uint8Array<ArrayBuffer> = new Uint8Array(0)
   private timeData: Float32Array<ArrayBuffer> = new Float32Array(0)
+  private rawFreqData: Uint8Array<ArrayBuffer> = new Uint8Array(0)
+
+  // Onset detection (SuperFlux) — raw unsmoothed analyser (D08/D09)
+  private rawPrevSpectrum: Uint8Array = new Uint8Array(0)
+  private rawFluxHistory: Float32Array = new Float32Array(64)
+  private rawFluxIndex = 0
+  private rawFluxMax = 0
+  private onsetSens = 1.3
+  private onsetStrengthValue = 0
+  private lastOnsetTime = 0
 
   private smoothBands: Smoother[] = [
     new Smoother(3, 300),   // sub: fast attack, slow release
@@ -60,18 +73,6 @@ export class AudioEngine {
   private warmUpFrames = 0
   private beatCount = 0
 
-  // Spectral flux onset detection (production standard)
-  private prevSpectrum: Uint8Array = new Uint8Array(0)
-  private fluxHistory: Float32Array = new Float32Array(43)
-  private fluxIndex = 0
-  private fluxSum = 0
-
-  // BPM detection from intervals
-  private beatIntervals: number[] = []
-  private static readonly BPM_WINDOW = 16
-  private static readonly MIN_BPM = 60
-  private static readonly MAX_BPM = 200
-
   // Manual BPM
   private bpmMode: BPMMode = 'auto'
   private manualBpm = 128
@@ -79,13 +80,24 @@ export class AudioEngine {
   private static readonly TAP_TIMEOUT = 3000
   private static readonly TAP_MAX_SAMPLES = 12
 
+  // Comb-filter tempo tracker (D10/D11) — locked grid evidence
+  private combTracker = new CombTracker()
+  private clockBeats = 0
+  private grid: Grid = { beatPhase: 0, barPhase: 0, eighthPhase: 0, sixteenthPhase: 0, downbeatConfidence: 0 }
+
+  // engineMode (D12): free = raw sound, locked = BPM grid
+  private engineMode: EngineMode = 'free'
+
+  // silence handling (D20)
+  private silentMs = 0
+  private silentReported = false
+
   private snapshot: AudioSnapshot = createSnapshot()
   private lastTickTime = 0
 
   private demoNodes: OscillatorNode[] = []
   private micStream: MediaStream | null = null
   private systemStream: MediaStream | null = null
-  private debugFrameCount = 0
 
   onBeat: (() => void) | null = null
 
@@ -98,18 +110,28 @@ export class AudioEngine {
     }
     this.ctx = new AudioContext({ latencyHint: 'interactive' })
     try { await this.ctx.resume() } catch {}
+    // Analyser for visuals: light smoothing so FFT decays feel organic (D08)
     this.analyser = this.ctx.createAnalyser()
     this.analyser.fftSize = 2048
     this.analyser.smoothingTimeConstant = 0.1
     this.analyser.minDecibels = -90
     this.analyser.maxDecibels = -10
+    // Raw analyser: zero smoothing — onset/SuperFlux needs streak-truth (D08)
+    this.rawAnalyser = this.ctx.createAnalyser()
+    this.rawAnalyser.fftSize = 2048
+    this.rawAnalyser.smoothingTimeConstant = 0
+    this.rawAnalyser.minDecibels = -90
+    this.rawAnalyser.maxDecibels = -10
     this.freqData = new Uint8Array(this.analyser.frequencyBinCount)
     this.timeData = new Float32Array(this.analyser.fftSize)
-    this.prevSpectrum = new Uint8Array(this.analyser.frequencyBinCount)
+    this.rawFreqData = new Uint8Array(this.rawAnalyser.frequencyBinCount)
+    this.rawPrevSpectrum = new Uint8Array(this.rawAnalyser.frequencyBinCount)
     this.masterGain = this.ctx.createGain()
     this.outputGain = this.ctx.createGain()
     // Audio graph: masterGain → analyser → outputGain → destination (established once)
+    // masterGain → rawAnalyser (analysis tap only)
     this.masterGain.connect(this.analyser)
+    this.masterGain.connect(this.rawAnalyser)
     this.analyser.connect(this.outputGain)
     this.outputGain.connect(this.ctx.destination)
   }
@@ -439,12 +461,31 @@ export class AudioEngine {
   setBpmMode(mode: BPMMode) {
     this.bpmMode = mode
     if (mode === 'auto') {
-      this.beatIntervals = []
+      this.combTracker.reset()
       this.tapTimes = []
     }
   }
 
   getBpmMode(): BPMMode { return this.bpmMode }
+
+  // ── Engine Mode (D12) ──
+
+  setEngineMode(mode: EngineMode) {
+    this.engineMode = mode
+    if (mode === 'locked') {
+      // Entering locked: align the continuous clock to the most recent onset,
+      // so the grid phase inherits the detected beat rather than jumping.
+      this.clockBeats = this.lastBeatTime > 0
+        ? Math.max(this.beatCount, Math.round(this.clockBeats))
+        : Math.max(0, this.beatCount)
+    }
+  }
+
+  getEngineMode(): EngineMode { return this.engineMode }
+
+  setOnsetSensitivity(s: number) {
+    this.onsetSens = clamp(s, 0.5, 3)
+  }
 
   setManualBpm(bpm: number) {
     this.manualBpm = clamp(bpm, 30, 300)
@@ -490,63 +531,75 @@ export class AudioEngine {
     return tapBpm
   }
 
-  // ── Auto BPM Detection ──
+  // ── Auto BPM Detection (comb-filter, D10/D11) ──
 
   private detectBpm(isBeat: boolean, timestamp: number) {
     if (this.bpmMode !== 'auto') return
+    if (!isBeat) return
 
-    if (isBeat && this.beatIntervals.length < AudioEngine.BPM_WINDOW) {
-      if (this.lastBeatTime > 0) {
-        const interval = timestamp - this.lastBeatTime
-        const impliedBpm = 60000 / interval
-        if (impliedBpm >= AudioEngine.MIN_BPM && impliedBpm <= AudioEngine.MAX_BPM) {
-          this.beatIntervals.push(interval)
-        }
-      }
-    }
+    this.combTracker.onImpulse(timestamp)
+    if (this.silentReported) return
 
-    if (this.beatIntervals.length >= 3) {
-      const sorted = [...this.beatIntervals].sort((a, b) => a - b)
-      const median = sorted[Math.floor(sorted.length / 2)]
-      const filtered = this.beatIntervals.filter(i =>
-        Math.abs(i - median) / median < 0.4
-      )
-      if (filtered.length >= 2) {
-        const avg = filtered.reduce((a, b) => a + b, 0) / filtered.length
-        const detected = clamp(Math.round(60000 / avg), AudioEngine.MIN_BPM, AudioEngine.MAX_BPM)
-        this.bpmEstimate = this.bpmEstimate * 0.7 + detected * 0.3
-      }
-    }
+    const bpm = this.combTracker.getBpm()
+    const conf = this.combTracker.getConfidence()
+    // Blend toward the estimate only as confidence rises (TrustGrid gate 1).
+    const blend = clamp(conf * 0.6, 0, 0.6)
+    this.bpmEstimate = bpm > 0
+      ? this.bpmEstimate * (1 - blend) + bpm * blend
+      : this.bpmEstimate
   }
 
-  // ── Spectral Flux Onset Detection ──
+  // ── Spectral Flux Onset Detection (SuperFlux, raw analyser — D09) ──
 
-  private detectOnset(freqData: Uint8Array, timestamp: number): boolean {
-    if (this.prevSpectrum.length !== freqData.length) {
-      this.prevSpectrum = new Uint8Array(freqData.length)
+  private detectOnset(rawFreq: Uint8Array, timestamp: number): boolean {
+    if (this.rawPrevSpectrum.length !== rawFreq.length) {
+      this.rawPrevSpectrum = new Uint8Array(rawFreq.length)
       return false
     }
 
-    // Half-wave rectified spectral flux
+    // Half-wave rectified spectral flux on the RAW (unsmoothed) analyser
     let flux = 0
-    for (let i = 0; i < freqData.length; i++) {
-      const diff = freqData[i] - this.prevSpectrum[i]
+    for (let i = 0; i < rawFreq.length; i++) {
+      const diff = rawFreq[i] - this.rawPrevSpectrum[i]
       if (diff > 0) flux += diff
     }
-    this.prevSpectrum.set(freqData)
+    this.rawPrevSpectrum.set(rawFreq)
 
-    // Adaptive threshold
-    this.fluxSum -= this.fluxHistory[this.fluxIndex]
-    this.fluxHistory[this.fluxIndex] = flux
-    this.fluxSum += flux
-    this.fluxIndex = (this.fluxIndex + 1) % this.fluxHistory.length
+    // Local max filter over ~1s window as the adaptive threshold
+    const idx = this.rawFluxIndex
+    const replaced = this.rawFluxHistory[idx]
+    this.rawFluxHistory[idx] = flux
+    this.rawFluxIndex = (idx + 1) % this.rawFluxHistory.length
 
-    const avgFlux = this.fluxSum / this.fluxHistory.length
-    return flux > avgFlux * 1.4 && (timestamp - this.lastBeatTime) > 200
+    if (replaced >= this.rawFluxMax) {
+      // The max may have been evicted — rescan window
+      let max = 0
+      for (let i = 0; i < this.rawFluxHistory.length; i++) {
+        const v = this.rawFluxHistory[i]
+        if (v > max) max = v
+      }
+      this.rawFluxMax = max
+    } else if (flux > this.rawFluxMax) {
+      this.rawFluxMax = flux
+    }
+    const threshold = Math.max(this.rawFluxMax * 0.9, 1)
+    const ratio = flux / threshold
+
+    const spaced = (timestamp - this.lastOnsetTime) > 90
+    const onset = ratio > this.onsetSens && spaced
+
+    // onsetStrength: flux/threshold (~0..3), decayed between onsets
+    this.onsetStrengthValue = onset
+      ? clamp(ratio, 0, 3)
+      : Math.max(this.onsetStrengthValue - 0.02, 0)
+    if (onset) this.lastOnsetTime = timestamp
+
+    return onset
   }
 
-  // ── Spectral Centroid ──
+  // ── Feature extractions ──
 
+  /** Spectral centroid: brightness of the spectrum, normalized. */
   private computeSpectralCentroid(freqData: Uint8Array): number {
     const sampleRate = this.ctx?.sampleRate ?? 44100
     const fftSize = this.analyser?.fftSize ?? 2048
@@ -560,6 +613,45 @@ export class AudioEngine {
     return totalEnergy > 0 ? weightedSum / totalEnergy / (sampleRate / 2) : 0
   }
 
+  /** Rolloff: normalized bin where cumulative spectral energy crosses 85%. */
+  private computeRolloff(freqData: Uint8Array): number {
+    let total = 0
+    for (let i = 0; i < freqData.length; i++) total += freqData[i]
+    if (total === 0) return 0
+    const target = total * 0.85
+    let cum = 0
+    for (let i = 0; i < freqData.length; i++) {
+      cum += freqData[i]
+      if (cum >= target) return i / freqData.length
+    }
+    return 1
+  }
+
+  /** Spectral flatness: geometric/arithmetic mean ratio (noise ≈ 1, tone ≈ 0). */
+  private computeFlatness(freqData: Uint8Array): number {
+    let logSum = 0, arithSum = 0, count = 0
+    // Restrict to the musically relevant band (~100Hz..7k) for stability
+    const end = Math.min(freqData.length, Math.ceil((7000 * 2048) / (this.ctx?.sampleRate ?? 44100)))
+    for (let i = 1; i < end; i++) {
+      const m = Math.max(freqData[i], 1)
+      logSum += Math.log(m)
+      arithSum += m
+      count++
+    }
+    if (count === 0 || arithSum === 0) return 1
+    return Math.exp(logSum / count) / (arithSum / count)
+  }
+
+  /** Zero-crossing rate on the time buffer (percussive vs tonal). */
+  private computeZcr(timeData: Float32Array): number {
+    const n = Math.min(timeData.length, 1024)
+    let crossings = 0
+    for (let i = 1; i < n; i++) {
+      if (timeData[i - 1] >= 0 !== timeData[i] >= 0) crossings++
+    }
+    return clamp(crossings / n, 0, 1)
+  }
+
   tick(timestamp: number): AudioSnapshot {
     if (!this.analyser) return this.snapshot
 
@@ -568,27 +660,11 @@ export class AudioEngine {
       try { this.ctx.resume() } catch {}
     }
 
-    const { freqData, timeData, analyser } = this
+    const { freqData, timeData, rawFreqData, analyser, rawAnalyser } = this
 
     analyser.getByteFrequencyData(freqData)
     analyser.getFloatTimeDomainData(timeData)
-
-    // Debug: log audio data every 120 frames when system audio is active
-    if (this.sourceType === 'system') {
-      this.debugFrameCount++
-      if (this.debugFrameCount % 120 === 0) {
-        let maxFreq = 0
-        for (let i = 0; i < freqData.length; i++) {
-          if (freqData[i] > maxFreq) maxFreq = freqData[i]
-        }
-        console.log(
-          `%c[AudioEngine] tick #${this.debugFrameCount} — ` +
-          `ctx: ${this.ctx?.state}, maxFreq: ${maxFreq}, ` +
-          `bass: ${this.snapshot.bass.toFixed(3)}, vol: ${this.snapshot.volume.toFixed(3)}`,
-          maxFreq > 0 ? 'color: #22C55E' : 'color: #EF4444'
-        )
-      }
-    }
+    rawAnalyser?.getByteFrequencyData(rawFreqData)
 
     const sampleRate = this.ctx?.sampleRate ?? 44100
     const binHz = sampleRate / analyser.fftSize
@@ -609,6 +685,7 @@ export class AudioEngine {
       const raw = count > 0 ? Math.sqrt(energy / count) : 0
       const smoothed = this.smoothBands[i].update(raw)
       ;(this.snapshot as any)[bandNames[i]] = smoothed
+      this.snapshot.bands[i] = smoothed
     }
 
     // Noise gate: eliminate idle-state jitter
@@ -622,6 +699,22 @@ export class AudioEngine {
 
     const rms = computeRMS(timeData)
     this.snapshot.volume = this.smoothVolume.update(clamp(rms * 3, 0, 1))
+    this.snapshot.rms = rms
+
+    // Feature extractions (texture, not just level)
+    this.snapshot.spectralCentroid = this.smoothCentroid.update(
+      this.computeSpectralCentroid(freqData)
+    )
+    this.snapshot.rolloff = this.computeRolloff(freqData)
+    this.snapshot.flatness = this.computeFlatness(freqData)
+    this.snapshot.zcr = this.computeZcr(timeData)
+
+    // Silence handling (D20): >3s under the floor → silence, confidence → 0.
+    this.silentMs = (this.snapshot.volume < 0.02 && rms < 0.01)
+      ? this.silentMs + 16.67
+      : 0
+    this.silentReported = this.silentMs > 3000
+    this.snapshot.silence = this.silentReported
 
     // Energy-based beat detection
     const currentEnergy = rms * rms * timeData.length
@@ -638,8 +731,8 @@ export class AudioEngine {
       currentEnergy > avgEnergy * THRESHOLD &&
       (timestamp - this.lastBeatTime) > MIN_INTERVAL
 
-    // Spectral flux onset detection (catches snare/hat onsets)
-    const fluxBeat = this.detectOnset(freqData, timestamp)
+    // SuperFlux onset on the RAW analyser (catches snare/hat onsets)
+    const fluxBeat = this.detectOnset(rawFreqData, timestamp)
 
     // Combine both detectors — either triggers a beat
     const isBeat = energyBeat || fluxBeat
@@ -649,8 +742,7 @@ export class AudioEngine {
       this.beatDetected = true
       this.beatCount++
       this.onBeat?.()
-      // Reset beat phase on detected beat for tight sync
-      this.beatPhaseAcc = 0
+      if (this.engineMode === 'free') this.beatPhaseAcc = 0
     } else {
       this.beatDetected = false
     }
@@ -658,16 +750,48 @@ export class AudioEngine {
     this.detectBpm(isBeat, timestamp)
 
     this.snapshot.beat = this.beatDetected
+    this.snapshot.beatOn = this.beatDetected
+    this.snapshot.onsetOn = this.onsetStrengthValue > this.onsetSens * 0.8
+    this.snapshot.onsetStrength = this.onsetStrengthValue
     this.snapshot.beatIntensity = this.smoothBeat.update(isBeat ? 1 : 0)
 
     const effectiveBpm = this.bpmMode === 'auto' ? this.bpmEstimate : this.manualBpm
+    const conf = this.bpmMode === 'auto'
+      ? this.combTracker.getConfidence()
+      : (this.bpmMode === 'tap' ? 0.85 : 1)
+    // TrustGrid gate: silence kills clock trust (D20)
+    this.snapshot.confidence = this.silentReported ? 0 : (1 - 0.5 * this.silenceFactor()) * conf
 
-    if (!isBeat) {
-      const elapsed = timestamp - this.lastBeatTime
-      const beatMs = 60000 / effectiveBpm
-      this.beatPhaseAcc = Math.min(elapsed / beatMs, 1.0)
+    const beatMs = 60000 / effectiveBpm
+
+    if (this.engineMode === 'locked') {
+      // Continuous beat clock (D14). Phase re-anchors to the nearest onset,
+      // advances by dt/beatDuration between beats — never resets.
+      if (isBeat) {
+        const nearest = Math.round(this.clockBeats)
+        this.clockBeats = Math.abs(this.clockBeats - nearest) <= 0.6
+          ? nearest
+          : Math.floor(this.clockBeats) + 1
+      }
+      const dtMs = this.lastTickTime > 0 ? timestamp - this.lastTickTime : 16.67
+      this.clockBeats += (Math.min(dtMs, 200) / beatMs)
+      this.beatPhaseAcc = this.clockBeats % 1
+      this.grid = computeLockedGrid(this.clockBeats, this.snapshot.confidence)
+    } else {
+      // Free mode (D12): transient-driven. beatPhase resets on each detected beat.
+      if (!isBeat) {
+        const elapsed = timestamp - this.lastBeatTime
+        this.beatPhaseAcc = Math.min(elapsed / beatMs, 1.0)
+      }
+      this.grid = computeFreeGrid(this.beatPhaseAcc, this.beatCount, this.snapshot.confidence)
     }
+
     this.snapshot.beatPhase = this.beatPhaseAcc
+    this.snapshot.barPhase = this.grid.barPhase
+    this.snapshot.eighthPhase = this.grid.eighthPhase
+    this.snapshot.sixteenthPhase = this.grid.sixteenthPhase
+    this.snapshot.downbeatConfidence = this.grid.downbeatConfidence
+    this.snapshot.engineMode = this.engineMode
 
     // Advance the shader clock from clamped dt so animations don't teleport
     // after a hidden tab or frame stall; reset beat timing on large gaps.
@@ -676,17 +800,12 @@ export class AudioEngine {
       if (gapMs > 0) this.snapshot.time += Math.min(gapMs / 1000, 0.1)
       if (gapMs > 1500) {
         this.lastBeatTime = timestamp
-        this.beatPhaseAcc = 0
+        if (this.engineMode === 'free') this.beatPhaseAcc = 0
       }
     }
     this.lastTickTime = timestamp
 
     this.snapshot.bpm = effectiveBpm
-
-    // Spectral centroid (brightness of sound) — map to hue shift
-    this.snapshot.spectralCentroid = this.smoothCentroid.update(
-      this.computeSpectralCentroid(freqData)
-    )
 
     for (let i = 0; i < Math.min(timeData.length, 1024); i++) {
       this.snapshot.waveform[i] = timeData[i]
@@ -696,6 +815,11 @@ export class AudioEngine {
     }
 
     return this.snapshot
+  }
+
+  /** Smooth fade of confidence into silence (0..1). */
+  private silenceFactor(): number {
+    return clamp(this.silentMs / 6000, 0, 1)
   }
 
   async resume() {
