@@ -19,6 +19,11 @@ uniform float uSub;
 uniform float uLowMid;
 uniform float uHighMid;
 uniform float uSpectralCentroid;
+uniform float uMacroEnergy;
+uniform float uMacroComplexity;
+uniform float uMacroMotion;
+uniform float uMacroMusicality;
+uniform float uMacroAtmosphere;
 uniform float speed;
 uniform float intensity;
 uniform float distortion;
@@ -91,18 +96,10 @@ function createShader(
     ],
     defaults: defs,
     audioMappings: [
-      // Proven universal mapping set (MilkDrop/Butterchurn) — all target
-      // universal params, so every shader reacts even via the composite pass:
-      //   bass/sub → zoom/scale (deep swell), beat → intensity (flash/kick),
-      //   beatPhase → scale (phase-locked motion), mid → hue shift,
-      //   treble → brightness (sparkle), volume → brightness (loudness),
-      //   spectralCentroid → hue shift (timbre → color).
-      { signal: 'bass', param: 'scale', amount: 0.30, curve: 'log' },
-      { signal: 'beat', param: 'intensity', amount: 0.35, curve: 'linear' },
-      { signal: 'beatPhase', param: 'scale', amount: 0.12, curve: 'linear' },
-      { signal: 'mid', param: 'hueShift', amount: 0.30, curve: 'linear' },
-      { signal: 'treble', param: 'brightness', amount: 0.20, curve: 'linear' },
-      { signal: 'volume', param: 'brightness', amount: 0.25, curve: 'log' },
+      // Universal mappings are DE-BAKED (D19) — they now live in the global
+      // FeatureGraph profile, keeping every shader reactive without duplicating
+      // six magic constants per definition. Only shader-specific routes appear
+      // here.
       ...audioMappings,
     ],
     performanceTier: tier,

@@ -97,6 +97,17 @@
 - [x] Responsive shader carousel panel (full-width under 700px)
 - [x] `prefers-reduced-motion` fallback
 
+### Phase 15: Feature Graph Engine ✅ (master-plan Phase 3 + 5)
+- [x] 4-stage graph: signals → derived → macros → routes (`src/mappings/featureGraph.ts`)
+- [x] 8 shader-friendly derived signals (bandEnv, flux, onset, clock, lfo1-4, noiseS, rand)
+- [x] 5 macro uniforms (uMacroEnergy/Complexity/Motion/Musicality/Atmosphere) driven by signal + macro bars
+- [x] Route semantics: attenuverter (−1..1 of span), curves linear/log/exp, ops add/multiply/mix, per-route one-pole envelope, min/max clamps
+- [x] Params accumulate onto per-frame base reset (legacy parity), stale-target cleanup on shader switch
+- [x] Silence-hold (D20): freezes last-loud frame on first quiet frame, no envelope pre-decay
+- [x] Renderer wiring: FeatureGraph replaces AudioMappingEngine; param ranges incl. composites (bloom/zoom/uBass/uMid/uTreble); custom-route cache keyed by JSON
+- [x] De-baked the 6 universal mappings from library.ts → global profile; uMacro* in UNIFORM_HEADER
+- [x] 15 vitest tests green (`npm test`), build green (~7.3s, 409 modules)
+
 ## Performance Metrics
 | Metric | Value | Target |
 |--------|-------|--------|
@@ -119,3 +130,6 @@
 | 2026-08-28 | Reverted a7ed6a9 → d373c47 | User directive: restore stable shader baseline, then enhance |
 | 2026-08-28 | Safe-parse localStorage at bootstrap | Corrupt prefs must never blank the whole app |
 | 2026-08-28 | Touch-native immersive nudging | edge-proximity already mobile-friendly; tap reveals controls |
+| 2026-08-28 | 4-stage feature graph replaces AudioMappingEngine | macros as user-facing semantic knobs; routes accumulate onto base reset for legacy parity |
+| 2026-08-28 | Silence-hold freezes on first quiet frame | fast-release envelopes must not pre-decay the last loud frame; relative 0.25× energy clause keeps quiet pads alive |
+| 2026-08-28 | 15 vitest pure-logic tests | test the impactful math; GL stays untested by design (D31) |

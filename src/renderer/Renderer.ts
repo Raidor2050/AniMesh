@@ -1,6 +1,6 @@
 import { createProgram, createQuadVAO, createFBO, resizeFBO, disposeFBO, VERT_SRC } from '../core/WebGL'
 import { AudioSnapshot, ShaderDefinition, AudioMapping } from '../utils/types'
-import { AudioMappingEngine } from '../mappings/AudioMappingEngine'
+import { FeatureGraph, DEFAULT_PROFILE, legacyToRoutes, Route, ParamRanges } from '../mappings/featureGraph'
 
 const BLOOM_FRAG = `#version 300 es
 precision highp float;
@@ -99,7 +99,9 @@ export class Renderer {
   private bloomLocs: { uTexture: WebGLUniformLocation | null; uResolution: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null } | null = null
   private compositeLocs: { uScene: WebGLUniformLocation | null; uBloom: WebGLUniformLocation | null; uBloomStrength: WebGLUniformLocation | null; uSaturation: WebGLUniformLocation | null; uBrightness: WebGLUniformLocation | null; uIntensity: WebGLUniformLocation | null; uHueShift: WebGLUniformLocation | null; uZoom: WebGLUniformLocation | null; uTime: WebGLUniformLocation | null; uBeat: WebGLUniformLocation | null } | null = null
 
-  private mappingEngine = new AudioMappingEngine()
+  private graph = new FeatureGraph()
+  private ranges: ParamRanges = {}
+  private customRoutes = { key: '', routes: [] as Route[] }
   private currentShader: ShaderDefinition | null = null
   private uniforms: Map<string, WebGLUniformLocation> = new Map()
   private baseParams: Record<string, number> = {}
@@ -118,6 +120,7 @@ export class Renderer {
   constructor(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) {
     this.canvas = canvas
     this.gl = gl
+    this.graph.setProfile(DEFAULT_PROFILE)
 
     const quadResult = createQuadVAO(gl)
     if (quadResult) {
@@ -235,7 +238,27 @@ export class Renderer {
       }
     }
 
-    this.mappingEngine.reset()
+    // Build param ranges (range-aware route amounts are fractions of these).
+    this.ranges = {}
+    for (const p of def.params ?? []) {
+      if (typeof p.min === 'number' && typeof p.max === 'number') {
+        this.ranges[p.id] = [p.min, p.max]
+      }
+    }
+    // Composite/browser names that routes may target but which aren't shader params
+    const compositeSpans: [string, [number, number]][] = [
+      ['bloom', [0, 1.5]], ['bloomStrength', [0, 1.5]], ['zoom', [0.1, 2]],
+      ['uZoom', [0.1, 2]], ['uBass', [0, 1]], ['uMid', [0, 1]], ['uTreble', [0, 1]],
+    ]
+    for (const [id, span] of compositeSpans) {
+      if (!this.ranges[id]) this.ranges[id] = span
+    }
+
+    // Per-shader routes (legacy AudioMapping conversion keeps exact parity)
+    this.graph.setShaderRoutes(legacyToRoutes(def.audioMappings ?? [], this.ranges, 'shader'))
+    this.graph.setParamRanges(this.ranges)
+    this.customRoutes.key = ''
+    this.graph.reset()
   }
 
   getLastError(): string | null { return this.lastError }
@@ -252,19 +275,19 @@ export class Renderer {
     const rw = Math.floor(width * this.dpr)
     const rh = Math.floor(height * this.dpr)
 
-    const allMappings = [
-      ...(this.currentShader?.audioMappings ?? []),
-      ...(customMappings ?? []),
-    ]
-
     const mergedBase = userParams ? { ...this.baseParams, ...userParams } : this.baseParams
 
-    const mapped = this.mappingEngine.applyMappings(
-      audio,
-      allMappings,
-      mergedBase,
-      dt
-    )
+    // Custom routes (EQ panel) are rebuilt only when the mapping list changes.
+    const customKey = JSON.stringify(customMappings ?? [])
+    if (customKey !== this.customRoutes.key) {
+      this.customRoutes.key = customKey
+      this.customRoutes.routes = legacyToRoutes(customMappings ?? [], this.ranges, 'custom')
+      this.graph.setCustomRoutes(this.customRoutes.routes)
+    }
+
+    this.graph.setBaseParams(mergedBase)
+    const graphOut = this.graph.applySnapshot(audio, dt)
+    const mapped = { ...mergedBase, ...graphOut }
 
     gl.bindVertexArray(this.vao)
 
