@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore } from '../state/stores'
 import { SHADER_LIBRARY, searchShaders } from '../shaders/library'
-import { getAudioEngine } from '../audio/audioSingleton'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 
 interface CommandItem {
@@ -18,9 +17,6 @@ export function CommandPalette() {
   const toggleBrowser = useUIStore(s => s.toggleBrowser)
   const toggleCreator = useUIStore(s => s.toggleCreator)
   const toggleImmersive = useUIStore(s => s.toggleImmersive)
-  const togglePanelsVisible = useUIStore(s => s.togglePanelsVisible)
-  const qualityTier = useUIStore(s => s.qualityTier)
-  const setQualityTier = useUIStore(s => s.setQualityTier)
   const setActiveShader = useShaderStore(s => s.setActiveShader)
 
   const [query, setQuery] = useState('')
@@ -43,28 +39,13 @@ export function CommandPalette() {
       action: () => { setActiveShader(s); toggle() },
     }))
 
-    const tiers: Array<'low' | 'medium' | 'high' | 'ultra'> = ['low', 'medium', 'high', 'ultra']
-    const nextTier = tiers[(tiers.indexOf(qualityTier) + 1) % tiers.length]
-
     return [
       { label: 'Toggle Shader Browser', shortcut: 'B', category: 'Panels', action: () => { toggleBrowser(); toggle() } },
       { label: 'Create New Shader', shortcut: 'N', category: 'Panels', action: () => { toggleCreator(); toggle() } },
       { label: 'Toggle Fullscreen', shortcut: 'F', category: 'Panels', action: () => { toggleImmersive(); toggle() } },
-      { label: 'Toggle Panels', shortcut: 'P', category: 'Panels', action: () => { togglePanelsVisible(); toggle() } },
-      { label: `Quality Tier: ${qualityTier}`, shortcut: 'Q', category: 'System', action: () => { setQualityTier(nextTier); toggle() } },
-      { label: 'Toggle Demo Audio', shortcut: 'D', category: 'System', action: () => {
-        const audio = getAudioEngine()
-        audio.setSource(audio.getSourceType() === 'demo' ? 'none' : 'demo')
-        toggle()
-      } },
-      { label: 'Reset UI Preferences', category: 'System', action: () => {
-        try { localStorage.removeItem('animesh-ui-prefs') } catch {}
-        toggle()
-        window.location.reload()
-      } },
       ...shaderCmds,
     ]
-  }, [setActiveShader, toggle, toggleBrowser, toggleCreator, toggleImmersive, togglePanelsVisible, qualityTier, setQualityTier])
+  }, [setActiveShader, toggle, toggleBrowser, toggleCreator, toggleImmersive])
 
   const filtered = useMemo(() => {
     if (!query) return commands
@@ -84,9 +65,6 @@ export function CommandPalette() {
 
   return (
     <motion.div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Command palette"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -158,7 +136,7 @@ export function CommandPalette() {
         </div>
 
         {/* Results */}
-        <div ref={listRef} role="listbox" aria-label="Commands" style={{ maxHeight: 340, overflow: 'auto', padding: spacing.scale[1] }}>
+        <div ref={listRef} style={{ maxHeight: 340, overflow: 'auto', padding: spacing.scale[1] }}>
           {filtered.length === 0 && (
             <div style={{
               padding: `${spacing.scale[6]}px`,
@@ -174,8 +152,6 @@ export function CommandPalette() {
             return (
               <button
                 key={i}
-                role="option"
-                aria-selected={isSelected}
                 onClick={item.action}
                 onMouseEnter={() => setSelectedIndex(i)}
                 style={{

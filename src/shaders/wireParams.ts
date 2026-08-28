@@ -72,36 +72,6 @@ export function wireUniversals(body: string, defs: Record<string, number>): stri
   return out
 }
 
-// Audio uniforms available in every shader header.
-const AUDIO_UNIFORMS = [
-  'uSub', 'uBass', 'uLowMid', 'uMid', 'uHighMid', 'uTreble',
-  'uVolume', 'uBeat', 'uBeatPhase', 'uBPM', 'uSpectralCentroid',
-]
-
-// Guarantees EVERY shader body reacts directly to sound. Bodies that already
-// reference >=2 distinct audio uniforms (MilkDrop adapter, reactive collection,
-// hand-wired library shaders) are left untouched. Under-reactive / fully-static
-// bodies get a gated loudness envelope in front of fragColor:
-//   col = mix(col, col * (1 + 0.10*uVolume + 0.08*uBass + 0.05*uBeat + 0.04*uSub + 0.03*uSpectralCentroid), uAudioGate)
-// uAudioGate is 0 in silence, so the frame is pixel-identical when idle and
-// pumps with energy as soon as audio plays — Butterchurn/MilkDrop semantics.
-export function wireAudioEnvelope(body: string): string {
-  let audioRefs = 0
-  for (const a of AUDIO_UNIFORMS) {
-    if (new RegExp('\\b' + esc(a) + '\\b').test(body)) {
-      audioRefs++
-      if (audioRefs >= 2) return body
-    }
-  }
-  const cv = /\bvec3\s+col\b/.test(body) ? 'col' : (body.match(/\bvec3\s+(\w+)\s*=/)?.[1] ?? '')
-  if (!cv) return body
-  const stmt =
-    `${cv} = mix(${cv}, ${cv} * (1.0 + 0.10*uVolume + 0.08*uBass + 0.05*uBeat + 0.04*uSub + 0.03*uSpectralCentroid), uAudioGate);`
-  const i = body.lastIndexOf('fragColor')
-  if (i < 0) return body
-  return body.slice(0, i) + stmt + '\n' + body.slice(i)
-}
-
 // Wires every custom, currently-dead parameter into the fragment body so a
 // slider ALWAYS produces a visible change while staying pixel-identical at
 // its default value:

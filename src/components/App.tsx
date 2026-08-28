@@ -96,13 +96,6 @@ export function App() {
             audio.setSource('demo')
           }
         }
-        if (e.key.toLowerCase() === 'q') {
-          e.preventDefault()
-          const tiers = ['low', 'medium', 'high', 'ultra'] as const
-          const current = useUIStore.getState().qualityTier
-          const next = tiers[(tiers.indexOf(current) + 1) % tiers.length]
-          useUIStore.getState().setQualityTier(next)
-        }
         if (e.key.toLowerCase() === 't') {
           e.preventDefault()
           const audio = getAudioEngine()

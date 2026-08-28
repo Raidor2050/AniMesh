@@ -9,18 +9,6 @@ function safeSetItem(key: string, value: string) {
   try { localStorage.setItem(key, value) } catch {}
 }
 
-// repo-hunter adoption (zustand persist pattern, zero-dep): UI preferences
-// survive reloads so the instrument layout returns exactly as the VJ left it.
-type QualityTier = 'low' | 'medium' | 'high' | 'ultra'
-type StreamPreset = 'stream' | 'spectrum' | 'bars' | 'oscilloscope'
-
-function saveUIPrefs(next: Partial<{ qualityTier: QualityTier; streamPreset: StreamPreset; minimizedPanels: string[]; panelsVisible: boolean }>) {
-  const cur = JSON.parse(safeGetItem('animesh-ui-prefs') || '{}') as Record<string, unknown>
-  safeSetItem('animesh-ui-prefs', JSON.stringify({ ...cur, ...next }))
-}
-
-const savedPrefs = JSON.parse(safeGetItem('animesh-ui-prefs') || '{}') as Record<string, unknown>
-
 function createDefaultSnapshot(): AudioSnapshot {
   return {
     ...DEFAULT_AUDIO,
@@ -38,10 +26,10 @@ interface UIStore {
   commandPaletteOpen: boolean
   panelsVisible: boolean
   panelTab: 'browser' | 'creator' | null
-  qualityTier: QualityTier
+  qualityTier: 'low' | 'medium' | 'high' | 'ultra'
   reducedMotion: boolean
   minimizedPanels: string[]
-  streamPreset: StreamPreset
+  streamPreset: 'stream' | 'spectrum' | 'bars' | 'oscilloscope'
   setBootComplete: (v: boolean) => void
   toggleImmersive: () => void
   toggleBrowser: () => void
@@ -50,21 +38,16 @@ interface UIStore {
   toggleCommandPalette: () => void
   togglePanelsVisible: () => void
   setPanelTab: (tab: 'browser' | 'creator' | null) => void
-  setQualityTier: (tier: QualityTier) => void
+  setQualityTier: (tier: 'low' | 'medium' | 'high' | 'ultra') => void
   setReducedMotion: (v: boolean) => void
   togglePanelMinimized: (id: string) => void
   isPanelMinimized: (id: string) => boolean
-  setStreamPreset: (preset: StreamPreset) => void
+  setStreamPreset: (preset: UIStore['streamPreset']) => void
 }
 
 const reducedMotionDefault = typeof window !== 'undefined'
   ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
   : false
-
-const uiQualityTier = (savedPrefs.qualityTier as QualityTier) ?? 'high'
-const uiStreamPreset = (savedPrefs.streamPreset as StreamPreset) ?? 'stream'
-const uiMinimizedPanels = Array.isArray(savedPrefs.minimizedPanels) ? savedPrefs.minimizedPanels as string[] : []
-const uiPanelsVisible = typeof savedPrefs.panelsVisible === 'boolean' ? savedPrefs.panelsVisible : true
 
 export const useUIStore = create<UIStore>((set, get) => ({
   bootComplete: false,
@@ -73,35 +56,30 @@ export const useUIStore = create<UIStore>((set, get) => ({
   carouselOpen: false,
   creatorOpen: false,
   commandPaletteOpen: false,
-  panelsVisible: uiPanelsVisible,
+  panelsVisible: true,
   panelTab: null,
-  qualityTier: uiQualityTier,
+  qualityTier: 'high',
   reducedMotion: reducedMotionDefault,
-  minimizedPanels: uiMinimizedPanels,
-  streamPreset: uiStreamPreset,
+  minimizedPanels: [],
+  streamPreset: 'stream',
   setBootComplete: (v) => set({ bootComplete: v }),
   toggleImmersive: () => set((s) => ({ immersive: !s.immersive, browserOpen: false, carouselOpen: false, creatorOpen: false, commandPaletteOpen: false })),
   toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, carouselOpen: false, creatorOpen: false, panelTab: s.browserOpen ? null : 'browser' })),
   toggleCarousel: () => set((s) => ({ carouselOpen: !s.carouselOpen, browserOpen: false, creatorOpen: false, panelTab: null })),
   toggleCreator: () => set((s) => ({ creatorOpen: !s.creatorOpen, browserOpen: false, carouselOpen: false, panelTab: s.creatorOpen ? null : 'creator' })),
   toggleCommandPalette: () => set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
-  togglePanelsVisible: () => set((s) => {
-    const panelsVisible = !s.panelsVisible
-    saveUIPrefs({ panelsVisible })
-    return { panelsVisible }
-  }),
+  togglePanelsVisible: () => set((s) => ({ panelsVisible: !s.panelsVisible })),
   setPanelTab: (tab) => set({ panelTab: tab }),
-  setQualityTier: (tier) => { set({ qualityTier: tier }); saveUIPrefs({ qualityTier: tier }) },
+  setQualityTier: (tier) => set({ qualityTier: tier }),
   setReducedMotion: (v) => set({ reducedMotion: v }),
   togglePanelMinimized: (id) => set((s) => {
-    const minimizedPanels = s.minimizedPanels.includes(id)
+    const minimized = s.minimizedPanels.includes(id)
       ? s.minimizedPanels.filter(p => p !== id)
       : [...s.minimizedPanels, id]
-    saveUIPrefs({ minimizedPanels })
-    return { minimizedPanels }
+    return { minimizedPanels: minimized }
   }),
   isPanelMinimized: (id) => get().minimizedPanels.includes(id),
-  setStreamPreset: (streamPreset) => { set({ streamPreset }); saveUIPrefs({ streamPreset }) },
+  setStreamPreset: (streamPreset) => set({ streamPreset }),
 }))
 
 interface ShaderStore {

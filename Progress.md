@@ -84,36 +84,12 @@
 - [x] GitHub Pages configured (gh-pages branch)
 - [x] Live site: https://raidor2050.github.io/AniMesh/
 
-### Phase 13: Universal Parameter Wiring ✅ (commit d373c47)
-- [x] wireParams: every custom param becomes a live slider (pixel-identical at default)
-- [x] wireUniversals: scale/distortion/hueShift/saturation injected into every body
-- [x] Universal speed folded into uTime everywhere uTime exists
-- [x] Reactive collection (120): baked constants → live uniforms (cols/rings/arms/freq/petals/detail/stars/sides/cells/bodies)
-- [x] MilkDrop (121): RAW presets + 15 md* adapter params + universal mapping set
-- [x] Audit: ALL PARAMS WIRED — 0 dead params, 0 duplicate uniforms, 0 unbalanced braces
-- [x] Library now 381 shaders (140 custom + 120 reactive + 121 MilkDrop)
-
-### Phase 14: Universal Audio Reactivity ✅
-- [x] 3 top-researcher agents: audio→visual mapping, guaranteed-reactivity architecture (Butterchurn/MilkDrop semantics), GLSL/WebGL guardrails
-- [x] Composite audio pump (gated): bass zoom pulse, loudness/beat brightness, spectral-centroid hue drift, bass bloom gain — identity at silence via uAudioGate
-- [x] wireAudioEnvelope codegen: 106 under-reactive bodies get direct gated audio envelope (<2 audio refs); 275 already-reactive bodies untouched
-- [x] uAudioGate uniform across all headers + composite; MilkDrop-style silence gate computed CPU-side
-- [x] Audit ACCEPTED: every shader body ≥2 audio refs OR envelope; 0 unbalanced braces; 0 double-injection
-
-### Phase 15: Web Experience Hardening ✅
-- [x] ErrorBoundary (repo-hunter adoption: react-error-boundary pattern, zero-dep)
-- [x] PWA-lite: manifest, SVG icons, service worker (shell precache + runtime cache-first), meta tags
-- [x] UI pref persistence (quality tier, stream preset, minimized panels, panel visibility)
-- [x] Command palette: Cycle Quality (Q), Toggle Panels (P), Toggle Demo Audio (D), Reset UI; ARIA dialog/listbox roles
-- [x] Global Q shortcut, Apple/mobile web-app meta
-
 ## Performance Metrics
 | Metric | Value | Target |
 |--------|-------|--------|
-| Total JS (gzipped) | ~166KB | <250KB ✅ |
-| Shader count (SHADER_LIBRARY) | 381 | 300+ ✅ |
-| Migrated static shaders → audio-reactive | all 622 | 100% ✅ |
-| Build time | ~8s | <10s ✅ |
+| Total JS (gzipped) | ~110KB | <150KB ✅ |
+| Shader count | 41 | 40+ ✅ |
+| Build time | 4.4s | <10s ✅ |
 | TypeScript errors | 0 | 0 ✅ |
 | Categories | 9 | 9 ✅ |
 
