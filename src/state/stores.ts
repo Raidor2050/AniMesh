@@ -29,14 +29,13 @@ interface UIStore {
   bootComplete: boolean
   immersive: boolean
   browserOpen: boolean
-  carouselOpen: boolean
   creatorOpen: boolean
   commandPaletteOpen: boolean
   panelsVisible: boolean
   panelTab: 'browser' | 'creator' | null
   reducedMotion: boolean
   minimizedPanels: string[]
-  streamPreset: 'stream' | 'spectrum' | 'bars' | 'oscilloscope'
+  streamPreset: 'stream' | 'spectrum' | 'bars' | 'oscilloscope' | 'radial' | 'mirror' | 'wavebars'
   perfVisible: boolean
   /** auto-transition interval in beats for immersive mode: 0 = off */
   autoCycleBeats: 0 | 4 | 16 | 32
@@ -44,7 +43,6 @@ interface UIStore {
   setAutoCycleBeats: (beats: 0 | 4 | 16 | 32) => void
   toggleImmersive: () => void
   toggleBrowser: () => void
-  toggleCarousel: () => void
   toggleCreator: () => void
   toggleCommandPalette: () => void
   togglePanelsVisible: () => void
@@ -64,7 +62,6 @@ export const useUIStore = create<UIStore>((set, get) => ({
   bootComplete: false,
   immersive: false,
   browserOpen: false,
-  carouselOpen: false,
   creatorOpen: false,
   commandPaletteOpen: false,
   panelsVisible: true,
@@ -76,10 +73,9 @@ export const useUIStore = create<UIStore>((set, get) => ({
   autoCycleBeats: 16,
   setBootComplete: (v) => set({ bootComplete: v }),
   setAutoCycleBeats: (autoCycleBeats) => set({ autoCycleBeats }),
-  toggleImmersive: () => set((s) => ({ immersive: !s.immersive, browserOpen: false, carouselOpen: false, creatorOpen: false, commandPaletteOpen: false })),
-  toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, carouselOpen: false, creatorOpen: false, panelTab: s.browserOpen ? null : 'browser' })),
-  toggleCarousel: () => set((s) => ({ carouselOpen: !s.carouselOpen, browserOpen: false, creatorOpen: false, panelTab: null })),
-  toggleCreator: () => set((s) => ({ creatorOpen: !s.creatorOpen, browserOpen: false, carouselOpen: false, panelTab: s.creatorOpen ? null : 'creator' })),
+  toggleImmersive: () => set((s) => ({ immersive: !s.immersive, browserOpen: false, creatorOpen: false, commandPaletteOpen: false })),
+  toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, creatorOpen: false, panelTab: s.browserOpen ? null : 'browser' })),
+  toggleCreator: () => set((s) => ({ creatorOpen: !s.creatorOpen, browserOpen: false, panelTab: s.creatorOpen ? null : 'creator' })),
   toggleCommandPalette: () => set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
   togglePanelsVisible: () => set((s) => {
     const panelsVisible = !s.panelsVisible

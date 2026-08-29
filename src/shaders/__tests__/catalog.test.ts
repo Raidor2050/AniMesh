@@ -90,4 +90,28 @@ describe('shader catalog integrity (tier audit, D21)', () => {
       expect(s.defaults, `${s.id} speed`).toHaveProperty('speed')
     }
   })
+
+  it('every shader exposes at least one controllable parameter — Param + EQ panels stay live', () => {
+    for (const s of SHADER_LIBRARY) {
+      expect(s.params.length, `${s.id} params`).toBeGreaterThan(0)
+      // Slider values and renderer uploads fall back to def.defaults; every
+      // exposed param id must exist there or the mapping/substitution is dead.
+      for (const p of s.params) {
+        expect(s.defaults, `${s.id} param default for ${p.id}`).toHaveProperty(p.id)
+      }
+    }
+  })
+
+  it('every MilkDrop preset exposes its adapter sliders for the Param + EQ panels', () => {
+    const md = SHADER_LIBRARY.filter(s => s.id.startsWith('md-'))
+    expect(md.length).toBeGreaterThan(100)
+    for (const s of md) {
+      const ids = new Set(s.params.map(p => p.id))
+      expect(s.params.some(p => p.id === 'speed'), `${s.id} has speed`).toBe(true)
+      expect(s.params.some(p => p.id === 'intensity'), `${s.id} has intensity`).toBe(true)
+      for (const id of ['mdZoom', 'mdRot', 'mdDecay', 'mdWarp', 'mdGamma', 'mdWaveMode']) {
+        expect(ids.has(id), `${s.id} exposes ${id}`).toBe(true)
+      }
+    }
+  })
 })

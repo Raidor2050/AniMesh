@@ -31,7 +31,10 @@ const PRESETS = [
   { id: 'stream' as const, label: 'Stream' },
   { id: 'spectrum' as const, label: 'Spectrum' },
   { id: 'bars' as const, label: 'Bars' },
-  { id: 'oscilloscope' as const, label: 'Oscilloscope' },
+  { id: 'oscilloscope' as const, label: 'Scope' },
+  { id: 'mirror' as const, label: 'Mirror' },
+  { id: 'wavebars' as const, label: 'WaveBars' },
+  { id: 'radial' as const, label: 'Radial' },
 ]
 
 const SPECTRUM_BAR_COUNT = 64
@@ -95,6 +98,12 @@ export function StreamGraph() {
       renderBars(ctx, W, H, snap, timestamp)
     } else if (streamPreset === 'oscilloscope') {
       renderOscilloscope(ctx, W, H, snap)
+    } else if (streamPreset === 'mirror') {
+      renderMirror(ctx, W, H, snap, timestamp)
+    } else if (streamPreset === 'wavebars') {
+      renderWaveBars(ctx, W, H, snap)
+    } else if (streamPreset === 'radial') {
+      renderRadial(ctx, W, H, snap, timestamp)
     }
 
     animRef.current = requestAnimationFrame(render)
@@ -335,6 +344,136 @@ export function StreamGraph() {
     ctx.stroke()
   }
 
+  // Dual waveform: top half is the raw wave, bottom half its mirror image —
+  // reads like an analog push-pull scope with a soft reflected tail.
+  function renderMirror(ctx: CanvasRenderingContext2D, W: number, H: number, snap: AudioSnapshot, timestamp: number) {
+    const waveform = snap.waveform
+    const len = waveform.length
+    const usableH = H - PAD_TOP - PAD_BOT
+    const midY = PAD_TOP + usableH * 0.5
+    const half = usableH * 0.45
+    const t = timestamp * 0.001
+
+    const trace = (flip: number, gradTop: string, gradBot: string, glow: string) => {
+      const grad = ctx.createLinearGradient(0, PAD_TOP, 0, H - PAD_BOT)
+      grad.addColorStop(0, gradTop)
+      grad.addColorStop(1, gradBot)
+      const yFor = (v: number) => midY + flip * v * half + (flip > 0 ? -Math.sin(t * 0.8) * 0.04 * usableH : Math.sin(t * 0.8) * 0.04 * usableH)
+
+      ctx.shadowColor = glow
+      ctx.shadowBlur = 8
+      ctx.strokeStyle = grad
+      ctx.lineWidth = 1.6
+      ctx.beginPath()
+      for (let i = 0; i < len; i++) {
+        const x = (i / (len - 1)) * W
+        const y = yFor(waveform[i])
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.stroke()
+      ctx.shadowBlur = 0
+    }
+
+    // Center line
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+    ctx.lineWidth = 0.5
+    ctx.beginPath()
+    ctx.moveTo(0, midY)
+    ctx.lineTo(W, midY)
+    ctx.stroke()
+
+    // Reflected bottom trace
+    trace(+1, 'rgba(99,102,241,0.9)', 'rgba(79,70,229,0.75)', 'rgba(99,102,241,0.35)')
+    // Mirror image (flashed on the beat)
+    trace(-1, 'rgba(217,70,239,0.85)', 'rgba(168,85,247,0.6)', 'rgba(217,70,239,0.3)')
+  }
+
+  // Bi-polar waveform columns: each sample becomes a bar rising (positive)
+  // or falling (negative) from the centerline, with beat-synced glow.
+  function renderWaveBars(ctx: CanvasRenderingContext2D, W: number, H: number, snap: AudioSnapshot) {
+    const waveform = snap.waveform
+    const cols = 72
+    const step = Math.floor(waveform.length / cols)
+    const usableH = H - PAD_TOP - PAD_BOT
+    const midY = PAD_TOP + usableH * 0.5
+    const gap = 1
+    const colW = (W - gap * (cols - 1)) / cols
+    const beat = snap.beatIntensity
+
+    for (let col = 0; col < cols; col++) {
+      let sum = 0
+      for (let j = 0; j < step; j++) {
+        sum += Math.abs(waveform[col * step + j] ?? 0)
+      }
+      const v = sum / step
+      const h = v * usableH * 0.46
+      const x = col * (colW + gap)
+      const hue = (col / cols) * 270
+
+      ctx.fillStyle = `hsla(${hue}, 80%, ${60 + beat * 15}%, 0.9)`
+      ctx.fillRect(x, midY - h, colW, h)
+      ctx.fillStyle = `hsla(${hue}, 80%, ${60 + beat * 15}%, 0.55)`
+      ctx.fillRect(x, midY, colW, h)
+    }
+  }
+
+  // Radial: spectrum wrapped into sectors around a rotating core, with six
+  // band-energies rendered as nested glowing rings.
+  function renderRadial(ctx: CanvasRenderingContext2D, W: number, H: number, snap: AudioSnapshot, timestamp: number) {
+    const spectrum = snap.spectrum
+    const cx = W / 2
+    const cy = H / 2
+    const maxR = Math.min(W, H) / 2 - 6
+    const sectors = 48
+    const binSize = Math.floor(spectrum.length / sectors)
+    const t = timestamp * 0.001
+    const spin = t * 0.25
+
+    for (let i = 0; i < sectors; i++) {
+      let sum = 0
+      for (let j = 0; j < binSize; j++) {
+        sum += spectrum[i * binSize + j] || 0
+      }
+      const avg = sum / binSize / 255
+      const a = (i / sectors) * Math.PI * 2 + spin
+      const inner = maxR * 0.28
+      const outer = inner + avg * maxR * 0.72
+      const hue = (i / sectors) * 270
+
+      ctx.strokeStyle = `hsl(${hue} 80% 65% / 0.9)`
+      ctx.lineWidth = 2
+      ctx.lineCap = 'round'
+      ctx.beginPath()
+      ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner)
+      ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer)
+      ctx.stroke()
+
+      // Cap dot on a beat
+      if (snap.beatOn && i % 6 === 0) {
+        ctx.fillStyle = '#fff'
+        ctx.beginPath()
+        ctx.arc(cx + Math.cos(a) * (outer + 2), cy + Math.sin(a) * (outer + 2), 1.4, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
+
+    // Nested band rings
+    for (let b = 0; b < BAND_COUNT; b++) {
+      const col = BAND_COLORS[b]
+      const level = snap[BAND_KEYS[b]]
+      const r = maxR * (0.95 - b * 0.11)
+      ctx.strokeStyle = `rgba(${col.r},${col.g},${col.b},${0.25 + level * 0.6})`
+      ctx.lineWidth = 1 + level * 3
+      ctx.shadowColor = BAND_GLOW_COLORS[b]
+      ctx.shadowBlur = 6
+      ctx.beginPath()
+      ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.shadowBlur = 0
+    }
+  }
+
   const hidden = !bootComplete || immersive || isMinimized
 
   useEffect(() => {
@@ -389,7 +528,7 @@ export function StreamGraph() {
             boxShadow: sourceType !== 'none' ? `0 0 6px ${colors.state.success}` : 'none',
             flexShrink: 0,
           }} />
-          <div style={{ display: 'flex', gap: 2 }}>
+          <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             {PRESETS.map(p => (
               <button
                 key={p.id}
