@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
 import { useUIStore, useShaderStore, audioDataBridge } from '../state/stores'
 import { randomVisual, cycleVisual } from '../state/shaderActions'
 import { colors, typography, spacing, radii } from '../ui/tokens'
@@ -206,38 +205,40 @@ export function ImmersiveMode() {
         </div>
       </div>
 
-      {/* Center-top: visual name flash on change (below the top bar) */}
-      <AnimatePresence>
-        {shaderFlash && activeVisual && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92, x: '-50%' }}
-            animate={{ opacity: 1, scale: 1, x: '-50%' }}
-            exit={{ opacity: 0, scale: 0.96, x: '-50%' }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            style={{
-              position: 'absolute', top: 74, left: '50%',
-              padding: '8px 20px',
-              background: 'rgba(0,0,0,0.55)',
-              border: `1px solid rgba(255,255,255,0.08)`,
-              borderRadius: 8,
-              backdropFilter: 'blur(16px)',
-            }}
-          >
-            <span style={{
-              fontFamily: typography.families.mono,
-              fontSize: 14, fontWeight: 600,
-              color: colors.text.primary,
-              letterSpacing: '-0.02em',
-            }}>{activeVisual.name}</span>
+      {/* Top-center: visual name flash on change — flex-centered (no transform),
+          fades out after a moment so the name lives at the top, not mid-screen */}
+      <div style={{
+        position: 'absolute', top: 64, left: 0, right: 0,
+        display: 'flex', justifyContent: 'center',
+        pointerEvents: 'none',
+        opacity: shaderFlash ? 1 : 0,
+        transition: 'opacity 0.35s ease',
+      }}>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center',
+          padding: '8px 20px',
+          background: 'rgba(0,0,0,0.55)',
+          border: `1px solid rgba(255,255,255,0.08)`,
+          borderRadius: 8,
+          backdropFilter: 'blur(16px)',
+        }}>
+          <span style={{
+            fontFamily: typography.families.mono,
+            fontSize: 14, fontWeight: 600,
+            color: colors.text.primary,
+            letterSpacing: '-0.02em',
+            whiteSpace: 'nowrap',
+          }}>{activeVisual?.name}</span>
+          {activeVisual && (
             <span style={{
               display: 'inline-flex', marginLeft: 10,
               fontFamily: typography.families.mono,
               fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
               color: activeVisual.kind === 'svg' ? '#34d399' : '#6366F1',
             }}>{activeVisual.kind === 'svg' ? 'SVG' : 'GL'}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </div>
+      </div>
 
       {/* Bottom bar: navigation controls (hideable via bottom-right toggle) */}
       <div style={{
