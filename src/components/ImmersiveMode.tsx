@@ -52,6 +52,7 @@ export function ImmersiveMode() {
   const [showHUD, setShowHUD] = useState(false)
   const [shaderFlash, setShaderFlash] = useState(false)
   const [beatCountdown, setBeatCountdown] = useState<number | null>(null)
+  const [navVisible, setNavVisible] = useState(true)
   const hideTimerRef = useRef<number | null>(null)
   const prevShaderRef = useRef<string | null>(null)
 
@@ -175,6 +176,20 @@ export function ImmersiveMode() {
             fontSize: 12, fontWeight: 600,
             color: colors.text.secondary,
           }}>IMMERSIVE</span>
+          {activeVisual && (
+            <>
+              <span style={{ color: colors.surface.secondary }}>·</span>
+              <span style={{
+                fontFamily: typography.families.mono,
+                fontSize: 12, fontWeight: 600,
+                color: colors.text.primary,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '38vw',
+              }}>{activeVisual.name}</span>
+            </>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{
@@ -191,17 +206,16 @@ export function ImmersiveMode() {
         </div>
       </div>
 
-      {/* Center: visual name flash on change */}
+      {/* Center-top: visual name flash on change (below the top bar) */}
       <AnimatePresence>
         {shaderFlash && activeVisual && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
+            initial={{ opacity: 0, scale: 0.92, x: '-50%' }}
+            animate={{ opacity: 1, scale: 1, x: '-50%' }}
+            exit={{ opacity: 0, scale: 0.96, x: '-50%' }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
             style={{
-              position: 'absolute', top: '50%', left: '50%',
-              transform: 'translate(-50%, -50%)',
+              position: 'absolute', top: 74, left: '50%',
               padding: '8px 20px',
               background: 'rgba(0,0,0,0.55)',
               border: `1px solid rgba(255,255,255,0.08)`,
@@ -225,7 +239,7 @@ export function ImmersiveMode() {
         )}
       </AnimatePresence>
 
-      {/* Bottom bar: navigation controls */}
+      {/* Bottom bar: navigation controls (hideable via bottom-right toggle) */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
         minHeight: 56,
@@ -236,18 +250,18 @@ export function ImmersiveMode() {
         gap: 12,
         paddingLeft: 'env(safe-area-inset-left)',
         paddingRight: 'env(safe-area-inset-right)',
-        opacity: showHUD ? 1 : 0,
+        opacity: showHUD && navVisible ? 1 : 0,
         transition: 'opacity 0.3s ease',
-        pointerEvents: 'auto',
+        pointerEvents: navVisible ? 'auto' : 'none',
       }}>
         <IconButton label="PREV" glyph="‹" ariaLabel="Previous visual" onClick={() => cycleVisual(-1)} />
         <IconButton label="RANDOM" glyph="∴" ariaLabel="Random visual" onClick={randomVisual} />
         <IconButton label="NEXT" glyph="›" ariaLabel="Next visual" onClick={() => cycleVisual(1)} />
-        {/* Auto-transition control: cycles effort 4 -> 16 -> 32 -> OFF */}
+        {/* Auto-transition control: cycles effort 4 -> 8 -> 16 -> 32 -> OFF */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             type="button"
-            onClick={() => setAutoCycleBeats(autoCycleBeats === 0 ? 4 : autoCycleBeats === 4 ? 16 : autoCycleBeats === 16 ? 32 : 0)}
+            onClick={() => setAutoCycleBeats(autoCycleBeats === 0 ? 4 : autoCycleBeats === 4 ? 8 : autoCycleBeats === 8 ? 16 : autoCycleBeats === 16 ? 32 : 0)}
             aria-label={`Auto transition every ${autoCycleBeats === 0 ? 'off' : autoCycleBeats + ' beats'}`}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
@@ -282,6 +296,22 @@ export function ImmersiveMode() {
             </span>
           )}
         </div>
+      </div>
+
+      {/* Bottom-right: toggle showing/hiding the Prev / Next / Auto buttons.
+          Kept clear of the Connect-Audio cluster by stacking above the corner. */}
+      <div style={{
+        position: 'absolute', right: 16, bottom: 76,
+        opacity: showHUD ? 1 : 0,
+        transition: 'opacity 0.3s ease',
+        pointerEvents: 'auto',
+      }}>
+        <IconButton
+          label={navVisible ? 'HIDE NAV' : 'SHOW NAV'}
+          glyph={navVisible ? '−' : '+'}
+          ariaLabel={navVisible ? 'Hide navigation controls' : 'Show navigation controls'}
+          onClick={() => setNavVisible(v => !v)}
+        />
       </div>
     </div>
   )

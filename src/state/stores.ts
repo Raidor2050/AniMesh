@@ -38,9 +38,9 @@ interface UIStore {
   streamPreset: 'stream' | 'spectrum' | 'bars' | 'oscilloscope' | 'radial' | 'mirror' | 'wavebars'
   perfVisible: boolean
   /** auto-transition interval in beats for immersive mode: 0 = off */
-  autoCycleBeats: 0 | 4 | 16 | 32
+  autoCycleBeats: 0 | 4 | 8 | 16 | 32
   setBootComplete: (v: boolean) => void
-  setAutoCycleBeats: (beats: 0 | 4 | 16 | 32) => void
+  setAutoCycleBeats: (beats: 0 | 4 | 8 | 16 | 32) => void
   toggleImmersive: () => void
   toggleBrowser: () => void
   toggleCreator: () => void

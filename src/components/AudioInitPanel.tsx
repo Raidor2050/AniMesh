@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
+import type { CSSProperties } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { connectAudio } from '../audio/audioSingleton'
 import type { AudioSourceType } from '../audio/AudioEngine'
-import { useAudioStore } from '../state/stores'
+import { useAudioStore, useUIStore } from '../state/stores'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 
 export function AudioInitBar() {
@@ -11,6 +12,7 @@ export function AudioInitBar() {
   const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
   const sourceType = useAudioStore(s => s.sourceType)
   const setSourceType = useAudioStore(s => s.setSourceType)
+  const immersive = useUIStore(s => s.immersive)
 
   const handleConnect = useCallback(async (type: AudioSourceType) => {
     setConnecting(true)
@@ -84,10 +86,19 @@ export function AudioInitBar() {
     }
   }, [status])
 
+  // Dock to the bottom-right corner in immersive mode so the centered
+  // immersive nav (PREV/RANDOM/NEXT/AUTO) and this cluster never overlap.
+  const immersiveCorner: CSSProperties = {
+    position: 'absolute', right: 16, bottom: 16, zIndex: 15, pointerEvents: 'none',
+    display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+  }
+
   // Compact mode: show source badge when connected
   if (!show && sourceType !== 'none') {
     return (
-      <div style={{ position: 'absolute', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 15, pointerEvents: 'none' }}>
+      <div style={immersive ? immersiveCorner : {
+        position: 'absolute', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 15, pointerEvents: 'none'
+      }}>
         <motion.button
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -134,7 +145,9 @@ export function AudioInitBar() {
   // Collapsed state: show "Connect Audio Source" button
   if (!show && sourceType === 'none') {
     return (
-      <div style={{ position: 'absolute', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 15, pointerEvents: 'none' }}>
+      <div style={immersive ? immersiveCorner : {
+        position: 'absolute', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 15, pointerEvents: 'none'
+      }}>
         <motion.button
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -188,7 +201,9 @@ export function AudioInitBar() {
   ]
 
   return (
-    <div style={{ position: 'absolute', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 15, pointerEvents: 'none' }}>
+    <div style={immersive ? immersiveCorner : {
+      position: 'absolute', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 15, pointerEvents: 'none'
+    }}>
     <motion.div
       initial={{ opacity: 0, y: 12, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
