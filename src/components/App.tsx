@@ -19,6 +19,8 @@ import { MacroBar } from './MacroBar'
 import { A11yAnnouncer } from './A11yAnnouncer'
 import { ErrorBoundary } from './ErrorBoundary'
 import { PerformanceOverlay } from './PerformanceOverlay'
+import { TutorialOverlay } from './TutorialOverlay'
+import { tutorialSeen } from '../state/tutorial'
 import { getAudioEngine } from '../audio/audioSingleton'
 import { announce } from '../a11y/announcer'
 import { randomShader, cycleShader, randomVisual, cycleVisual } from '../state/shaderActions'
@@ -28,6 +30,14 @@ export function App() {
   const immersive = useUIStore(s => s.immersive)
   const creatorOpen = useUIStore(s => s.creatorOpen)
   const commandPaletteOpen = useUIStore(s => s.commandPaletteOpen)
+  const toggleTutorial = useUIStore(s => s.toggleTutorial)
+
+  // First-run: show the controls tour once boot sequence completes.
+  useEffect(() => {
+    if (bootComplete && !tutorialSeen()) {
+      toggleTutorial()
+    }
+  }, [bootComplete, toggleTutorial])
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -84,6 +94,8 @@ export function App() {
         if (e.key === 'n') store.toggleCreator()
         if (e.key === 'f') store.toggleImmersive()
         if (e.key === 'p') store.togglePanelsVisible()
+        // Controls tour (also reopened via the ? button in the top bar)
+        if (e.key === 'h') store.toggleTutorial()
         // Perf overlay (D12): ref-driven DOM meter for the frame budget audit
         if (e.key === 'g') store.togglePerf()
         // [ and ] cycle shaders from anywhere
@@ -131,6 +143,7 @@ export function App() {
         {bootComplete && <AudioInitBar />}
         {bootComplete && creatorOpen && !immersive && <ShaderCreator />}
         {commandPaletteOpen && <CommandPalette />}
+        {bootComplete && <TutorialOverlay />}
         <PerformanceOverlay />
         <A11yAnnouncer />
       </div>

@@ -17,6 +17,7 @@ export function CommandPalette() {
   const toggleBrowser = useUIStore(s => s.toggleBrowser)
   const toggleCreator = useUIStore(s => s.toggleCreator)
   const toggleImmersive = useUIStore(s => s.toggleImmersive)
+  const toggleTutorial = useUIStore(s => s.toggleTutorial)
   const setActiveVisual = useShaderStore(s => s.setActiveVisual)
 
   const [query, setQuery] = useState('')
@@ -43,9 +44,10 @@ export function CommandPalette() {
       { label: 'Toggle Shader Browser', shortcut: 'B', category: 'Panels', action: () => { toggleBrowser(); toggle() } },
       { label: 'Create New Shader', shortcut: 'N', category: 'Panels', action: () => { toggleCreator(); toggle() } },
       { label: 'Toggle Fullscreen', shortcut: 'F', category: 'Panels', action: () => { toggleImmersive(); toggle() } },
+      { label: 'Controls Guide', shortcut: 'H', category: 'Panels', action: () => { toggleTutorial(); toggle() } },
       ...visualCmds,
     ]
-  }, [setActiveVisual, toggle, toggleBrowser, toggleCreator, toggleImmersive])
+  }, [setActiveVisual, toggle, toggleBrowser, toggleCreator, toggleImmersive, toggleTutorial])
 
   const filtered = useMemo(() => {
     if (!query) return commands

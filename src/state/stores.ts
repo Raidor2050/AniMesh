@@ -37,10 +37,12 @@ interface UIStore {
   minimizedPanels: string[]
   streamPreset: 'stream' | 'spectrum' | 'bars' | 'oscilloscope' | 'radial' | 'mirror' | 'wavebars' | 'meter' | 'vectorscope'
   perfVisible: boolean
+  tutorialOpen: boolean
   /** auto-transition interval in beats for immersive mode: 0 = off */
   autoCycleBeats: 0 | 4 | 8 | 16 | 32
   setBootComplete: (v: boolean) => void
   setAutoCycleBeats: (beats: 0 | 4 | 8 | 16 | 32) => void
+  toggleTutorial: () => void
   toggleImmersive: () => void
   toggleBrowser: () => void
   toggleCreator: () => void
@@ -70,9 +72,11 @@ export const useUIStore = create<UIStore>((set, get) => ({
   minimizedPanels: [],
   streamPreset: 'stream',
   perfVisible: false,
+  tutorialOpen: false,
   autoCycleBeats: 16,
   setBootComplete: (v) => set({ bootComplete: v }),
   setAutoCycleBeats: (autoCycleBeats) => set({ autoCycleBeats }),
+  toggleTutorial: () => set((s) => ({ tutorialOpen: !s.tutorialOpen })),
   toggleImmersive: () => set((s) => ({ immersive: !s.immersive, browserOpen: false, creatorOpen: false, commandPaletteOpen: false })),
   toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, creatorOpen: false, panelTab: s.browserOpen ? null : 'browser' })),
   toggleCreator: () => set((s) => ({ creatorOpen: !s.creatorOpen, browserOpen: false, panelTab: s.creatorOpen ? null : 'creator' })),

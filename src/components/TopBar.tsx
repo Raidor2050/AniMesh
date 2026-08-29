@@ -18,6 +18,7 @@ export function TopBar() {
   const immersive = useUIStore(s => s.immersive)
   const toggleBrowser = useUIStore(s => s.toggleBrowser)
   const toggleImmersive = useUIStore(s => s.toggleImmersive)
+  const toggleTutorial = useUIStore(s => s.toggleTutorial)
   const activeShader = useShaderStore(s => s.activeShader)
   const sourceType = useAudioStore(s => s.sourceType)
   const setSourceType = useAudioStore(s => s.setSourceType)
@@ -289,6 +290,26 @@ export function TopBar() {
         }}>
           {fps} <span style={{ color: colors.text.disabled }}>fps</span>
         </span>
+
+        {/* Controls tour */}
+        <button
+          onClick={toggleTutorial}
+          style={{
+            padding: '4px 8px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: radii.sm,
+            color: colors.text.secondary,
+            fontSize: 11,
+            fontFamily: typography.families.mono,
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.12s ease',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.9)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = colors.text.secondary }}
+          title="Controls guide (H)"
+        >?</button>
 
         {/* Fullscreen toggle */}
         <button
