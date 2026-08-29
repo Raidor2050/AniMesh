@@ -35,7 +35,7 @@ interface UIStore {
   panelTab: 'browser' | 'creator' | null
   reducedMotion: boolean
   minimizedPanels: string[]
-  streamPreset: 'stream' | 'spectrum' | 'bars' | 'oscilloscope' | 'radial' | 'mirror' | 'wavebars'
+  streamPreset: 'stream' | 'spectrum' | 'bars' | 'oscilloscope' | 'radial' | 'mirror' | 'wavebars' | 'meter' | 'vectorscope'
   perfVisible: boolean
   /** auto-transition interval in beats for immersive mode: 0 = off */
   autoCycleBeats: 0 | 4 | 8 | 16 | 32
@@ -79,10 +79,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
   toggleCommandPalette: () => set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
   togglePanelsVisible: () => set((s) => {
     const panelsVisible = !s.panelsVisible
-    // Show right panels: also un-minimize the Stream, parameter + EQ mapping
-    // boxes so they are actually visible again after being toggled back on.
+    // Show right panels: also un-minimize the parameter + EQ mapping boxes so
+    // they are actually visible again after being toggled back on.
     const minimizedPanels = panelsVisible
-      ? s.minimizedPanels.filter(id => id !== 'params' && id !== 'eq' && id !== 'stream')
+      ? s.minimizedPanels.filter(id => id !== 'params' && id !== 'eq')
       : s.minimizedPanels
     return { panelsVisible, minimizedPanels }
   }),

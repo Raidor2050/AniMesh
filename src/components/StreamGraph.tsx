@@ -35,6 +35,8 @@ const PRESETS = [
   { id: 'mirror' as const, label: 'Mirror' },
   { id: 'wavebars' as const, label: 'WaveBars' },
   { id: 'radial' as const, label: 'Radial' },
+  { id: 'meter' as const, label: 'Peak Meter' },
+  { id: 'vectorscope' as const, label: 'Vectorscope' },
 ]
 
 const SPECTRUM_BAR_COUNT = 64
@@ -52,10 +54,10 @@ export function StreamGraph() {
   const togglePanelMinimized = useUIStore(s => s.togglePanelMinimized)
   const immersive = useUIStore(s => s.immersive)
   const bootComplete = useUIStore(s => s.bootComplete)
-  const panelsVisible = useUIStore(s => s.panelsVisible)
 
   const peakHoldRef = useRef<Float32Array>(new Float32Array(SPECTRUM_BAR_COUNT))
   const peakDecayRef = useRef<Float32Array>(new Float32Array(SPECTRUM_BAR_COUNT))
+  const meterHoldRef = useRef<Float32Array>(new Float32Array(2))
 
   const { isDragging, containerRef, dragProps } = useDraggable({
     initialX: typeof window !== 'undefined' ? window.innerWidth - 252 : 800,
@@ -85,7 +87,13 @@ export function StreamGraph() {
     if (!ctx) { cancelAnimationFrame(animRef.current); return }
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.clearRect(0, 0, W, H)
+    if (streamPreset === 'vectorscope') {
+      // Phosphor-trail fade: keep prior frame and wash it out (WaveCandy-style).
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'
+      ctx.fillRect(0, 0, W, H)
+    } else {
+      ctx.clearRect(0, 0, W, H)
+    }
 
     const snap = audioDataBridge.snapshot
     const t = timestamp * 0.001
@@ -105,6 +113,10 @@ export function StreamGraph() {
       renderWaveBars(ctx, W, H, snap)
     } else if (streamPreset === 'radial') {
       renderRadial(ctx, W, H, snap, timestamp)
+    } else if (streamPreset === 'meter') {
+      renderMeter(ctx, W, H, snap, timestamp)
+    } else if (streamPreset === 'vectorscope') {
+      renderVectorscope(ctx, W, H, snap)
     }
 
     animRef.current = requestAnimationFrame(render)
@@ -475,7 +487,106 @@ export function StreamGraph() {
     }
   }
 
-  const hidden = !bootComplete || immersive || !panelsVisible || isMinimized
+  // WaveCandy-style dual Peak Meter: left/right bars from the waveform halves
+  // on a pseudo-dB scale with a slowly decaying peak-hold tick.
+  function renderMeter(ctx: CanvasRenderingContext2D, W: number, H: number, snap: AudioSnapshot, _timestamp: number) {
+    const len = snap.waveform.length
+    const half = Math.floor(len / 2)
+    let lsum = 0
+    let rsum = 0
+    for (let i = 0; i < half; i++) {
+      const a = snap.waveform[i]
+      lsum += a * a
+    }
+    for (let i = half; i < len; i++) {
+      const a = snap.waveform[i]
+      rsum += a * a
+    }
+    const l = Math.sqrt(lsum / half)
+    const r = Math.sqrt(rsum / (len - half))
+
+    const usableH = H - PAD_TOP - PAD_BOT
+    const baseline = H - PAD_BOT
+    // pseudo-dB curve: below ~-50dB read as ~0, -6dB sits ~96%
+    const curve = (v: number) => {
+      const db = 20 * Math.log10(Math.max(v, 1e-4))
+      return Math.max(0, Math.min(1, (db + 50) / 44))
+    }
+
+    const holds = meterHoldRef.current
+    const decay = 0.5 + snap.beatIntensity * 0.4
+    holds[0] = Math.max(l, holds[0] * (1 - 0.06 * decay))
+    holds[1] = Math.max(r, holds[1] * (1 - 0.06 * decay))
+
+    const barW = Math.min(W * 0.12, 44)
+    const gap = barW * 0.5
+    const startX = (W - barW * 2 - gap) / 2
+    const drawBar = (x: number, level: number, hold: number, color: string) => {
+      const h = Math.max(curve(level) * usableH * 0.92, 2)
+      const holdY = baseline - Math.max(curve(hold) * usableH * 0.92, 2)
+      const grad = ctx.createLinearGradient(0, baseline, 0, PAD_TOP)
+      grad.addColorStop(0, color.replace('0.9', '0.25'))
+      grad.addColorStop(1, color)
+      ctx.fillStyle = grad
+      ctx.fillRect(x, baseline - h, barW, h)
+      // Peak-hold tick
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(x - 1, holdY, barW + 2, 1.5)
+    }
+
+    drawBar(startX, l, holds[0], 'rgba(99,102,241,0.9)')
+    drawBar(startX + barW + gap, r, holds[1], 'rgba(139,92,246,0.9)')
+
+    // dB gridlines at -24, -12, -6 (bottom -> top)
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'
+    ctx.lineWidth = 1
+    for (const db of [-24, -12, -6]) {
+      const v = 10 ** (db / 20)
+      const y = baseline - curve(v) * usableH * 0.92
+      ctx.beginPath()
+      ctx.moveTo(6, y)
+      ctx.lineTo(W - 6, y)
+      ctx.stroke()
+    }
+  }
+
+  // WaveCandy-style Vectorscope: Lissajous of the waveform against its 90°
+  // phase-shifted self (mono source). Rendered with a phosphor trail that the
+  // loop fades instead of clearing.
+  function renderVectorscope(ctx: CanvasRenderingContext2D, W: number, H: number, snap: AudioSnapshot) {
+    const waveform = snap.waveform
+    const len = waveform.length
+    const cx = W / 2
+    const cy = H / 2
+    const scale = Math.min(W, H) * 0.46
+    const shift = Math.floor(len * 0.25)
+    const step = Math.max(1, Math.floor(len / 256))
+
+    ctx.lineWidth = 1.4
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    let first = true
+    for (let i = 0; i < len; i += step) {
+      const x = cx + waveform[i] * scale
+      const y = cy + waveform[(i + shift) % len] * scale
+      if (first) { ctx.moveTo(x, y); first = false } else ctx.lineTo(x, y)
+    }
+    ctx.strokeStyle = 'rgba(99,102,241,0.85)'
+    ctx.shadowColor = 'rgba(139,92,246,0.6)'
+    ctx.shadowBlur = 8
+    ctx.stroke()
+    ctx.shadowBlur = 0
+
+    // Center crosshair
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy)
+    ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10)
+    ctx.stroke()
+  }
+
+  const hidden = !bootComplete || immersive || isMinimized
 
   useEffect(() => {
     if (hidden) return
@@ -529,35 +640,31 @@ export function StreamGraph() {
             boxShadow: sourceType !== 'none' ? `0 0 6px ${colors.state.success}` : 'none',
             flexShrink: 0,
           }} />
-          <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            {PRESETS.map(p => (
-              <button
-                key={p.id}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setStreamPreset(p.id)
-                }}
-                style={{
-                  padding: '2px 6px',
-                  background: streamPreset === p.id ? colors.accent.subtle : 'transparent',
-                  border: `1px solid ${streamPreset === p.id ? 'rgba(99,102,241,0.3)' : 'transparent'}`,
-                  borderRadius: radii.xs,
-                  color: streamPreset === p.id ? colors.accent.hover : colors.text.disabled,
-                  fontFamily: typography.families.mono,
-                  fontSize: 8,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.1s ease',
-                  whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={e => {
-                  if (streamPreset !== p.id) e.currentTarget.style.color = colors.text.secondary
-                }}
-                onMouseLeave={e => {
-                  if (streamPreset !== p.id) e.currentTarget.style.color = colors.text.disabled
-                }}
-              >{p.label}</button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <select
+              value={streamPreset}
+              onChange={(e) => { e.stopPropagation(); setStreamPreset(e.target.value as typeof streamPreset) }}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Stream view"
+              title="Stream view"
+              style={{
+                background: colors.surface.primary,
+                border: `1px solid ${colors.surface.secondary}`,
+                borderRadius: radii.xs,
+                color: colors.text.secondary,
+                fontFamily: typography.families.mono,
+                fontSize: 9,
+                padding: '3px 6px',
+                cursor: 'pointer',
+                outline: 'none',
+                maxWidth: 116,
+                flexShrink: 1,
+              }}
+            >
+              {PRESETS.map(p => (
+                <option key={p.id} value={p.id}>{p.label}</option>
+              ))}
+            </select>
           </div>
         </div>
         <button
