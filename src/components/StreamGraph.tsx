@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
 import { audioDataBridge, useAudioStore, useUIStore } from '../state/stores'
 import { AudioSnapshot } from '../utils/types'
 import { colors, radii, typography, spacing } from '../ui/tokens'
@@ -58,6 +58,21 @@ export function StreamGraph() {
   const peakHoldRef = useRef<Float32Array>(new Float32Array(SPECTRUM_BAR_COUNT))
   const peakDecayRef = useRef<Float32Array>(new Float32Array(SPECTRUM_BAR_COUNT))
   const meterHoldRef = useRef<Float32Array>(new Float32Array(2))
+  const viewMenuRef = useRef<HTMLDivElement>(null)
+  const [viewMenuOpen, setViewMenuOpen] = useState(false)
+
+  const currentPreset = PRESETS.find(p => p.id === streamPreset) ?? PRESETS[0]
+
+  // Close the view menu on outside click (panels are draggable — stay put on drag).
+  useEffect(() => {
+    if (!viewMenuOpen) return
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!viewMenuRef.current?.contains(target)) setViewMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [viewMenuOpen])
 
   const { isDragging, containerRef, dragProps } = useDraggable({
     initialX: typeof window !== 'undefined' ? window.innerWidth - 252 : 800,
@@ -640,31 +655,111 @@ export function StreamGraph() {
             boxShadow: sourceType !== 'none' ? `0 0 6px ${colors.state.success}` : 'none',
             flexShrink: 0,
           }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <select
-              value={streamPreset}
-              onChange={(e) => { e.stopPropagation(); setStreamPreset(e.target.value as typeof streamPreset) }}
-              onClick={(e) => e.stopPropagation()}
-              aria-label="Stream view"
-              title="Stream view"
+          <div ref={viewMenuRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setViewMenuOpen(o => !o) }}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label="Select stream view"
+              title="Select stream view"
               style={{
-                background: colors.surface.primary,
-                border: `1px solid ${colors.surface.secondary}`,
+                display: 'flex', alignItems: 'center', gap: 5,
+                maxWidth: 116,
+                padding: '3px 7px',
+                background: viewMenuOpen ? colors.accent.subtle : colors.surface.primary,
+                border: `1px solid ${viewMenuOpen ? 'rgba(99,102,241,0.3)' : colors.surface.secondary}`,
                 borderRadius: radii.xs,
-                color: colors.text.secondary,
-                fontFamily: typography.families.mono,
-                fontSize: 9,
-                padding: '3px 6px',
                 cursor: 'pointer',
                 outline: 'none',
-                maxWidth: 116,
-                flexShrink: 1,
+                transition: 'all 0.12s ease',
               }}
+              onMouseEnter={e => { if (!viewMenuOpen) { e.currentTarget.style.background = colors.surface.hover; e.currentTarget.style.borderColor = colors.borderHover } }}
+              onMouseLeave={e => { if (!viewMenuOpen) { e.currentTarget.style.background = colors.surface.primary; e.currentTarget.style.borderColor = colors.surface.secondary } }}
             >
-              {PRESETS.map(p => (
-                <option key={p.id} value={p.id}>{p.label}</option>
-              ))}
-            </select>
+              <span style={{
+                color: streamPreset !== 'stream' && streamPreset !== 'spectrum' ? '#38BDF8' : colors.accent.hover,
+                fontSize: 8,
+              }}>◈</span>
+              <span style={{
+                color: colors.text.primary,
+                fontFamily: typography.families.mono,
+                fontSize: 9,
+                fontWeight: 600,
+                letterSpacing: '0.01em',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>{currentPreset.label}</span>
+              <span style={{
+                color: colors.text.disabled,
+                fontSize: 7,
+                transition: 'transform 0.15s ease',
+                transform: viewMenuOpen ? 'rotate(180deg)' : 'none',
+              }}>▾</span>
+            </button>
+
+            {viewMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -3, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.12 }}
+                style={{
+                  position: 'absolute', top: 'calc(100% + 4px)', left: 0,
+                  width: 170,
+                  background: colors.surface.panel,
+                  border: `1px solid ${colors.surface.secondary}`,
+                  borderRadius: radii.md,
+                  backdropFilter: 'blur(24px)',
+                  boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+                  overflow: 'hidden',
+                  zIndex: 30,
+                  padding: '3px',
+                }}
+              >
+                {PRESETS.map(p => {
+                  const active = streamPreset === p.id
+                  return (
+                    <button
+                      key={p.id}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setStreamPreset(p.id)
+                        setViewMenuOpen(false)
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex', alignItems: 'center', gap: 7,
+                        padding: '5px 8px',
+                        background: active ? colors.accent.subtle : 'transparent',
+                        border: 'none',
+                        borderRadius: radii.sm,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'background 0.1s ease',
+                      }}
+                      onMouseEnter={e => { if (!active) e.currentTarget.style.background = colors.surface.hover }}
+                      onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <span style={{
+                        width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                        background: active ? colors.accent.hover : colors.text.disabled,
+                        boxShadow: active ? `0 0 6px ${colors.accent.glow}` : 'none',
+                      }} />
+                      <span style={{
+                        flex: 1,
+                        color: active ? colors.text.primary : colors.text.secondary,
+                        fontFamily: typography.families.mono,
+                        fontSize: 10,
+                        fontWeight: active ? 600 : 500,
+                      }}>{p.label}</span>
+                      {active && (
+                        <span style={{ color: colors.accent.hover, fontSize: 9 }}>✓</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </motion.div>
+            )}
           </div>
         </div>
         <button
