@@ -10,10 +10,18 @@ const PANEL_LABELS: Record<string, string> = {
 export function MinimizedBar() {
   const bootComplete = useUIStore(s => s.bootComplete)
   const immersive = useUIStore(s => s.immersive)
+  const panelsVisible = useUIStore(s => s.panelsVisible)
   const minimizedPanels = useUIStore(s => s.minimizedPanels)
   const togglePanelMinimized = useUIStore(s => s.togglePanelMinimized)
 
-  if (!bootComplete || immersive || minimizedPanels.length === 0) return null
+  // While the panels button has hidden the Param/EQ boxes, don't keep their
+  // restore chips around — the boxes only come back through the panels button.
+  // The Audio Stream chip still shows since Stream is independent of the toggle.
+  const visibleChips = panelsVisible
+    ? minimizedPanels
+    : minimizedPanels.filter(id => id !== 'params' && id !== 'eq')
+
+  if (!bootComplete || immersive || visibleChips.length === 0) return null
 
   return (
     <div style={{
@@ -25,7 +33,7 @@ export function MinimizedBar() {
       gap: 6,
       alignItems: 'center',
     }}>
-      {minimizedPanels.map(id => (
+      {visibleChips.map(id => (
         <button
           key={id}
           onClick={() => togglePanelMinimized(id)}

@@ -11,7 +11,13 @@ export function PanelToggleButton() {
 
   return (
     <button
-      onClick={togglePanelsVisible}
+      onClick={(e) => {
+        // Drop focus so the next Space/Enter doesn't re-activate this button
+        // and instantly flip the panels back on after being hidden.
+        e.currentTarget.blur()
+        togglePanelsVisible()
+      }}
+      onMouseDown={(e) => e.preventDefault()}
       aria-label={panelsVisible ? 'Hide right panels' : 'Show right panels'}
       title={panelsVisible ? 'Hide panels (P)' : 'Show panels (P)'}
       style={{
