@@ -86,6 +86,8 @@ export interface AudioSnapshot {
   /** @deprecated alias of beatOn — kept for legacy shader mappings */
   beat: boolean
   beatOn: boolean
+  /** monotonic quarter-note counter (free: detected beats, locked: grid clock) */
+  beatCount: number
   beatPhase: number
   beatIntensity: number
   /** per-band smoothed energies, mirrored into named fields */
@@ -113,7 +115,7 @@ export interface AudioSnapshot {
 
 export const DEFAULT_AUDIO: AudioSnapshot = {
   sub: 0, bass: 0, lowMid: 0, mid: 0, highMid: 0, treble: 0,
-  volume: 0, beat: false, beatOn: false, beatPhase: 0, beatIntensity: 0,
+  volume: 0, beat: false, beatOn: false, beatCount: 0, beatPhase: 0, beatIntensity: 0,
   bands: new Float32Array(6),
   rms: 0, bpm: 128, confidence: 0,
   barPhase: 0, downbeatConfidence: 0, eighthPhase: 0, sixteenthPhase: 0,

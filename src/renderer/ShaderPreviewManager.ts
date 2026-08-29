@@ -16,7 +16,12 @@ void main() {
 const PREVIEW_W = 256
 const PREVIEW_H = 160
 const BATCH_SIZE = 4
-const MAX_CACHE = 512
+const MAX_CACHE = 1200
+// Sample the shader at several time/beat offsets and keep the brightest frame:
+// single-frame captures of audio-gated or dark-phase shaders would otherwise
+// produce black "empty" thumbnails in the library.
+const FRAME_SAMPLES = 6
+const TIME_OFFSETS = [0, 0.18, 0.36, 0.54, 0.72, 0.9]
 
 interface PreviewEntry {
   dataUrl: string
@@ -222,10 +227,9 @@ class ShaderPreviewManagerSingleton {
     gl.bindVertexArray(this.vao)
     gl.viewport(0, 0, PREVIEW_W, PREVIEW_H)
     gl.clearColor(0, 0, 0, 1)
-    gl.clear(gl.COLOR_BUFFER_BIT)
     gl.useProgram(program)
 
-    const time = (Date.now() - this.startTime) / 1000
+    const base = (Date.now() - this.startTime) / 1000
     const set = (name: string, ...values: number[]) => {
       const loc = this.currentUniforms.get(name)
       if (!loc) return
@@ -235,15 +239,12 @@ class ShaderPreviewManagerSingleton {
       else if (values.length === 4) gl.uniform4f(loc, values[0], values[1], values[2], values[3])
     }
 
-    set('uTime', time)
     set('uResolution', PREVIEW_W, PREVIEW_H)
     set('uMouse', 0.5, 0.5)
     set('uBass', 0.3)
     set('uMid', 0.25)
     set('uTreble', 0.15)
     set('uVolume', 0.25)
-    set('uBeat', 0.2)
-    set('uBeatPhase', 0)
     set('uBPM', 128)
     set('uSub', 0.3)
     set('uLowMid', 0.2)
@@ -264,6 +265,35 @@ class ShaderPreviewManagerSingleton {
       set(key, value)
     }
 
+    const readLuma = (): number => {
+      const px = new Uint8Array(PREVIEW_W * PREVIEW_H * 4)
+      gl.readPixels(0, 0, PREVIEW_W, PREVIEW_H, gl.RGBA, gl.UNSIGNED_BYTE, px)
+      let acc = 0
+      for (let i = 0; i < px.length; i += 4) {
+        acc += 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]
+      }
+      return acc / (px.length / 4)
+    }
+
+    // Sweep time + beat phase, keeping the brightest frame as the thumbnail.
+    let bestIdx = 0
+    let bestLuma = -1
+    for (let i = 0; i < FRAME_SAMPLES; i++) {
+      set('uTime', base + TIME_OFFSETS[i])
+      set('uBeatPhase', TIME_OFFSETS[i] % 1)
+      set('uBeat', i >= 3 ? 0.85 : 0.12)
+      gl.clear(gl.COLOR_BUFFER_BIT)
+      gl.drawArrays(gl.TRIANGLES, 0, 6)
+      const luma = readLuma()
+      if (luma > bestLuma) {
+        bestLuma = luma
+        bestIdx = i
+      }
+    }
+    set('uTime', base + TIME_OFFSETS[bestIdx])
+    set('uBeatPhase', TIME_OFFSETS[bestIdx] % 1)
+    set('uBeat', bestIdx >= 3 ? 0.85 : 0.12)
+    gl.clear(gl.COLOR_BUFFER_BIT)
     gl.drawArrays(gl.TRIANGLES, 0, 6)
     gl.bindVertexArray(null)
 

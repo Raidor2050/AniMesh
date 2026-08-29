@@ -787,6 +787,7 @@ export class AudioEngine {
     }
 
     this.snapshot.beatPhase = this.beatPhaseAcc
+    this.snapshot.beatCount = this.engineMode === 'locked' ? Math.floor(this.clockBeats) : this.beatCount
     this.snapshot.barPhase = this.grid.barPhase
     this.snapshot.eighthPhase = this.grid.eighthPhase
     this.snapshot.sixteenthPhase = this.grid.sixteenthPhase

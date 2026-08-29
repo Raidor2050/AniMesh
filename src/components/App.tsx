@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useUIStore, useShaderStore } from '../state/stores'
+import { useUIStore, useShaderStore, useAudioStore } from '../state/stores'
 import { BootSequence } from './BootSequence'
 import { CanvasLayer } from './CanvasLayer'
 import { SvgObjectLayer } from './SvgObjectLayer'
@@ -54,14 +54,10 @@ export function App() {
         useShaderStore.getState().undo()
         if (had) announce('Undo applied')
       }
-      // Immersive-only shortcuts: Space + arrows shuffle across the FULL visual
-      // library (shaders AND SVG pattern objects — Phase-25).
+      // Immersive-only shortcuts: arrows shuffle across the FULL visual library
+      // (shaders AND SVG pattern objects — Phase-25). Space is handled globally
+      // below so it also works in normal mode.
       if (store.immersive && !isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        if (e.code === 'Space') {
-          e.preventDefault()
-          randomVisual()
-          return
-        }
         if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
           e.preventDefault()
           cycleVisual(1)
@@ -75,6 +71,17 @@ export function App() {
       }
       // Global shortcuts (not in input fields)
       if (!isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        // Space: shuffle across shaders AND SVG objects — works in normal and
+        // immersive modes (crossfade handled by the renderer transition queue).
+        if (e.code === 'Space') {
+          if (useAudioStore.getState().bpmMode === 'tap') {
+            // Space is reserved for BPM tapping when tap mode is active.
+            return
+          }
+          e.preventDefault()
+          randomVisual()
+          return
+        }
         if (e.key === '?') store.toggleBrowser()
         if (e.key === 'c') store.toggleCarousel()
         if (e.key === 'n') store.toggleCreator()

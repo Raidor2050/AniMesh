@@ -38,7 +38,10 @@ interface UIStore {
   minimizedPanels: string[]
   streamPreset: 'stream' | 'spectrum' | 'bars' | 'oscilloscope'
   perfVisible: boolean
+  /** auto-transition interval in beats for immersive mode: 0 = off */
+  autoCycleBeats: 0 | 4 | 16 | 32
   setBootComplete: (v: boolean) => void
+  setAutoCycleBeats: (beats: 0 | 4 | 16 | 32) => void
   toggleImmersive: () => void
   toggleBrowser: () => void
   toggleCarousel: () => void
@@ -70,13 +73,23 @@ export const useUIStore = create<UIStore>((set, get) => ({
   minimizedPanels: [],
   streamPreset: 'stream',
   perfVisible: false,
+  autoCycleBeats: 16,
   setBootComplete: (v) => set({ bootComplete: v }),
+  setAutoCycleBeats: (autoCycleBeats) => set({ autoCycleBeats }),
   toggleImmersive: () => set((s) => ({ immersive: !s.immersive, browserOpen: false, carouselOpen: false, creatorOpen: false, commandPaletteOpen: false })),
   toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, carouselOpen: false, creatorOpen: false, panelTab: s.browserOpen ? null : 'browser' })),
   toggleCarousel: () => set((s) => ({ carouselOpen: !s.carouselOpen, browserOpen: false, creatorOpen: false, panelTab: null })),
   toggleCreator: () => set((s) => ({ creatorOpen: !s.creatorOpen, browserOpen: false, carouselOpen: false, panelTab: s.creatorOpen ? null : 'creator' })),
   toggleCommandPalette: () => set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
-  togglePanelsVisible: () => set((s) => ({ panelsVisible: !s.panelsVisible })),
+  togglePanelsVisible: () => set((s) => {
+    const panelsVisible = !s.panelsVisible
+    // Show right panels: also un-minimize the parameter + EQ mapping boxes so
+    // they are actually visible again after being toggled back on.
+    const minimizedPanels = panelsVisible
+      ? s.minimizedPanels.filter(id => id !== 'params' && id !== 'eq')
+      : s.minimizedPanels
+    return { panelsVisible, minimizedPanels }
+  }),
   setPanelTab: (tab) => set({ panelTab: tab }),
   setReducedMotion: (v) => set({ reducedMotion: v }),
   togglePanelMinimized: (id) => set((s) => {

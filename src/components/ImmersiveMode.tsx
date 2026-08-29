@@ -46,9 +46,12 @@ function IconButton({ label, glyph, onClick, ariaLabel }: {
 export function ImmersiveMode() {
   const immersive = useUIStore(s => s.immersive)
   const toggleImmersive = useUIStore(s => s.toggleImmersive)
+  const autoCycleBeats = useUIStore(s => s.autoCycleBeats)
+  const setAutoCycleBeats = useUIStore(s => s.setAutoCycleBeats)
   const activeVisual = useShaderStore(s => s.activeVisual)
   const [showHUD, setShowHUD] = useState(false)
   const [shaderFlash, setShaderFlash] = useState(false)
+  const [beatCountdown, setBeatCountdown] = useState<number | null>(null)
   const hideTimerRef = useRef<number | null>(null)
   const prevShaderRef = useRef<string | null>(null)
 
@@ -98,7 +101,7 @@ export function ImmersiveMode() {
     }
   }, [immersive])
 
-  // Flash when the visual changes (spacebar, arrows, RANDOM, etc.)
+  // Flash when the visual changes (spacebar, arrows, RANDOM, auto-cycle, etc.)
   useEffect(() => {
     if (!immersive) return
     const id = activeVisual?.id
@@ -111,6 +114,31 @@ export function ImmersiveMode() {
     }
     prevShaderRef.current = id ?? null
   }, [activeVisual?.id, immersive])
+
+  // Auto-transition (D07): cycle randomVisual on every Nth beat while in
+  // immersive mode. Watches audioDataBridge.snapshot.beatCount (monotonic in
+  // both free and locked engine modes) via rAF — ref-driven, never React state.
+  const autoBeatRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!immersive || autoCycleBeats === 0) {
+      setBeatCountdown(null)
+      autoBeatRef.current = null
+      return
+    }
+    if (autoBeatRef.current === null) autoBeatRef.current = audioDataBridge.snapshot.beatCount
+    let raf = 0
+    const loop = () => {
+      const b = audioDataBridge.snapshot.beatCount
+      if (b !== autoBeatRef.current) {
+        autoBeatRef.current = b
+        setBeatCountdown(autoCycleBeats - (b % autoCycleBeats))
+        if (b > 0 && b % autoCycleBeats === 0) randomVisual()
+      }
+      raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => { cancelAnimationFrame(raf); autoBeatRef.current = null }
+  }, [immersive, autoCycleBeats])
 
   if (!immersive) return null
 
@@ -215,6 +243,45 @@ export function ImmersiveMode() {
         <IconButton label="PREV" glyph="‹" ariaLabel="Previous visual" onClick={() => cycleVisual(-1)} />
         <IconButton label="RANDOM" glyph="∴" ariaLabel="Random visual" onClick={randomVisual} />
         <IconButton label="NEXT" glyph="›" ariaLabel="Next visual" onClick={() => cycleVisual(1)} />
+        {/* Auto-transition control: cycles effort 4 -> 16 -> 32 -> OFF */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => setAutoCycleBeats(autoCycleBeats === 0 ? 4 : autoCycleBeats === 4 ? 16 : autoCycleBeats === 16 ? 32 : 0)}
+            aria-label={`Auto transition every ${autoCycleBeats === 0 ? 'off' : autoCycleBeats + ' beats'}`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              minHeight: 44, padding: '0 14px',
+              background: autoCycleBeats !== 0 ? 'rgba(99,102,241,0.25)' : 'rgba(0,0,0,0.45)',
+              border: autoCycleBeats !== 0 ? '1px solid rgba(99,102,241,0.55)' : '1px solid rgba(255,255,255,0.12)',
+              borderRadius: radii.md,
+              color: colors.text.primary,
+              fontFamily: typography.families.mono,
+              fontSize: 12, fontWeight: 600, letterSpacing: '0.02em',
+              cursor: 'pointer',
+              backdropFilter: 'blur(12px)',
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
+              transition: 'background 0.15s ease, border-color 0.15s ease, transform 0.1s ease',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.4)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = autoCycleBeats !== 0 ? 'rgba(99,102,241,0.25)' : 'rgba(0,0,0,0.45)' }}
+            onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.96)' }}
+            onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
+          >
+            <span style={{ fontSize: 16, lineHeight: 1 }}>⟳</span>
+            <span>AUTO {autoCycleBeats === 0 ? 'OFF' : `${autoCycleBeats}▸`}</span>
+          </button>
+          {autoCycleBeats !== 0 && beatCountdown !== null && (
+            <span style={{
+              fontFamily: typography.families.mono,
+              fontSize: 11, fontWeight: 500, letterSpacing: '0.06em',
+              color: beatCountdown <= 1 ? colors.accent.glow : colors.text.disabled,
+            }}>
+              next {Math.max(beatCountdown, 1)}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
