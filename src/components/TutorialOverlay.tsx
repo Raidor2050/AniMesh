@@ -63,7 +63,7 @@ const STEPS: TutorialStep[] = [
     title: 'Welcome to AniMesh',
     kicker: 'You are in control',
     blurb:
-      'Every control has a button, a keyboard shortcut, or both. This quick guide highlights where everything lives, one piece at a time — like a game’s controller map.',
+      'Every control has a button, a keyboard shortcut, or both. This quick guide highlights where everything lives, one piece at a time.',
     keys: ['Space', 'F', 'Esc'],
     accent: '#818CF8',
   },
@@ -72,7 +72,7 @@ const STEPS: TutorialStep[] = [
     title: 'Connect Audio',
     kicker: 'The visual engine needs a signal',
     blurb:
-      'Tap “Connect Audio Source” in the bottom-right to feed the visuals — pick Demo (synthetic), Mic, System audio, or a File. Nothing plays until a source is connected.',
+      'Tap “Connect Audio Source” in the bottom-right to feed the visuals. Pick Demo (synthetic), Mic, System audio, or a File. Nothing plays until a source is connected.',
     keys: ['D'],
     accent: '#22C55E',
     hotspot: connectAudio,
@@ -112,7 +112,7 @@ const STEPS: TutorialStep[] = [
     title: 'The Audio Stream Box',
     kicker: 'See the signal',
     blurb:
-      'The top-right box visualizes the raw signal in 9 views picked from its dropdown — waveform streams, spectrums, bars, a peak meter and a vectorscope.',
+      'The top-right box visualizes the raw signal in 9 views picked from its dropdown, including waveform streams, spectrums, bars, a peak meter and a vectorscope.',
     keys: [],
     accent: '#06B6D4',
     hotspot: streamBox,
@@ -142,7 +142,7 @@ const STEPS: TutorialStep[] = [
     title: 'Every Shortcut',
     kicker: 'Reference card',
     blurb:
-      'A cheat-sheet for all the hotkeys. Dare to go keyboard-only — everything is reachable.',
+      'A cheat-sheet for all the hotkeys. Dare to go keyboard-only; everything is reachable.',
     keys: ['?'],
     accent: '#CBD5E1',
   },
