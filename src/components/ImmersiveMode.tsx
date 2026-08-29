@@ -49,11 +49,9 @@ export function ImmersiveMode() {
   const setAutoCycleBeats = useUIStore(s => s.setAutoCycleBeats)
   const activeVisual = useShaderStore(s => s.activeVisual)
   const [showHUD, setShowHUD] = useState(false)
-  const [shaderFlash, setShaderFlash] = useState(false)
   const [beatCountdown, setBeatCountdown] = useState<number | null>(null)
   const [navVisible, setNavVisible] = useState(true)
   const hideTimerRef = useRef<number | null>(null)
-  const prevShaderRef = useRef<string | null>(null)
 
   const revealHUD = () => {
     setShowHUD(true)
@@ -61,25 +59,19 @@ export function ImmersiveMode() {
     hideTimerRef.current = window.setTimeout(() => setShowHUD(false), HUD_HIDE_DELAY)
   }
 
-  // Show HUD near edges + cursor auto-hide (2s idle)
+  // HUD appears only when the user moves the mouse (or touches), then
+  // auto-hides after HUD_HIDE_DELAY. Cursor itself hides after 2s idle.
   useEffect(() => {
     if (!immersive) return
 
     let cursorTimer: ReturnType<typeof setTimeout> | null = null
     document.body.style.cursor = 'default'
 
-    const handlePointerMove = (e: MouseEvent) => {
-      const threshold = 80
-      const near =
-        e.clientX < threshold ||
-        e.clientX > window.innerWidth - threshold ||
-        e.clientY < threshold ||
-        e.clientY > window.innerHeight - threshold
-
+    const handlePointerMove = () => {
       document.body.style.cursor = 'default'
       if (cursorTimer) clearTimeout(cursorTimer)
 
-      if (near) revealHUD()
+      revealHUD()
 
       // Auto-hide cursor after 2s idle (anywhere on screen)
       cursorTimer = setTimeout(() => {
@@ -87,7 +79,7 @@ export function ImmersiveMode() {
       }, 2000)
     }
 
-    // Touch support: tap or touch near an edge reveals the HUD
+    // Touch support: tap or touch reveals the HUD
     const handleTouchStart = () => revealHUD()
 
     window.addEventListener('mousemove', handlePointerMove)
@@ -100,20 +92,6 @@ export function ImmersiveMode() {
       document.body.style.cursor = 'default'
     }
   }, [immersive])
-
-  // Flash when the visual changes (spacebar, arrows, RANDOM, auto-cycle, etc.)
-  useEffect(() => {
-    if (!immersive) return
-    const id = activeVisual?.id
-    if (id && prevShaderRef.current && id !== prevShaderRef.current) {
-      setShaderFlash(true)
-      // Show HUD briefly on visual change
-      setShowHUD(true)
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
-      hideTimerRef.current = window.setTimeout(() => { setShowHUD(false); setShaderFlash(false) }, 1200)
-    }
-    prevShaderRef.current = id ?? null
-  }, [activeVisual?.id, immersive])
 
   // Auto-transition (D07): cycle randomVisual on every Nth beat while in
   // immersive mode. Watches audioDataBridge.snapshot.beatCount (monotonic in
@@ -202,41 +180,6 @@ export function ImmersiveMode() {
             ariaLabel="Exit immersive mode"
             onClick={toggleImmersive}
           />
-        </div>
-      </div>
-
-      {/* Top-center: visual name flash on change — flex-centered (no transform),
-          fades out after a moment so the name lives at the top, not mid-screen */}
-      <div style={{
-        position: 'absolute', top: 64, left: 0, right: 0,
-        display: 'flex', justifyContent: 'center',
-        pointerEvents: 'none',
-        opacity: shaderFlash ? 1 : 0,
-        transition: 'opacity 0.35s ease',
-      }}>
-        <div style={{
-          display: 'inline-flex', alignItems: 'center',
-          padding: '8px 20px',
-          background: 'rgba(0,0,0,0.55)',
-          border: `1px solid rgba(255,255,255,0.08)`,
-          borderRadius: 8,
-          backdropFilter: 'blur(16px)',
-        }}>
-          <span style={{
-            fontFamily: typography.families.mono,
-            fontSize: 14, fontWeight: 600,
-            color: colors.text.primary,
-            letterSpacing: '-0.02em',
-            whiteSpace: 'nowrap',
-          }}>{activeVisual?.name}</span>
-          {activeVisual && (
-            <span style={{
-              display: 'inline-flex', marginLeft: 10,
-              fontFamily: typography.families.mono,
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
-              color: activeVisual.kind === 'svg' ? '#34d399' : '#6366F1',
-            }}>{activeVisual.kind === 'svg' ? 'SVG' : 'GL'}</span>
-          )}
         </div>
       </div>
 
