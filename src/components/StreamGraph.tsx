@@ -52,6 +52,7 @@ export function StreamGraph() {
   const togglePanelMinimized = useUIStore(s => s.togglePanelMinimized)
   const immersive = useUIStore(s => s.immersive)
   const bootComplete = useUIStore(s => s.bootComplete)
+  const panelsVisible = useUIStore(s => s.panelsVisible)
 
   const peakHoldRef = useRef<Float32Array>(new Float32Array(SPECTRUM_BAR_COUNT))
   const peakDecayRef = useRef<Float32Array>(new Float32Array(SPECTRUM_BAR_COUNT))
@@ -474,7 +475,7 @@ export function StreamGraph() {
     }
   }
 
-  const hidden = !bootComplete || immersive || isMinimized
+  const hidden = !bootComplete || immersive || !panelsVisible || isMinimized
 
   useEffect(() => {
     if (hidden) return
