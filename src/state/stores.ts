@@ -161,10 +161,11 @@ export const useShaderStore = create<ShaderStore>((set) => ({
     safeSetItem('animesh-recent', JSON.stringify(newRecent))
     announce(`Switched to ${visual.name}`)
     const prevShaderId = s.activeVisual?.kind === 'shader' ? s.activeVisual.id : (s.activeShader?.id ?? '')
+    const isShader = visual.kind !== 'svg'
     return {
       activeVisual: visual,
-      activeShader: visual.kind === 'shader' ? visual : null,
-      params: { ...visual.defaults },
+      activeShader: isShader ? visual : s.activeShader,
+      params: isShader ? { ...visual.defaults } : s.params,
       recent: newRecent,
       history: pushEntry(s.history, { shaderId: prevShaderId, params: { ...s.params } }),
     }

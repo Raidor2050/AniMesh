@@ -20,6 +20,7 @@ export function TopBar() {
   const toggleImmersive = useUIStore(s => s.toggleImmersive)
   const toggleTutorial = useUIStore(s => s.toggleTutorial)
   const activeShader = useShaderStore(s => s.activeShader)
+  const activeVisual = useShaderStore(s => s.activeVisual)
   const sourceType = useAudioStore(s => s.sourceType)
   const setSourceType = useAudioStore(s => s.setSourceType)
   const [fps, setFps] = useState(0)
@@ -163,7 +164,27 @@ export function TopBar() {
               fontWeight: 500,
               color: colors.text.secondary,
             }}>
-              {activeShader.name}
+              {activeVisual?.kind === 'svg' ? (
+                <>
+                  <span style={{
+                    fontFamily: typography.families.mono,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    color: '#C4B5FD',
+                    border: '1px solid rgba(139,92,246,0.4)',
+                    background: 'rgba(139,92,246,0.12)',
+                    borderRadius: radii.sm,
+                    padding: '1px 5px',
+                    marginRight: 6,
+                  }}>
+                    OBJ
+                  </span>
+                  {activeVisual.name}
+                </>
+              ) : (
+                activeShader.name
+              )}
             </span>
           </>
         )}
