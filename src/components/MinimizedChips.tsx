@@ -1,49 +1,49 @@
 import { useUIStore } from '../state/stores'
 import { colors, typography, radii } from '../ui/tokens'
 
-const PANEL_LABELS: Record<string, string> = {
-  params: 'Parameters',
-  eq: 'EQ Mapping',
-  stream: 'Audio Stream',
+const PANEL_CHIPS: Record<string, { glyph: string; label: string }> = {
+  params: { glyph: '⚙', label: 'Parameters' },
+  eq: { glyph: '◮', label: 'EQ Mapping' },
+  stream: { glyph: '◉', label: 'Stream' },
 }
 
-export function MinimizedBar() {
-  const bootComplete = useUIStore(s => s.bootComplete)
+/** Restore chips for individually-minimized boxes, docked with the
+ *  Connect-Audio cluster in the bottom-right corner. Param/EQ chips hide
+ *  while the panels button has stowed those boxes; Stream is independent. */
+export function MinimizedChips() {
   const immersive = useUIStore(s => s.immersive)
   const panelsVisible = useUIStore(s => s.panelsVisible)
   const minimizedPanels = useUIStore(s => s.minimizedPanels)
   const togglePanelMinimized = useUIStore(s => s.togglePanelMinimized)
 
-  // While the panels button has hidden the Param/EQ boxes, don't keep their
-  // restore chips around — the boxes only come back through the panels button.
-  // The Audio Stream chip still shows since Stream is independent of the toggle.
-  const visibleChips = panelsVisible
-    ? minimizedPanels
-    : minimizedPanels.filter(id => id !== 'params' && id !== 'eq')
+  if (immersive) return null
 
-  if (!bootComplete || immersive || visibleChips.length === 0) return null
+  const chips = (panelsVisible ? minimizedPanels : minimizedPanels.filter(id => id !== 'params' && id !== 'eq'))
+    .filter(id => PANEL_CHIPS[id])
+
+  if (chips.length === 0) return null
 
   return (
     <div style={{
-      position: 'absolute',
-      top: 56,
-      right: 12,
-      zIndex: 30,
       display: 'flex',
+      justifyContent: 'flex-end',
+      flexWrap: 'wrap',
       gap: 6,
-      alignItems: 'center',
+      marginBottom: 8,
+      pointerEvents: 'auto',
     }}>
-      {visibleChips.map(id => (
+      {chips.map(id => (
         <button
           key={id}
           onClick={() => togglePanelMinimized(id)}
-          title={`Restore ${PANEL_LABELS[id] ?? id}`}
+          title={`Restore ${PANEL_CHIPS[id].label}`}
           style={{
+            display: 'flex', alignItems: 'center', gap: 5,
             height: 24,
-            padding: '0 10px',
+            padding: '0 10px 0 8px',
             background: 'rgba(99,102,241,0.12)',
             border: '1px solid rgba(99,102,241,0.25)',
-            borderRadius: radii.sm,
+            borderRadius: radii.full,
             color: colors.accent.hover,
             fontSize: 9,
             fontFamily: typography.families.mono,
@@ -64,7 +64,8 @@ export function MinimizedBar() {
             e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)'
           }}
         >
-          ▸ {PANEL_LABELS[id] ?? id}
+          <span style={{ fontSize: 10, lineHeight: 1 }}>{PANEL_CHIPS[id].glyph}</span>
+          <span>{PANEL_CHIPS[id].label}</span>
         </button>
       ))}
     </div>

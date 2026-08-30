@@ -13,7 +13,6 @@ import { ParameterPanel } from './ParameterPanel'
 import { EQMappingPanel } from './EQMappingPanel'
 import { PanelToggleButton } from './PanelToggleButton'
 import { ImmersiveMode } from './ImmersiveMode'
-import { MinimizedBar } from './MinimizedBar'
 import { LeftToolbar } from './LeftToolbar'
 import { MacroBar } from './MacroBar'
 import { A11yAnnouncer } from './A11yAnnouncer'
@@ -139,7 +138,6 @@ export function App() {
         {bootComplete && !immersive && <EQMappingPanel />}
         {bootComplete && !immersive && <MacroBar />}
         {bootComplete && !immersive && <PanelToggleButton />}
-        {bootComplete && <MinimizedBar />}
         {bootComplete && <AudioInitBar />}
         {bootComplete && creatorOpen && !immersive && <ShaderCreator />}
         {commandPaletteOpen && <CommandPalette />}

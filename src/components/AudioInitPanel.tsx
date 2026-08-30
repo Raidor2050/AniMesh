@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import { connectAudio } from '../audio/audioSingleton'
 import type { AudioSourceType } from '../audio/AudioEngine'
 import { useAudioStore } from '../state/stores'
+import { MinimizedChips } from './MinimizedChips'
 import { colors, typography, spacing, radii } from '../ui/tokens'
 
 export function AudioInitBar() {
@@ -96,6 +97,7 @@ export function AudioInitBar() {
   if (!show && sourceType !== 'none') {
     return (
       <div style={cornerDock}>
+        <MinimizedChips />
         <motion.button
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -143,6 +145,7 @@ export function AudioInitBar() {
   if (!show && sourceType === 'none') {
     return (
       <div style={cornerDock}>
+        <MinimizedChips />
         <motion.button
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -197,6 +200,7 @@ export function AudioInitBar() {
 
   return (
     <div style={cornerDock}>
+    <MinimizedChips />
     <motion.div
       initial={{ opacity: 0, y: 12, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
