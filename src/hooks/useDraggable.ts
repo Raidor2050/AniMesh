@@ -12,7 +12,7 @@ interface DraggableOptions {
 export function useDraggable(options: DraggableOptions = {}) {
   const { initialX = 100, initialY = 100, handleSelector, bounds, onDragEnd, dragThreshold = 4 } = options
 
-  const [position] = useState({ x: initialX, y: initialY })
+  const [position, setPositionState] = useState({ x: initialX, y: initialY })
   const [isDragging, setIsDragging] = useState(false)
 
   const liveRef = useRef({
@@ -118,9 +118,22 @@ export function useDraggable(options: DraggableOptions = {}) {
     setIsDragging(false)
   }, [])
 
+  // Move the panel programmatically (used by resize handles on west/north
+  // edges so the opposite edge stays anchored). Keeps the live ref in sync.
+  const setPosition = useCallback((x: number, y: number) => {
+    liveRef.current.x = x
+    liveRef.current.y = y
+    setPositionState({ x, y })
+    if (liveRef.current.el) {
+      liveRef.current.el.style.left = `${x}px`
+      liveRef.current.el.style.top = `${y}px`
+    }
+  }, [])
+
   return {
     position,
     isDragging,
+    setPosition,
     containerRef,
     dragProps: {
       onPointerDown: handlePointerDown,

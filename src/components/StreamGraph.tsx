@@ -27,6 +27,12 @@ const BAND_COUNT = 6
 const PAD_TOP = 12
 const PAD_BOT = 12
 
+const STREAM_MIN_W = 240
+const STREAM_MIN_H = 360
+const RESIZE_MIN_W = 160
+const RESIZE_MIN_H = 120
+const HANDLE = 10
+
 const PRESETS = [
   { id: 'stream' as const, label: 'Stream' },
   { id: 'spectrum' as const, label: 'Spectrum' },
@@ -59,7 +65,23 @@ export function StreamGraph() {
   const peakDecayRef = useRef<Float32Array>(new Float32Array(SPECTRUM_BAR_COUNT))
   const meterHoldRef = useRef<Float32Array>(new Float32Array(2))
   const viewMenuRef = useRef<HTMLDivElement>(null)
+  const rootElemRef = useRef<HTMLDivElement | null>(null)
+  const sizeRef = useRef({ w: STREAM_MIN_W, h: STREAM_MIN_H })
+  const resizeStartRef = useRef<{
+    dir: string
+    startX: number
+    startY: number
+    startW: number
+    startH: number
+    startLeft: number
+    startTop: number
+  } | null>(null)
   const [viewMenuOpen, setViewMenuOpen] = useState(false)
+  const [size, setSize] = useState({ w: STREAM_MIN_W, h: STREAM_MIN_H })
+
+  useEffect(() => {
+    sizeRef.current = size
+  }, [size])
 
   const currentPreset = PRESETS.find(p => p.id === streamPreset) ?? PRESETS[0]
 
@@ -74,11 +96,84 @@ export function StreamGraph() {
     return () => document.removeEventListener('mousedown', handler)
   }, [viewMenuOpen])
 
-  const { isDragging, containerRef, dragProps } = useDraggable({
+  const { isDragging, containerRef, dragProps, setPosition } = useDraggable({
     initialX: typeof window !== 'undefined' ? window.innerWidth - 252 : 800,
     initialY: 52,
     bounds: { left: 0, top: 48, right: 0, bottom: 0 },
   })
+
+  // Single ref used by both the drag hook and local resize handling.
+  const rootRef = useCallback((node: HTMLDivElement | null) => {
+    containerRef(node)
+    rootElemRef.current = node
+  }, [containerRef])
+
+  const startResize = (dir: string) => (e: React.PointerEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const el = rootElemRef.current
+    if (!el) return
+    el.setPointerCapture(e.pointerId)
+    resizeStartRef.current = {
+      dir,
+      startX: e.clientX,
+      startY: e.clientY,
+      startW: sizeRef.current.w,
+      startH: sizeRef.current.h,
+      startLeft: parseFloat(el.style.left) || 0,
+      startTop: parseFloat(el.style.top) || 0,
+    }
+  }
+
+  const moveResize = (e: React.PointerEvent) => {
+    const r = resizeStartRef.current
+    if (!r) return
+    const dx = e.clientX - r.startX
+    const dy = e.clientY - r.startY
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+
+    let w = r.startW
+    let h = r.startH
+    let left = r.startLeft
+    let top = r.startTop
+
+    if (r.dir.includes('w')) {
+      const maxW = Math.max(RESIZE_MIN_W, vw - r.startLeft)
+      w = Math.min(Math.max(r.startW - dx, RESIZE_MIN_W), maxW)
+      left = r.startLeft + (r.startW - w) // keep the east edge anchored
+    } else if (r.dir.includes('e')) {
+      w = Math.min(Math.max(r.startW + dx, RESIZE_MIN_W), vw - r.startLeft)
+    }
+    if (r.dir.includes('n')) {
+      const maxH = Math.max(RESIZE_MIN_H, vh - r.startTop)
+      h = Math.min(Math.max(r.startH - dy, RESIZE_MIN_H), maxH)
+      top = r.startTop + (r.startH - h) // keep the south edge anchored
+    } else if (r.dir.includes('s')) {
+      h = Math.min(Math.max(r.startH + dy, RESIZE_MIN_H), vh - r.startTop)
+    }
+
+    setSize({ w, h })
+    setPosition(left, top)
+  }
+
+  const endResize = (e: React.PointerEvent) => {
+    if (!resizeStartRef.current) return
+    const el = rootElemRef.current
+    if (el) { try { el.releasePointerCapture(e.pointerId) } catch { /* noop */ } }
+    resizeStartRef.current = null
+  }
+
+  const RESIZE_HANDLES: { dir: string; inset: React.CSSProperties; cursor: string }[] = [
+    { dir: 'nw', inset: { top: 0, left: 0, width: HANDLE, height: HANDLE }, cursor: 'nwse-resize' },
+    { dir: 'n', inset: { top: 0, left: HANDLE, right: HANDLE, height: HANDLE }, cursor: 'ns-resize' },
+    { dir: 'ne', inset: { top: 0, right: 0, width: HANDLE, height: HANDLE }, cursor: 'nesw-resize' },
+    { dir: 'e', inset: { top: HANDLE, right: 0, bottom: HANDLE, width: HANDLE }, cursor: 'ew-resize' },
+    { dir: 'se', inset: { bottom: 0, right: 0, width: HANDLE, height: HANDLE }, cursor: 'nwse-resize' },
+    { dir: 's', inset: { bottom: 0, left: HANDLE, right: HANDLE, height: HANDLE }, cursor: 'ns-resize' },
+    { dir: 'sw', inset: { bottom: 0, left: 0, width: HANDLE, height: HANDLE }, cursor: 'nesw-resize' },
+    { dir: 'w', inset: { top: HANDLE, left: 0, bottom: HANDLE, width: HANDLE }, cursor: 'ew-resize' },
+  ]
 
   const render = useCallback((timestamp: number) => {
     const canvas = canvasRef.current
@@ -613,7 +708,7 @@ export function StreamGraph() {
 
   return (
     <motion.div
-      ref={containerRef}
+      ref={rootRef}
       {...dragProps}
       initial={{ x: 20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
@@ -621,8 +716,8 @@ export function StreamGraph() {
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       style={{
         position: 'absolute',
-        width: 240,
-        height: 360,
+        width: size.w,
+        height: size.h,
         zIndex: 15,
         display: 'flex',
         flexDirection: 'column',
@@ -826,6 +921,35 @@ export function StreamGraph() {
           ))}
         </div>
       )}
+    {/* Resize handles: drag any edge or corner */}
+      {RESIZE_HANDLES.map(h => (
+        <div
+          key={h.dir}
+          onPointerDown={startResize(h.dir)}
+          onPointerMove={moveResize}
+          onPointerUp={endResize}
+          onPointerCancel={endResize}
+          title={`Resize (${h.dir})`}
+          style={{
+            position: 'absolute',
+            ...h.inset,
+            cursor: h.cursor,
+            pointerEvents: 'auto',
+            touchAction: 'none',
+            zIndex: 8,
+          }}
+        />
+      ))}
+      {/* Corner grip affordance (south-east) */}
+      <div style={{
+        position: 'absolute', bottom: 3, right: 4,
+        width: 8, height: 8,
+        pointerEvents: 'none',
+        opacity: 0.35,
+        background:
+          'linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.55) 42%, rgba(255,255,255,0.55) 50%, transparent 52%),' +
+          'linear-gradient(135deg, transparent 60%, rgba(255,255,255,0.4) 62%, rgba(255,255,255,0.4) 70%, transparent 72%)',
+      }} />
     </motion.div>
   )
 }

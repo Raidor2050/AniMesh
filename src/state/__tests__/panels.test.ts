@@ -36,4 +36,13 @@ describe('panel visibility toggle (params + eq with the panels button)', () => {
     useUIStore.getState().togglePanelsVisible()
     expect(useUIStore.getState().minimizedPanels).toEqual(['stream'])
   })
+
+  it('never minimizes the boxes itself — the button is a pure show/hide', () => {
+    useUIStore.setState({ panelsVisible: true, minimizedPanels: [] })
+    useUIStore.getState().togglePanelsVisible() // hide
+    expect(useUIStore.getState().minimizedPanels).toEqual([])
+    useUIStore.getState().togglePanelsVisible() // show again
+    expect(useUIStore.getState().panelsVisible).toBe(true)
+    expect(useUIStore.getState().minimizedPanels).toEqual([])
+  })
 })
