@@ -17,12 +17,19 @@ const BANDS: { signal: AudioSignal; label: string; color: string; glowColor: str
 const CURVES: AudioMapping['curve'][] = ['linear', 'log', 'exp']
 const CURVE_LABELS: Record<string, string> = { linear: 'Lin', log: 'Log', exp: 'Exp' }
 
+/** Stable, toggleable id for a mapping (shared with the renderer filter). */
+function mappingId(m: AudioMapping): string {
+  return `${m.signal}->${m.param}`
+}
+
 export function EQMappingPanel() {
   const activeShader = useShaderStore(s => s.activeShader)
   const customMappings = useShaderStore(s => s.customAudioMappings)
   const addMapping = useShaderStore(s => s.addCustomAudioMapping)
   const removeMapping = useShaderStore(s => s.removeCustomAudioMapping)
   const updateMapping = useShaderStore(s => s.updateCustomAudioMapping)
+  const disabledMappings = useShaderStore(s => s.disabledMappings)
+  const toggleMappingDisabled = useShaderStore(s => s.toggleMappingDisabled)
   const immersive = useUIStore(s => s.immersive)
   const panelsVisible = useUIStore(s => s.panelsVisible)
   const isMinimized = useUIStore(s => s.minimizedPanels.includes('eq'))
@@ -190,16 +197,23 @@ export function EQMappingPanel() {
                     padding: '3px 0',
                     fontSize: 10, fontFamily: typography.families.mono,
                     color: colors.text.tertiary,
+                    opacity: disabledMappings.includes(mappingId(m)) ? 0.45 : 1,
                   }}>
+                    <ToggleButton
+                      on={!disabledMappings.includes(mappingId(m))}
+                      label={`Toggle ${m.signal} to ${m.param}`}
+                      onClick={() => toggleMappingDisabled(mappingId(m))}
+                    />
                     <span style={{
                       padding: '1px 4px',
                       borderRadius: 3,
                       background: BANDS.find(b => b.signal === m.signal)?.color + '22',
                       color: BANDS.find(b => b.signal === m.signal)?.color ?? colors.text.tertiary,
                       fontSize: 9,
+                      textDecoration: disabledMappings.includes(mappingId(m)) ? 'line-through' : 'none',
                     }}>{m.signal}</span>
                     <span style={{ opacity: 0.4 }}>→</span>
-                    <span style={{ color: colors.text.secondary }}>{m.param}</span>
+                    <span style={{ color: colors.text.secondary, textDecoration: disabledMappings.includes(mappingId(m)) ? 'line-through' : 'none' }}>{m.param}</span>
                     <span style={{ marginLeft: 'auto', opacity: 0.5, fontSize: 9 }}>
                       {CURVE_LABELS[m.curve] || m.curve} {(m.amount * 100).toFixed(0)}%
                     </span>
@@ -227,6 +241,8 @@ export function EQMappingPanel() {
                   key={index}
                   mapping={mapping}
                   availableParams={availableParams}
+                  disabled={disabledMappings.includes(mappingId(mapping))}
+                  onToggle={() => toggleMappingDisabled(mappingId(mapping))}
                   onUpdate={(m) => updateMapping(index, m)}
                   onRemove={() => removeMapping(index)}
                 />
@@ -354,9 +370,11 @@ function BandLevelRow({ band, level }: {
   )
 }
 
-function MappingRow({ mapping, availableParams, onUpdate, onRemove }: {
+function MappingRow({ mapping, availableParams, disabled, onToggle, onUpdate, onRemove }: {
   mapping: AudioMapping
   availableParams: string[]
+  disabled: boolean
+  onToggle: () => void
   onUpdate: (m: AudioMapping) => void
   onRemove: () => void
 }) {
@@ -366,11 +384,19 @@ function MappingRow({ mapping, availableParams, onUpdate, onRemove }: {
     <div style={{
       padding: '6px 0',
       borderBottom: `1px solid ${colors.surface.secondary}`,
+      opacity: disabled ? 0.5 : 1,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+        {/* Enabled toggle — off lets the user tweak this param by hand */}
+        <ToggleButton
+          on={!disabled}
+          label={`Toggle ${mapping.signal} to ${mapping.param}`}
+          onClick={onToggle}
+        />
         {/* Signal selector */}
         <select
           value={mapping.signal}
+          disabled={disabled}
           onChange={e => onUpdate({ ...mapping, signal: e.target.value as AudioSignal })}
           style={{
             flex: 1,
@@ -383,7 +409,8 @@ function MappingRow({ mapping, availableParams, onUpdate, onRemove }: {
             fontSize: 10,
             fontFamily: typography.families.mono,
             outline: 'none',
-            cursor: 'pointer',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            opacity: disabled ? 0.5 : 1,
           }}
         >
           {BANDS.map(b => (
@@ -398,6 +425,7 @@ function MappingRow({ mapping, availableParams, onUpdate, onRemove }: {
         {/* Param selector */}
         <select
           value={mapping.param}
+          disabled={disabled}
           onChange={e => onUpdate({ ...mapping, param: e.target.value })}
           style={{
             flex: 1,
@@ -410,7 +438,8 @@ function MappingRow({ mapping, availableParams, onUpdate, onRemove }: {
             fontSize: 10,
             fontFamily: typography.families.mono,
             outline: 'none',
-            cursor: 'pointer',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            opacity: disabled ? 0.5 : 1,
           }}
         >
           {availableParams.map(p => (
@@ -447,19 +476,22 @@ function MappingRow({ mapping, availableParams, onUpdate, onRemove }: {
           max={2}
           step={0.05}
           value={mapping.amount}
+          disabled={disabled}
           onChange={e => onUpdate({ ...mapping, amount: parseFloat(e.target.value) })}
-          style={{ flex: 1, height: 3 }}
+          style={{ flex: 1, height: 3, opacity: disabled ? 0.5 : 1 }}
         />
         <span style={{
           fontFamily: typography.families.mono,
           fontSize: 9,
           color: colors.accent.primary,
           minWidth: 28, textAlign: 'right',
+          opacity: disabled ? 0.5 : 1,
         }}>{(mapping.amount * 100).toFixed(0)}%</span>
 
         {/* Curve selector */}
         <select
           value={mapping.curve}
+          disabled={disabled}
           onChange={e => onUpdate({ ...mapping, curve: e.target.value as AudioMapping['curve'] })}
           style={{
             padding: '2px 3px',
@@ -471,7 +503,8 @@ function MappingRow({ mapping, availableParams, onUpdate, onRemove }: {
             fontSize: 9,
             fontFamily: typography.families.mono,
             outline: 'none',
-            cursor: 'pointer',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            opacity: disabled ? 0.5 : 1,
           }}
         >
           {CURVES.map(c => (
@@ -482,5 +515,47 @@ function MappingRow({ mapping, availableParams, onUpdate, onRemove }: {
         </select>
       </div>
     </div>
+  )
+}
+
+/** Compact on/off pill used to enable/disable an audio mapping. */
+function ToggleButton({ on, label, onClick }: {
+  on: boolean
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick() }}
+      aria-label={label}
+      title={on ? 'Audio mapping on — disable to tweak this parameter manually' : 'Audio mapping off — enable audio control'}
+      aria-pressed={on}
+      style={{
+        width: 20, height: 14,
+        flexShrink: 0,
+        position: 'relative',
+        border: `1px solid ${on ? 'rgba(99,102,241,0.5)' : colors.surface.secondary}`,
+        borderRadius: 8,
+        background: on ? 'rgba(99,102,241,0.25)' : colors.surface.primary,
+        cursor: 'pointer',
+        padding: 0,
+        transition: 'all 0.12s ease',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = on ? 'rgba(129,140,248,0.8)' : colors.borderHover }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = on ? 'rgba(99,102,241,0.5)' : colors.surface.secondary }}
+    >
+      <span style={{
+        position: 'absolute',
+        top: '50%',
+        left: on ? 'auto' : 2,
+        right: on ? 2 : 'auto',
+        transform: 'translateY(-50%)',
+        width: 9, height: 9,
+        borderRadius: '50%',
+        background: on ? '#A5B4FC' : colors.text.disabled,
+        boxShadow: on ? '0 0 5px rgba(165,180,252,0.7)' : 'none',
+        transition: 'all 0.12s ease',
+      }} />
+    </button>
   )
 }

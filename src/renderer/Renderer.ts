@@ -5,6 +5,11 @@ import { audioDataBridge, useUIStore } from '../state/stores'
 import { ProgramCache } from './programCache'
 import { stepAdaptive, createAdaptiveState, AdaptiveState } from './adaptive'
 
+/** Stable id for an audio mapping, shared with the EQ Mapping panel toggle. */
+function mappingId(m: AudioMapping): string {
+  return `${m.signal}->${m.param}`
+}
+
 // Typed locally: lib.dom in this TS version omits the WebGL2 timer-query
 // extension interface on some platforms.
 interface ExtDisjointTimerQueryWebGL2 {
@@ -405,7 +410,7 @@ export class Renderer {
     return this.cache.has(def.vertex ?? VERT_SRC, def.fragment)
   }
 
-  render(audio: AudioSnapshot, time: number, mouse: [number, number], customMappings?: AudioMapping[], userParams?: Record<string, number>) {
+  render(audio: AudioSnapshot, time: number, mouse: [number, number], customMappings?: AudioMapping[], userParams?: Record<string, number>, disabledMappings?: string[]) {
     const { gl, width, height } = this
     if (!this.program || width === 0 || height === 0 || !this.vao) return
 
@@ -443,10 +448,15 @@ export class Renderer {
     const mergedBase = userParams ? { ...this.baseParams, ...userParams } : this.baseParams
 
     // Custom routes (EQ panel) are rebuilt only when the mapping list changes.
-    const customKey = JSON.stringify(customMappings ?? [])
-    if (customKey !== this.customRoutes.key) {
-      this.customRoutes.key = customKey
-      this.customRoutes.routes = legacyToRoutes(customMappings ?? [], this.ranges, 'custom')
+    // A disabled mapping id <signal>-><param> drops it from both built-in and
+    // custom routes so the user can take that param over manually.
+    const mappingKey = `${customMappings?.length ?? 0}:${(disabledMappings ?? []).join(',')}`
+    if (mappingKey !== this.customRoutes.key) {
+      this.customRoutes.key = mappingKey
+      const enabled = (m: AudioMapping) => !disabledMappings?.includes(mappingId(m))
+      const builtin = this.currentShader ? (this.currentShader.audioMappings ?? []).filter(enabled) : []
+      this.customRoutes.routes = legacyToRoutes((customMappings ?? []).filter(enabled), this.ranges, 'custom')
+      this.graph.setShaderRoutes(legacyToRoutes(builtin, this.ranges, 'shader'))
       this.graph.setCustomRoutes(this.customRoutes.routes)
     }
 

@@ -110,6 +110,7 @@ interface ShaderStore {
   favorites: string[]
   recent: string[]
   customAudioMappings: AudioMapping[]
+  disabledMappings: string[]
   history: HistoryEntry[]
   savedChips: Record<string, ShaderPreset[]>
   setActiveShader: (shader: ShaderDefinition) => void
@@ -125,6 +126,7 @@ interface ShaderStore {
   addCustomAudioMapping: (mapping: AudioMapping) => void
   removeCustomAudioMapping: (index: number) => void
   updateCustomAudioMapping: (index: number, mapping: AudioMapping) => void
+  toggleMappingDisabled: (key: string) => void
 }
 
 const savedFavorites = safeJSONParse<string[]>(safeGetItem('animesh-favorites'), [])
@@ -142,6 +144,7 @@ export const useShaderStore = create<ShaderStore>((set) => ({
   favorites: savedFavorites,
   recent: savedRecent,
   customAudioMappings: [],
+  disabledMappings: safeJSONParse<string[]>(safeGetItem('animesh-disabled-mappings'), []),
   history: [],
   savedChips,
   setActiveShader: (shader) => set((s) => {
@@ -218,6 +221,13 @@ export const useShaderStore = create<ShaderStore>((set) => ({
   updateCustomAudioMapping: (index, mapping) => set((s) => ({
     customAudioMappings: s.customAudioMappings.map((m, i) => i === index ? mapping : m),
   })),
+  toggleMappingDisabled: (key) => set((s) => {
+    const disabled = s.disabledMappings.includes(key)
+      ? s.disabledMappings.filter(k => k !== key)
+      : [...s.disabledMappings, key]
+    safeSetItem('animesh-disabled-mappings', JSON.stringify(disabled))
+    return { disabledMappings: disabled }
+  }),
 }))
 
 type BPMMode = 'auto' | 'manual' | 'tap'

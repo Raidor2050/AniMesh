@@ -76,6 +76,7 @@ export function StreamGraph() {
     startLeft: number
     startTop: number
   } | null>(null)
+  const resizeHandleRef = useRef<HTMLElement | null>(null)
   const [viewMenuOpen, setViewMenuOpen] = useState(false)
   const [size, setSize] = useState({ w: STREAM_MIN_W, h: STREAM_MIN_H })
 
@@ -111,9 +112,13 @@ export function StreamGraph() {
   const startResize = (dir: string) => (e: React.PointerEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    // Capture on the handle itself so move/up fire on the element that owns the
+    // handlers — capturing on the root would redirect events away from them.
+    const handle = e.currentTarget as HTMLElement
+    handle.setPointerCapture(e.pointerId)
+    resizeHandleRef.current = handle
     const el = rootElemRef.current
     if (!el) return
-    el.setPointerCapture(e.pointerId)
     resizeStartRef.current = {
       dir,
       startX: e.clientX,
@@ -128,6 +133,8 @@ export function StreamGraph() {
   const moveResize = (e: React.PointerEvent) => {
     const r = resizeStartRef.current
     if (!r) return
+    const el = rootElemRef.current
+    if (!el) return
     const dx = e.clientX - r.startX
     const dy = e.clientY - r.startY
     const vw = window.innerWidth
@@ -139,29 +146,44 @@ export function StreamGraph() {
     let top = r.startTop
 
     if (r.dir.includes('w')) {
-      const maxW = Math.max(RESIZE_MIN_W, vw - r.startLeft)
+      // Can't grow past the left viewport edge (anchors the east edge).
+      const maxW = Math.max(RESIZE_MIN_W, r.startW + r.startLeft)
       w = Math.min(Math.max(r.startW - dx, RESIZE_MIN_W), maxW)
       left = r.startLeft + (r.startW - w) // keep the east edge anchored
     } else if (r.dir.includes('e')) {
       w = Math.min(Math.max(r.startW + dx, RESIZE_MIN_W), vw - r.startLeft)
     }
     if (r.dir.includes('n')) {
-      const maxH = Math.max(RESIZE_MIN_H, vh - r.startTop)
+      // Can't grow past the top of the viewport (anchors the south edge).
+      const maxH = Math.max(RESIZE_MIN_H, r.startH + r.startTop)
       h = Math.min(Math.max(r.startH - dy, RESIZE_MIN_H), maxH)
       top = r.startTop + (r.startH - h) // keep the south edge anchored
     } else if (r.dir.includes('s')) {
       h = Math.min(Math.max(r.startH + dy, RESIZE_MIN_H), vh - r.startTop)
     }
 
-    setSize({ w, h })
-    setPosition(left, top)
+    // Mutate the live ref + DOM directly — no React re-renders mid-drag, so the
+    // resize stays smooth while the rAF canvas loop holds the frame budget.
+    sizeRef.current = { w, h }
+    el.style.width = `${w}px`
+    el.style.height = `${h}px`
+    el.style.left = `${left}px`
+    el.style.top = `${top}px`
   }
 
   const endResize = (e: React.PointerEvent) => {
     if (!resizeStartRef.current) return
-    const el = rootElemRef.current
-    if (el) { try { el.releasePointerCapture(e.pointerId) } catch { /* noop */ } }
+    const handle = resizeHandleRef.current
+    if (handle) { try { handle.releasePointerCapture(e.pointerId) } catch { /* noop */ } }
+    resizeHandleRef.current = null
     resizeStartRef.current = null
+    const el = rootElemRef.current
+    if (el) {
+      const x = parseFloat(el.style.left) || 0
+      const y = parseFloat(el.style.top) || 0
+      setPosition(x, y)
+    }
+    setSize({ ...sizeRef.current })
   }
 
   const RESIZE_HANDLES: { dir: string; inset: React.CSSProperties; cursor: string }[] = [
