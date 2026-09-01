@@ -458,6 +458,14 @@ export class Renderer {
       this.customRoutes.routes = legacyToRoutes((customMappings ?? []).filter(enabled), this.ranges, 'custom')
       this.graph.setShaderRoutes(legacyToRoutes(builtin, this.ranges, 'shader'))
       this.graph.setCustomRoutes(this.customRoutes.routes)
+      // Mute global profile routes for any param the user disabled, so that
+      // param is fully manual rather than still shimmed by the global mapper.
+      const disabledTargets = new Set<string>()
+      for (const d of disabledMappings ?? []) {
+        const target = d.split('->')[1]
+        if (target) disabledTargets.add(target)
+      }
+      this.graph.setDisabledTargets(disabledTargets)
     }
 
     this.graph.setBaseParams(mergedBase)

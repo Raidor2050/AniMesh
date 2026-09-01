@@ -139,6 +139,8 @@ export class FeatureGraph {
   private shaderRoutes: Route[] = []
   private customRoutes: Route[] = []
   private base: Record<string, number> = {}
+  /** Params whose audio routes are user-disabled (globals for them are muted too). */
+  private disabledTargets = new Set<string>()
 
   private envelopes = new Map<string, number>()
   private silence = false
@@ -201,6 +203,13 @@ export class FeatureGraph {
   }
 
   setCustomRoutes(routes: Route[]) { this.customRoutes = routes }
+
+  /**
+   * Params the user has disabled via the EQ Mapping toggles. Global profile
+   * routes targeting any of these are muted so the param stays fully manual
+   * (the toggles must truly turn the assignment off, not just the shader route).
+   */
+  setDisabledTargets(targets: Set<string>) { this.disabledTargets = targets }
 
   isSilent(): boolean { return this.silence }
 
@@ -447,8 +456,13 @@ export class FeatureGraph {
       uniforms[id] = this.macroValues[id]
     }
 
-    // per-shader + custom + global routes
-    const all = [...this.shaderRoutes, ...this.customRoutes, ...this.profile.globalRoutes]
+    // per-shader + custom + global routes (globals targeting user-disabled
+    // params are muted so those params stay under manual control)
+    const all: Route[] = [
+      ...this.shaderRoutes,
+      ...this.customRoutes,
+      ...this.profile.globalRoutes.filter(r => !this.disabledTargets.has(r.target)),
+    ]
     // Drop outputs whose target is no longer routed (shader switched) so stale
     // uniforms never leak into the next program's buffer.
     const targets = new Set<string>()

@@ -217,3 +217,60 @@ describe('legacyToRoutes', () => {
     expect(routes[0].src).toBe('volume')
   })
 })
+
+describe('EQ mapping disable — global routes muted for the disabled param', () => {
+  const GLOBAL_PROFILE: Profile = {
+    macros: { uMacroEnergy: 1, uMacroComplexity: 1, uMacroMotion: 1, uMacroMusicality: 1, uMacroAtmosphere: 1 },
+    macroDefs: [],
+    globalRoutes: [
+      { id: 'global_bass_scale', src: 'bass', target: 'scale', amount: 0.3, curve: 'linear', attack: 0.001, release: 0.001, op: 'add' },
+      { id: 'global_beat_intensity', src: 'beat', target: 'intensity', amount: 0.35, curve: 'linear', attack: 0.001, release: 0.001, op: 'add' },
+    ],
+  }
+
+  it('routes the param above base when nothing is disabled', () => {
+    const g = graphWith(GLOBAL_PROFILE)
+    for (let i = 0; i < 30; i++) g.applySnapshot(snapshot({ bass: 1 }), 1 / 60)
+    const out = g.applySnapshot(snapshot({ bass: 1 }), 1 / 60)
+    expect(out.scale).toBeGreaterThan(BASE.scale)
+  })
+
+  it('drops the disabled param from the routed output (global muted)', () => {
+    const fresh = graphWith(GLOBAL_PROFILE)
+    fresh.setDisabledTargets(new Set(['scale']))
+    fresh.setParamRanges(RANGES)
+    fresh.setBaseParams(BASE)
+    for (let i = 0; i < 30; i++) fresh.applySnapshot(snapshot({ bass: 1 }), 1 / 60)
+    const out = fresh.applySnapshot(snapshot({ bass: 1 }), 1 / 60)
+    // scale has no routes left, so it is absent from the graph output — the
+    // renderer then supplies the user's manual value via mergedBase.
+    expect(out.scale).toBeUndefined()
+    // "scale" is no longer a tracked route target.
+    expect(out).not.toHaveProperty('scale')
+  })
+
+  it('leaves other params routed by a disable', () => {
+    const fresh = graphWith(GLOBAL_PROFILE)
+    fresh.setDisabledTargets(new Set(['scale']))
+    fresh.setParamRanges(RANGES)
+    fresh.setBaseParams(BASE)
+    for (let i = 0; i < 30; i++) fresh.applySnapshot(snapshot({ bass: 1, beatOn: true, beat: true, beatIntensity: 1 }), 1 / 60)
+    const out = fresh.applySnapshot(snapshot({ bass: 1, beatOn: true, beat: true, beatIntensity: 1 }), 1 / 60)
+    expect(out.scale).toBeUndefined()
+    expect(out.intensity).toBeGreaterThan(BASE.intensity)
+  })
+
+  it('re-routing after re-enable drives the param again', () => {
+    const fresh = graphWith(GLOBAL_PROFILE)
+    fresh.setParamRanges(RANGES)
+    fresh.setBaseParams(BASE)
+    fresh.setDisabledTargets(new Set(['scale']))
+    for (let i = 0; i < 30; i++) fresh.applySnapshot(snapshot({ bass: 1 }), 1 / 60)
+    const muted = fresh.applySnapshot(snapshot({ bass: 1 }), 1 / 60)
+    expect(muted.scale).toBeUndefined()
+    fresh.setDisabledTargets(new Set())
+    for (let i = 0; i < 30; i++) fresh.applySnapshot(snapshot({ bass: 1 }), 1 / 60)
+    const restored = fresh.applySnapshot(snapshot({ bass: 1 }), 1 / 60)
+    expect(restored.scale).toBeGreaterThan(BASE.scale)
+  })
+})
